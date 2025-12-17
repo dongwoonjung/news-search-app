@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     const domains = TRUSTED_SOURCES.join(',');
 
     const queryParams = new URLSearchParams({
-      apiKey: process.env.VITE_NEWS_API_KEY,
+      apiKey: process.env.NEWS_API_KEY || process.env.VITE_NEWS_API_KEY,
       q: query,
       domains: domains,
       language: 'en',
