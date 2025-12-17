@@ -54,13 +54,41 @@ export default function GlobalNewsApp() {
     return 'bg-blue-100 text-blue-800';
   };
 
-  const analyzeNews = (item, idx) => {
+  const analyzeNews = async (item, idx) => {
     setAnalyzingId(idx);
-    setTimeout(() => {
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: item.title,
+          summary: item.summary,
+          source: item.source,
+          date: item.date
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAnalysis(prev => ({ ...prev, [idx]: data.analysis }));
+      } else {
+        console.error('Analysis failed:', data.error);
+        // 실패시 폴백으로 기존 로직 사용
+        const anal = analyzeForHyundai(item);
+        setAnalysis(prev => ({ ...prev, [idx]: anal }));
+      }
+    } catch (error) {
+      console.error('Error analyzing news:', error);
+      // 에러시 폴백으로 기존 로직 사용
       const anal = analyzeForHyundai(item);
       setAnalysis(prev => ({ ...prev, [idx]: anal }));
+    } finally {
       setAnalyzingId(null);
-    }, 1000);
+    }
   };
 
   const translateNews = async (item, idx) => {
