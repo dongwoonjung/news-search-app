@@ -58,6 +58,7 @@ export default function GlobalNewsApp() {
     setAnalyzingId(idx);
 
     try {
+      console.log('🔍 Calling Claude API for analysis...');
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
@@ -71,18 +72,21 @@ export default function GlobalNewsApp() {
         })
       });
 
+      console.log('📡 API Response status:', response.status);
       const data = await response.json();
+      console.log('📦 API Response data:', data);
 
-      if (data.success) {
+      if (data.success && data.analysis) {
+        console.log('✅ Claude AI analysis received!');
         setAnalysis(prev => ({ ...prev, [idx]: data.analysis }));
       } else {
-        console.error('Analysis failed:', data.error);
+        console.warn('⚠️ Analysis failed, using fallback. Error:', data.error);
         // 실패시 폴백으로 기존 로직 사용
         const anal = analyzeForHyundai(item);
         setAnalysis(prev => ({ ...prev, [idx]: anal }));
       }
     } catch (error) {
-      console.error('Error analyzing news:', error);
+      console.error('❌ Error analyzing news:', error);
       // 에러시 폴백으로 기존 로직 사용
       const anal = analyzeForHyundai(item);
       setAnalysis(prev => ({ ...prev, [idx]: anal }));
