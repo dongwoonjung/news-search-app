@@ -23,6 +23,17 @@ export default async function handler(req, res) {
       return;
     }
 
+    // API 키 확인
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY is not set!');
+      res.status(500).json({
+        error: 'ANTHROPIC_API_KEY environment variable is not configured in Vercel'
+      });
+      return;
+    }
+
+    console.log('API Key present:', process.env.ANTHROPIC_API_KEY ? 'Yes' : 'No');
+
     const prompt = `당신은 현대자동차 그룹의 전략 분석 전문가입니다. 다음 뉴스 기사를 현대자동차의 관점에서 심층 분석해주세요.
 
 **기사 정보:**
@@ -103,7 +114,9 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Claude API Error:', errorData);
-      throw new Error(`Claude API error: ${response.status}`);
+      console.error('Response status:', response.status);
+      console.error('API Key used:', process.env.ANTHROPIC_API_KEY ? 'Present' : 'Missing');
+      throw new Error(`Claude API error: ${response.status} - ${JSON.stringify(errorData)}`);
     }
 
     const data = await response.json();
