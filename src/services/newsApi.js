@@ -19,40 +19,8 @@ export const newsApi = {
   // 카테고리별 뉴스 검색
   searchByCategory: async (category, timeRange = 'day') => {
     try {
-      // 카테고리별 검색어 매핑 (더 넓은 범위)
-      const categoryQueries = {
-        'geopolitics': 'politics OR trade OR diplomacy OR international OR war OR sanctions OR security',
-        'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
-        'automotive': 'car OR vehicle OR automotive OR electric OR Tesla OR GM OR Ford OR Toyota OR Hyundai',
-        'ai-tech': 'AI OR artificial intelligence OR autonomous OR self-driving OR technology OR innovation OR chip OR semiconductor'
-      };
-
-      const query = categoryQueries[category] || 'technology';
-
-      // 날짜 계산 (더 넓은 범위로 수정 - 3일/2주)
-      const now = new Date();
-      const from = new Date(now);
-      if (timeRange === 'day') {
-        from.setDate(from.getDate() - 3);  // 1일 → 3일
-      } else {
-        from.setDate(from.getDate() - 14);  // 7일 → 14일
-      }
-
-      // 도메인 필터링을 위한 쿼리 생성
-      const domains = TRUSTED_SOURCES.join(',');
-
-      const queryParams = new URLSearchParams({
-        apiKey: API_KEY,
-        q: query,
-        domains: domains,  // 지정된 소스만 검색
-        language: 'en',
-        sortBy: 'publishedAt',
-        from: from.toISOString().split('T')[0],
-        to: now.toISOString().split('T')[0],
-        pageSize: 100  // 최대치로 가져오기
-      });
-
-      const response = await fetch(`${BASE_URL}/everything?${queryParams}`);
+      // Vercel Serverless Function 호출
+      const response = await fetch(`/api/news?category=${category}&timeRange=${timeRange}`);
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
@@ -60,41 +28,10 @@ export const newsApi = {
 
       const data = await response.json();
 
-      if (data.status === 'ok') {
+      if (data.success) {
         console.log(`📰 총 ${data.articles.length}개의 기사를 가져왔습니다.`);
 
-        // 다양한 소스에서 기사 가져오기
-        const targetCount = timeRange === 'day' ? 10 : 20;
-
-        // 소스별로 그룹화
-        const articlesBySource = {};
-        data.articles.forEach(article => {
-          const sourceName = article.source.name;
-          if (!articlesBySource[sourceName]) {
-            articlesBySource[sourceName] = [];
-          }
-          articlesBySource[sourceName].push(article);
-        });
-
-        console.log('📊 소스별 기사 수:', Object.keys(articlesBySource).map(s => `${s}: ${articlesBySource[s].length}`).join(', '));
-
-        // 각 소스에서 균등하게 가져오기
-        const selectedArticles = [];
-        const sources = Object.keys(articlesBySource);
-        let sourceIndex = 0;
-
-        while (selectedArticles.length < targetCount && sources.length > 0) {
-          const source = sources[sourceIndex % sources.length];
-          if (articlesBySource[source] && articlesBySource[source].length > 0) {
-            selectedArticles.push(articlesBySource[source].shift());
-          } else {
-            sources.splice(sourceIndex % sources.length, 1);
-            continue;
-          }
-          sourceIndex++;
-        }
-
-        const filteredArticles = selectedArticles.map(article => ({
+        const filteredArticles = data.articles.map(article => ({
           title: article.title,
           summary: article.description || article.content?.substring(0, 200) + '...',
           date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -112,7 +49,7 @@ export const newsApi = {
           articles: filteredArticles
         };
       } else {
-        throw new Error(data.message || 'Failed to fetch news');
+        throw new Error(data.error || 'Failed to fetch news');
       }
     } catch (error) {
       console.error('Error fetching news:', error);
