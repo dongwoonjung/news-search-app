@@ -239,7 +239,7 @@ export default function GlobalNewsApp() {
                 <div className="space-y-3">
                   {overallAnalysis.opportunities && overallAnalysis.opportunities.length > 0 ? (
                     overallAnalysis.opportunities.map((opp, idx) => (
-                      <div key={idx} className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div key={`opp-${idx}-${opp.category}`} className="bg-green-50 border border-green-200 rounded-lg p-4">
                         <div className="flex items-start justify-between mb-2 gap-2">
                           <p className="font-medium text-gray-800 flex-1">{opp.point}</p>
                           <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -267,7 +267,7 @@ export default function GlobalNewsApp() {
                 <div className="space-y-3">
                   {overallAnalysis.risks && overallAnalysis.risks.length > 0 ? (
                     overallAnalysis.risks.map((risk, idx) => (
-                      <div key={idx} className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div key={`risk-${idx}-${risk.category}`} className="bg-red-50 border border-red-200 rounded-lg p-4">
                         <div className="flex items-start justify-between mb-2 gap-2">
                           <p className="font-medium text-gray-800 flex-1">{risk.point}</p>
                           <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
@@ -293,7 +293,7 @@ export default function GlobalNewsApp() {
         {!loading && !error && news.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">
             {news.map((item, idx) => (
-              <div key={idx} className="bg-white rounded-xl shadow-lg p-6">
+              <div key={`${item.url}-${idx}`} className="bg-white rounded-xl shadow-lg p-6">
                 <div className="flex items-start justify-between mb-3 gap-2">
                   <h3 className="text-lg font-bold text-gray-800 flex-1">
                     {translations[idx] ? translations[idx].title : item.title}
@@ -366,7 +366,7 @@ export default function GlobalNewsApp() {
                         <h5 className="text-sm font-semibold text-green-700 mb-2">📈 기회</h5>
                         <div className="space-y-2">
                           {analysis[idx].opportunities.map((opp, i) => (
-                            <div key={i} className="bg-green-50 border border-green-200 rounded p-2 text-sm">
+                            <div key={`item-${idx}-opp-${i}-${opp.category}`} className="bg-green-50 border border-green-200 rounded p-2 text-sm">
                               <div className="flex items-start justify-between gap-2">
                                 <p className="text-gray-700 flex-1">{opp.point}</p>
                                 <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
@@ -388,7 +388,7 @@ export default function GlobalNewsApp() {
                         <h5 className="text-sm font-semibold text-red-700 mb-2">⚠️ 리스크</h5>
                         <div className="space-y-2">
                           {analysis[idx].risks.map((risk, i) => (
-                            <div key={i} className="bg-red-50 border border-red-200 rounded p-2 text-sm">
+                            <div key={`item-${idx}-risk-${i}-${risk.category}`} className="bg-red-50 border border-red-200 rounded p-2 text-sm">
                               <div className="flex items-start justify-between gap-2">
                                 <p className="text-gray-700 flex-1">{risk.point}</p>
                                 <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
