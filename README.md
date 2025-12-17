@@ -160,3 +160,4 @@ MIT License
 ---
 
 **Powered by [NewsAPI.org](https://newsapi.org)**
+# News Search App - Deployed on Vercel
