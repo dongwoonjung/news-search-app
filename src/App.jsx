@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, Loader2, ExternalLink, Clock, Languages } from 'lucide-react';
+import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import './App.css';
 
@@ -362,44 +362,21 @@ export default function GlobalNewsApp() {
                   <ExternalLink className="w-4 h-4 inline mr-1" />
                   원문 보기
                 </a>
-                {!translations[idx] ? (
-                  <button
-                    onClick={() => translateNews(item, idx)}
-                    className="w-full px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 text-sm mb-2"
-                  >
-                    <Languages className="w-4 h-4 inline mr-1" />
-                    한글로 번역
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; })}
-                    className="w-full px-3 py-2 bg-gray-100 rounded-lg text-sm mb-2"
-                  >
-                    원문 보기
-                  </button>
-                )}
+                <button
+                  key={`translate-btn-${idx}-${translations[idx] ? 'translated' : 'original'}`}
+                  onClick={() => translations[idx] ? setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; }) : translateNews(item, idx)}
+                  className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[idx] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                >
+                  {translations[idx] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                </button>
 
                 <button
+                  key={`analyze-btn-${idx}-${analyzingId === idx ? 'loading' : analysis[idx] ? 'done' : 'ready'}`}
                   onClick={() => analyzeNews(item, idx)}
                   disabled={analyzingId === idx || analysis[idx]}
                   className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
                 >
-                  {analyzingId === idx ? (
-                    <>
-                      <Loader2 className="w-4 h-4 inline mr-1 animate-spin" />
-                      분석 중...
-                    </>
-                  ) : analysis[idx] ? (
-                    <>
-                      <TrendingUp className="w-4 h-4 inline mr-1" />
-                      분석 완료
-                    </>
-                  ) : (
-                    <>
-                      <TrendingUp className="w-4 h-4 inline mr-1" />
-                      현대차 관점 분석
-                    </>
-                  )}
+                  {analyzingId === idx ? '⏳ 분석 중...' : analysis[idx] ? '✅ 분석 완료' : '📊 현대차 관점 분석'}
                 </button>
 
                 {analysis[idx] && (
