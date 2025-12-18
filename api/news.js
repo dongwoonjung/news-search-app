@@ -32,9 +32,9 @@ export default async function handler(req, res) {
     const now = new Date();
     const from = new Date(now);
     if (timeRange === 'day') {
-      from.setDate(from.getDate() - 3);
+      from.setDate(from.getDate() - 1); // 당일과 하루 전 (총 2일)
     } else {
-      from.setDate(from.getDate() - 14);
+      from.setDate(from.getDate() - 7); // 일주일 전
     }
 
     // 지정된 뉴스 소스
