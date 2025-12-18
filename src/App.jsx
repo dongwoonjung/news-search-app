@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, Loader2, ExternalLink, Clock, Languages } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import './App.css';
@@ -158,7 +158,6 @@ export default function GlobalNewsApp() {
   const [analyzingId, setAnalyzingId] = useState(null);
   const [overallAnalysis, setOverallAnalysis] = useState(null);
   const [analyzingOverall, setAnalyzingOverall] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -241,20 +240,18 @@ export default function GlobalNewsApp() {
         analysisResult = analyzeForHyundai(item);
       }
 
-      // startTransition으로 state 업데이트를 낮은 우선순위로 처리
-      startTransition(() => {
-        setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
-        setAnalyzingId(null);
-      });
+      // 분석 결과 먼저 업데이트
+      setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
+      // 그 다음 로딩 상태 해제 (분리된 업데이트)
+      setAnalyzingId(null);
     } catch (error) {
       console.error('❌ Error analyzing news:', error);
       const analysisResult = analyzeForHyundai(item);
 
-      // startTransition으로 state 업데이트를 낮은 우선순위로 처리
-      startTransition(() => {
-        setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
-        setAnalyzingId(null);
-      });
+      // 분석 결과 먼저 업데이트
+      setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
+      // 그 다음 로딩 상태 해제 (분리된 업데이트)
+      setAnalyzingId(null);
     }
   };
 
@@ -488,7 +485,7 @@ export default function GlobalNewsApp() {
         {!loading && !error && news.length > 0 && (
           <div className="grid gap-4 md:grid-cols-2">
             {news.map((item, idx) => (
-              <div key={`news-${idx}-${item.title?.substring(0, 20)}`} className="bg-white rounded-xl shadow-lg p-6">
+              <div key={`news-${idx}`} className="bg-white rounded-xl shadow-lg p-6">
                 <div className="flex items-start justify-between mb-3 gap-2">
                   <h3 className="text-lg font-bold text-gray-800 flex-1">
                     {translations[idx] ? translations[idx].title : item.title}
