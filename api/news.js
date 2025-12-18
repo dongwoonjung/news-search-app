@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       const categoryQueries = {
         'geopolitics': 'politics OR trade OR diplomacy OR international OR war OR sanctions OR security',
         'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
-        'automotive': 'car OR vehicle OR automotive OR electric OR Tesla OR GM OR Ford OR Toyota OR Hyundai',
+        'automotive': '(automotive OR "auto industry" OR "car industry" OR "vehicle manufacturing") AND (market OR sales OR production OR technology OR EV OR electric OR manufacturing OR factory OR plant OR investment OR strategy OR competition)',
         'ai-tech': 'AI OR artificial intelligence OR autonomous OR self-driving OR technology OR innovation OR chip OR semiconductor'
       };
       query = categoryQueries[category] || 'technology';

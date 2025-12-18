@@ -55,13 +55,29 @@ export default function GlobalNewsApp() {
     try {
       const companiesData = {};
 
-      // 각 자동차 회사별로 뉴스 가져오기
+      // 1. 먼저 자동차 산업 전반 뉴스 가져오기 (공통 뉴스)
+      const industryResponse = await fetch(`/api/news?category=automotive&timeRange=week`);
+      if (industryResponse.ok) {
+        const industryData = await industryResponse.json();
+        if (industryData.success && industryData.articles.length > 0) {
+          companiesData['industry'] = industryData.articles.slice(0, 10).map(article => ({
+            title: article.title,
+            summary: article.description || article.content?.substring(0, 200) + '...',
+            date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            source: article.source.name,
+            importance: 'medium',
+            url: article.url,
+          }));
+        }
+      }
+
+      // 2. 각 자동차 회사별로 뉴스 가져오기
       for (const company of autoCompanies) {
-        const response = await fetch(`/api/news?category=automotive&company=${company.keywords}&timeRange=week`);
+        const response = await fetch(`/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=week`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.articles.length > 0) {
-            companiesData[company.id] = data.articles.slice(0, 5).map(article => ({
+            companiesData[company.id] = data.articles.slice(0, 3).map(article => ({
               title: article.title,
               summary: article.description || article.content?.substring(0, 200) + '...',
               date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -590,6 +606,80 @@ export default function GlobalNewsApp() {
         {/* 자동차 회사별 뉴스 뷰 */}
         {!loading && !error && viewMode === 'automotive' && Object.keys(autoNewsData).length > 0 && (
           <div className="space-y-6">
+            {/* 자동차 산업 공통 뉴스 섹션 */}
+            {autoNewsData['industry'] && autoNewsData['industry'].length > 0 && (
+              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl shadow-xl p-6 border-2 border-indigo-200">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <span className="text-3xl">🏭</span>
+                  자동차 산업 주요 뉴스
+                  <span className="text-sm font-normal text-gray-500 ml-2">(업계 공통)</span>
+                </h2>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  {autoNewsData['industry'].map((item, idx) => {
+                    const itemKey = `industry-${idx}`;
+                    return (
+                      <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm">
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">
+                          {translations[itemKey] ? translations[itemKey].title : item.title}
+                        </h3>
+                        <p className="text-gray-600 mb-3 text-sm">
+                          {translations[itemKey] ? translations[itemKey].summary : item.summary}
+                        </p>
+                        <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
+                          <span>{item.source}</span>
+                          <span>{item.date}</span>
+                        </div>
+
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
+                          <ExternalLink className="w-4 h-4 inline mr-1" />
+                          원문 보기
+                        </a>
+
+                        <button
+                          onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
+                          className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                        >
+                          {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                        </button>
+
+                        <button
+                          onClick={() => analyzeNews(item, itemKey)}
+                          disabled={analyzingId === itemKey}
+                          className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
+                        >
+                          {analyzingId === itemKey ? '⏳ 분석 중...' : analysis[itemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                        </button>
+
+                        {analysis[itemKey] && (
+                          <div className="mt-4 border-t pt-4">
+                            <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                              <span className="text-green-600">🚗</span>
+                              현대자동차 전략 분석 리포트
+                            </h4>
+
+                            {analysis[itemKey].summary && (
+                              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
+                                <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
+                                <p className="text-gray-700">{analysis[itemKey].summary}</p>
+                              </div>
+                            )}
+
+                            {analysis[itemKey].marketImpact && (
+                              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
+                                <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
+                                <p className="text-gray-700">{analysis[itemKey].marketImpact}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {autoCompanies.map(company => {
               const companyNews = autoNewsData[company.id] || [];
               if (companyNews.length === 0) return null;
