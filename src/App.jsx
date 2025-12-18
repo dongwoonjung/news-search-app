@@ -64,6 +64,16 @@ export default function GlobalNewsApp() {
   };
 
   const analyzeNews = async (item, idx) => {
+    // 이미 분석 결과가 있으면 토글 (숨기기)
+    if (analysis[idx]) {
+      setAnalysis(prev => {
+        const newAnalysis = { ...prev };
+        delete newAnalysis[idx];
+        return newAnalysis;
+      });
+      return;
+    }
+
     // 이미 분석 중이면 무시
     if (analyzingId !== null) return;
 
@@ -363,10 +373,10 @@ export default function GlobalNewsApp() {
                 <button
                   key={`analyze-btn-${idx}-${analyzingId === idx ? 'loading' : analysis[idx] ? 'done' : 'ready'}`}
                   onClick={() => analyzeNews(item, idx)}
-                  disabled={analyzingId === idx || analysis[idx]}
+                  disabled={analyzingId === idx}
                   className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
                 >
-                  {analyzingId === idx ? '⏳ 분석 중...' : analysis[idx] ? '✅ 분석 완료' : '📊 현대차 관점 분석'}
+                  {analyzingId === idx ? '⏳ 분석 중...' : analysis[idx] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                 </button>
 
                 {analysis[idx] && (
