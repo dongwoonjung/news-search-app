@@ -85,12 +85,6 @@ export default function GlobalNewsApp() {
   };
 
   const loadNews = async (cat, range) => {
-    // 자동차 카테고리는 특별 처리
-    if (cat === 'automotive') {
-      loadAutomotiveNews();
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setViewMode('general');
