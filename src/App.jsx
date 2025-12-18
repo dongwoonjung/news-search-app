@@ -4,7 +4,7 @@ import { newsApi, analyzeForHyundai } from './services/newsApi';
 import './App.css';
 
 // 분석 결과 컴포넌트를 별도로 분리
-function AnalysisResult({ analysis }) {
+const AnalysisResult = React.memo(({ analysis }) => {
   if (!analysis) return null;
 
   return (
@@ -144,7 +144,7 @@ function AnalysisResult({ analysis }) {
       )}
     </div>
   );
-}
+});
 
 export default function GlobalNewsApp() {
   const [news, setNews] = useState([]);
