@@ -263,6 +263,13 @@ export default function GlobalNewsApp() {
               >
                 {analyzingOverall ? '⏳ 분석 중...' : '📊 전체 뉴스 종합 분석'}
               </button>
+              <button
+                onClick={loadAutomotiveNews}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
+              >
+                🚗 경쟁사 분석
+              </button>
             </div>
           </div>
 
@@ -399,7 +406,7 @@ export default function GlobalNewsApp() {
           </div>
         )}
 
-        {!loading && !error && news.length > 0 && (
+        {!loading && !error && news.length > 0 && viewMode === 'general' && (
           <div className="grid gap-4 md:grid-cols-2">
             {news.map((item, idx) => (
               <div key={`news-${idx}`} className="bg-white rounded-xl shadow-lg p-6">
