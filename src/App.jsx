@@ -26,14 +26,14 @@ export default function GlobalNewsApp() {
   ];
 
   const autoCompanies = [
-    { id: 'hyundai', name: '현대자동차', keywords: 'Hyundai Motor' },
-    { id: 'kia', name: '기아', keywords: 'Kia Motors OR Kia' },
-    { id: 'toyota', name: '도요타', keywords: 'Toyota' },
-    { id: 'tesla', name: '테슬라', keywords: 'Tesla' },
-    { id: 'ford', name: '포드', keywords: 'Ford Motor' },
-    { id: 'gm', name: 'GM', keywords: 'General Motors OR GM' },
-    { id: 'bmw', name: 'BMW', keywords: 'BMW' },
-    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis' },
+    { id: 'hyundai', name: '현대자동차', keywords: '("Hyundai Motor" OR "Hyundai Motors") AND (car OR vehicle OR automotive OR EV OR electric)' },
+    { id: 'kia', name: '기아', keywords: '("Kia Motors" OR "Kia Corp" OR "Kia Corporation") AND (car OR vehicle OR automotive OR EV OR electric)' },
+    { id: 'toyota', name: '도요타', keywords: '("Toyota Motor" OR Toyota) AND (car OR vehicle OR automotive OR EV OR electric OR hybrid)' },
+    { id: 'tesla', name: '테슬라', keywords: 'Tesla AND (car OR vehicle OR automotive OR EV OR electric OR Musk OR Cybertruck)' },
+    { id: 'ford', name: '포드', keywords: '("Ford Motor" OR "Ford Motors") AND (car OR vehicle OR automotive OR EV OR electric OR F-150)' },
+    { id: 'gm', name: 'GM', keywords: '("General Motors" OR "GM Motors") AND (car OR vehicle OR automotive OR EV OR electric OR Cadillac OR Chevrolet)' },
+    { id: 'bmw', name: 'BMW', keywords: 'BMW AND (car OR vehicle OR automotive OR EV OR electric OR "electric vehicle")' },
+    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis AND (car OR vehicle OR automotive OR EV OR electric OR Jeep OR Peugeot OR Fiat)' },
   ];
 
   useEffect(() => {

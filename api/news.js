@@ -51,18 +51,22 @@ export default async function handler(req, res) {
       'cnn.com'
     ];
 
-    const domains = TRUSTED_SOURCES.join(',');
-
+    // 자동차 회사 검색일 경우 도메인 제한 없이 검색
     const queryParams = new URLSearchParams({
       apiKey: process.env.NEWS_API_KEY || process.env.VITE_NEWS_API_KEY,
       q: query,
-      domains: domains,
       language: 'en',
       sortBy: 'publishedAt',
       from: from.toISOString().split('T')[0],
       to: now.toISOString().split('T')[0],
       pageSize: 100
     });
+
+    // 회사별 검색이 아닐 때만 도메인 제한 적용
+    if (!company) {
+      const domains = TRUSTED_SOURCES.join(',');
+      queryParams.set('domains', domains);
+    }
 
     const response = await fetch(`https://newsapi.org/v2/everything?${queryParams}`);
     const data = await response.json();
