@@ -272,15 +272,50 @@ export default function GlobalNewsApp() {
   };
 
   const translateNews = async (item, idx) => {
-    // 실제로는 번역 API 호출
-    // 여기서는 간단한 시뮬레이션
-    setTranslations(prev => ({
-      ...prev,
-      [idx]: {
-        title: `[한글] ${item.title}`,
-        summary: `[한글 번역] ${item.summary}`
+    try {
+      const response = await fetch('/api/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: item.title,
+          summary: item.summary
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.translation) {
+        setTranslations(prev => ({
+          ...prev,
+          [idx]: {
+            title: data.translation.title,
+            summary: data.translation.summary
+          }
+        }));
+      } else {
+        console.error('Translation failed:', data.error);
+        // 실패 시 폴백
+        setTranslations(prev => ({
+          ...prev,
+          [idx]: {
+            title: `[번역 실패] ${item.title}`,
+            summary: `[번역 실패] ${item.summary}`
+          }
+        }));
       }
-    }));
+    } catch (error) {
+      console.error('Error translating news:', error);
+      // 에러 시 폴백
+      setTranslations(prev => ({
+        ...prev,
+        [idx]: {
+          title: `[오류] ${item.title}`,
+          summary: `[오류] ${item.summary}`
+        }
+      }));
+    }
   };
 
   const analyzeOverallNews = () => {
