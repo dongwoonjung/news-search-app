@@ -15,12 +15,25 @@ export default function GlobalNewsApp() {
   const [analyzingId, setAnalyzingId] = useState(null);
   const [overallAnalysis, setOverallAnalysis] = useState(null);
   const [analyzingOverall, setAnalyzingOverall] = useState(false);
+  const [viewMode, setViewMode] = useState('general'); // 'general' or 'automotive'
+  const [autoNewsData, setAutoNewsData] = useState({});
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
     { id: 'economy', name: '미국 경제', icon: TrendingUp },
     { id: 'automotive', name: '자동차', icon: Newspaper },
     { id: 'ai-tech', name: 'AI/자율주행', icon: TrendingUp },
+  ];
+
+  const autoCompanies = [
+    { id: 'hyundai', name: '현대자동차', keywords: 'Hyundai Motor' },
+    { id: 'kia', name: '기아', keywords: 'Kia Motors OR Kia' },
+    { id: 'toyota', name: '도요타', keywords: 'Toyota' },
+    { id: 'tesla', name: '테슬라', keywords: 'Tesla' },
+    { id: 'ford', name: '포드', keywords: 'Ford Motor' },
+    { id: 'gm', name: 'GM', keywords: 'General Motors OR GM' },
+    { id: 'bmw', name: 'BMW', keywords: 'BMW' },
+    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis' },
   ];
 
   useEffect(() => {
@@ -31,9 +44,56 @@ export default function GlobalNewsApp() {
     return () => clearTimeout(timer);
   }, []);
 
-  const loadNews = async (cat, range) => {
+  const loadAutomotiveNews = async () => {
     setLoading(true);
     setError(null);
+    setAnalysis({});
+    setTranslations({});
+    setAnalyzingId(null);
+    setOverallAnalysis(null);
+
+    try {
+      const companiesData = {};
+
+      // 각 자동차 회사별로 뉴스 가져오기
+      for (const company of autoCompanies) {
+        const response = await fetch(`/api/news?category=automotive&company=${company.keywords}&timeRange=week`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.articles.length > 0) {
+            companiesData[company.id] = data.articles.slice(0, 5).map(article => ({
+              title: article.title,
+              summary: article.description || article.content?.substring(0, 200) + '...',
+              date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              source: article.source.name,
+              importance: 'medium',
+              url: article.url,
+            }));
+          }
+        }
+      }
+
+      setAutoNewsData(companiesData);
+      setViewMode('automotive');
+      setLastUpdated(new Date());
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading automotive news:', error);
+      setError(error.message);
+      setLoading(false);
+    }
+  };
+
+  const loadNews = async (cat, range) => {
+    // 자동차 카테고리는 특별 처리
+    if (cat === 'automotive') {
+      loadAutomotiveNews();
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setViewMode('general');
     // 새 뉴스 로드 시 기존 분석/번역 초기화
     setAnalysis({});
     setTranslations({});
@@ -519,10 +579,92 @@ export default function GlobalNewsApp() {
           </div>
         )}
 
-        {!loading && !error && news.length === 0 && (
+        {!loading && !error && news.length === 0 && viewMode === 'general' && (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
             <p className="text-gray-600 text-lg">뉴스를 찾을 수 없습니다.</p>
             <p className="text-gray-500 text-sm mt-2">다른 카테고리를 선택하거나 새로고침해보세요.</p>
+          </div>
+        )}
+
+        {/* 자동차 회사별 뉴스 뷰 */}
+        {!loading && !error && viewMode === 'automotive' && Object.keys(autoNewsData).length > 0 && (
+          <div className="space-y-6">
+            {autoCompanies.map(company => {
+              const companyNews = autoNewsData[company.id] || [];
+              if (companyNews.length === 0) return null;
+
+              return (
+                <div key={company.id} className="bg-white rounded-2xl shadow-xl p-6">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <span className="text-3xl">🚗</span>
+                    {company.name} 뉴스
+                  </h2>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {companyNews.map((item, idx) => {
+                      const itemKey = `${company.id}-${idx}`;
+                      return (
+                        <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                          <h3 className="text-lg font-bold text-gray-800 mb-2">
+                            {translations[itemKey] ? translations[itemKey].title : item.title}
+                          </h3>
+                          <p className="text-gray-600 mb-3 text-sm">
+                            {translations[itemKey] ? translations[itemKey].summary : item.summary}
+                          </p>
+                          <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
+                            <span>{item.source}</span>
+                            <span>{item.date}</span>
+                          </div>
+
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
+                            <ExternalLink className="w-4 h-4 inline mr-1" />
+                            원문 보기
+                          </a>
+
+                          <button
+                            onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
+                            className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                          >
+                            {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                          </button>
+
+                          <button
+                            onClick={() => analyzeNews(item, itemKey)}
+                            disabled={analyzingId === itemKey}
+                            className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
+                          >
+                            {analyzingId === itemKey ? '⏳ 분석 중...' : analysis[itemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                          </button>
+
+                          {analysis[itemKey] && (
+                            <div className="mt-4 border-t pt-4">
+                              <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                <span className="text-green-600">🚗</span>
+                                현대자동차 전략 분석 리포트
+                              </h4>
+
+                              {analysis[itemKey].summary && (
+                                <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
+                                  <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
+                                  <p className="text-gray-700">{analysis[itemKey].summary}</p>
+                                </div>
+                              )}
+
+                              {analysis[itemKey].marketImpact && (
+                                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
+                                  <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
+                                  <p className="text-gray-700">{analysis[itemKey].marketImpact}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
