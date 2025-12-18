@@ -363,7 +363,6 @@ export default function GlobalNewsApp() {
                   원문 보기
                 </a>
                 <button
-                  key={`translate-btn-${idx}-${translations[idx] ? 'translated' : 'original'}`}
                   onClick={() => translations[idx] ? setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; }) : translateNews(item, idx)}
                   className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[idx] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                 >
@@ -371,7 +370,6 @@ export default function GlobalNewsApp() {
                 </button>
 
                 <button
-                  key={`analyze-btn-${idx}-${analyzingId === idx ? 'loading' : analysis[idx] ? 'done' : 'ready'}`}
                   onClick={() => analyzeNews(item, idx)}
                   disabled={analyzingId === idx}
                   className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
