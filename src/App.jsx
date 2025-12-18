@@ -26,14 +26,14 @@ export default function GlobalNewsApp() {
   ];
 
   const autoCompanies = [
-    { id: 'hyundai', name: '현대자동차', keywords: '("Hyundai Motor" OR "Hyundai Motors") AND (car OR vehicle OR automotive OR EV OR electric)' },
-    { id: 'kia', name: '기아', keywords: '("Kia Motors" OR "Kia Corp" OR "Kia Corporation") AND (car OR vehicle OR automotive OR EV OR electric)' },
-    { id: 'toyota', name: '도요타', keywords: '("Toyota Motor" OR Toyota) AND (car OR vehicle OR automotive OR EV OR electric OR hybrid)' },
-    { id: 'tesla', name: '테슬라', keywords: 'Tesla AND (car OR vehicle OR automotive OR EV OR electric OR Musk OR Cybertruck)' },
-    { id: 'ford', name: '포드', keywords: '("Ford Motor" OR "Ford Motors") AND (car OR vehicle OR automotive OR EV OR electric OR F-150)' },
-    { id: 'gm', name: 'GM', keywords: '("General Motors" OR "GM Motors") AND (car OR vehicle OR automotive OR EV OR electric OR Cadillac OR Chevrolet)' },
-    { id: 'bmw', name: 'BMW', keywords: 'BMW AND (car OR vehicle OR automotive OR EV OR electric OR "electric vehicle")' },
-    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis AND (car OR vehicle OR automotive OR EV OR electric OR Jeep OR Peugeot OR Fiat)' },
+    { id: 'hyundai', name: '현대자동차', keywords: '"Hyundai Motor" OR "Hyundai Motors" OR "Hyundai EV"' },
+    { id: 'kia', name: '기아', keywords: '"Kia Motors" OR "Kia Corp" OR "Kia Corporation" OR "Kia EV"' },
+    { id: 'toyota', name: '도요타', keywords: '"Toyota Motor" OR "Toyota" OR "Toyota EV" OR "Toyota hybrid"' },
+    { id: 'tesla', name: '테슬라', keywords: 'Tesla OR "Elon Musk" OR Cybertruck OR "Tesla Model"' },
+    { id: 'ford', name: '포드', keywords: '"Ford Motor" OR "Ford F-150" OR "Ford EV" OR "Ford electric"' },
+    { id: 'gm', name: 'GM', keywords: '"General Motors" OR "GM" OR Cadillac OR "Chevrolet electric"' },
+    { id: 'bmw', name: 'BMW', keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"' },
+    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler' },
   ];
 
   useEffect(() => {
@@ -98,15 +98,52 @@ export default function GlobalNewsApp() {
         });
       });
 
-      // 3. 공통 뉴스 섹션 생성
+      // 3. 공통 뉴스 섹션 생성 (내용 유사도 체크로 중복 제거)
       const industryArticles = [];
       const seenUrls = new Set();
+
+      // 내용 유사도 체크 함수 (제목과 요약 비교)
+      const isSimilarContent = (article1, article2) => {
+        // URL이 같으면 동일한 기사
+        if (article1.url === article2.url) return true;
+
+        // 제목 유사도 체크 (단어 기반)
+        const title1Words = article1.title.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+        const title2Words = article2.title.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+
+        const commonTitleWords = title1Words.filter(w => title2Words.includes(w));
+        const titleSimilarity = commonTitleWords.length / Math.max(title1Words.length, title2Words.length);
+
+        // 제목이 70% 이상 유사하면 중복으로 간주
+        if (titleSimilarity >= 0.7) return true;
+
+        // 요약 유사도 체크
+        if (article1.summary && article2.summary) {
+          const summary1Words = article1.summary.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+          const summary2Words = article2.summary.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
+
+          const commonSummaryWords = summary1Words.filter(w => summary2Words.includes(w));
+          const summarySimilarity = commonSummaryWords.length / Math.max(summary1Words.length, summary2Words.length);
+
+          // 요약이 60% 이상 유사하면 중복으로 간주
+          if (summarySimilarity >= 0.6) return true;
+        }
+
+        return false;
+      };
 
       Object.values(allCompanyArticles).forEach(articles => {
         articles.forEach(article => {
           if (commonArticles.has(article.url) && !seenUrls.has(article.url)) {
-            industryArticles.push(article);
-            seenUrls.add(article.url);
+            // 이미 추가된 기사들과 내용 유사도 체크
+            const isDuplicate = industryArticles.some(existingArticle =>
+              isSimilarContent(article, existingArticle)
+            );
+
+            if (!isDuplicate) {
+              industryArticles.push(article);
+              seenUrls.add(article.url);
+            }
           }
         });
       });

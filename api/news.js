@@ -51,7 +51,6 @@ export default async function handler(req, res) {
       'cnn.com'
     ];
 
-    // 자동차 회사 검색일 경우 도메인 제한 없이 검색
     const queryParams = new URLSearchParams({
       apiKey: process.env.NEWS_API_KEY || process.env.VITE_NEWS_API_KEY,
       q: query,
@@ -62,8 +61,8 @@ export default async function handler(req, res) {
       pageSize: 100
     });
 
-    // 회사별 검색이 아닐 때만 도메인 제한 적용
-    if (!company) {
+    // 도메인 제한 적용 (자동차/회사 검색이 아닐 때만)
+    if (!company && category !== 'automotive') {
       const domains = TRUSTED_SOURCES.join(',');
       queryParams.set('domains', domains);
     }
@@ -73,6 +72,12 @@ export default async function handler(req, res) {
 
     if (data.status === 'ok') {
       const targetCount = timeRange === 'day' ? 10 : 20;
+
+      // 디버깅: 가져온 기사들의 소스 출력
+      if (company || category === 'automotive') {
+        const sources = [...new Set(data.articles.map(a => a.source.name))];
+        console.log(`📰 Fetched ${data.articles.length} articles from sources:`, sources.join(', '));
+      }
 
       // 소스별로 그룹화
       const articlesBySource = {};
