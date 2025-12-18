@@ -405,6 +405,8 @@ export default function GlobalNewsApp() {
                 </button>
 
                 <div className={`mt-4 border-t pt-4 transition-all duration-300 ${analysis[idx] ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+                  {analysis[idx] && (
+                    <>
                     <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                       <span className="text-green-600">🚗</span>
                       현대자동차 전략 분석 리포트
@@ -538,6 +540,8 @@ export default function GlobalNewsApp() {
                         </ul>
                       </div>
                     )}
+                    </>
+                  )}
                   </div>
               </div>
             ))}
