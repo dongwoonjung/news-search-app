@@ -30,6 +30,11 @@ export default function GlobalNewsApp() {
   const loadNews = async (cat, range) => {
     setLoading(true);
     setError(null);
+    // 새 뉴스 로드 시 기존 분석/번역 초기화
+    setAnalysis({});
+    setTranslations({});
+    setAnalyzingId(null);
+    setOverallAnalysis(null);
 
     try {
       const result = await newsApi.searchByCategory(cat, range);
@@ -55,6 +60,9 @@ export default function GlobalNewsApp() {
   };
 
   const analyzeNews = async (item, idx) => {
+    // 이미 분석 중이면 무시
+    if (analyzingId !== null) return;
+
     setAnalyzingId(idx);
 
     try {
@@ -76,21 +84,24 @@ export default function GlobalNewsApp() {
       const data = await response.json();
       console.log('📦 API Response data:', data);
 
+      let analysisResult;
       if (data.success && data.analysis) {
         console.log('✅ Claude AI analysis received!');
-        setAnalysis(prev => ({ ...prev, [idx]: data.analysis }));
+        analysisResult = data.analysis;
       } else {
         console.warn('⚠️ Analysis failed, using fallback. Error:', data.error);
-        // 실패시 폴백으로 기존 로직 사용
-        const anal = analyzeForHyundai(item);
-        setAnalysis(prev => ({ ...prev, [idx]: anal }));
+        analysisResult = analyzeForHyundai(item);
       }
+
+      // 한 번에 state 업데이트
+      setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
+      setAnalyzingId(null);
     } catch (error) {
       console.error('❌ Error analyzing news:', error);
-      // 에러시 폴백으로 기존 로직 사용
-      const anal = analyzeForHyundai(item);
-      setAnalysis(prev => ({ ...prev, [idx]: anal }));
-    } finally {
+      const analysisResult = analyzeForHyundai(item);
+
+      // 한 번에 state 업데이트
+      setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
       setAnalyzingId(null);
     }
   };
