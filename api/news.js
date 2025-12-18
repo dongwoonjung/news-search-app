@@ -11,17 +11,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { category, timeRange } = req.query;
+    const { category, timeRange, company } = req.query;
 
-    // 카테고리별 검색어 매핑
-    const categoryQueries = {
-      'geopolitics': 'politics OR trade OR diplomacy OR international OR war OR sanctions OR security',
-      'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
-      'automotive': 'car OR vehicle OR automotive OR electric OR Tesla OR GM OR Ford OR Toyota OR Hyundai',
-      'ai-tech': 'AI OR artificial intelligence OR autonomous OR self-driving OR technology OR innovation OR chip OR semiconductor'
-    };
-
-    const query = categoryQueries[category] || 'technology';
+    // 회사별 검색어가 있으면 우선 사용
+    let query;
+    if (company) {
+      query = company;
+    } else {
+      // 카테고리별 검색어 매핑
+      const categoryQueries = {
+        'geopolitics': 'politics OR trade OR diplomacy OR international OR war OR sanctions OR security',
+        'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
+        'automotive': 'car OR vehicle OR automotive OR electric OR Tesla OR GM OR Ford OR Toyota OR Hyundai',
+        'ai-tech': 'AI OR artificial intelligence OR autonomous OR self-driving OR technology OR innovation OR chip OR semiconductor'
+      };
+      query = categoryQueries[category] || 'technology';
+    }
 
     // 날짜 계산
     const now = new Date();
