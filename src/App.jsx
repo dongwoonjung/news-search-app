@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, Loader2, ExternalLink, Clock, Languages } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import './App.css';
@@ -15,6 +15,7 @@ export default function GlobalNewsApp() {
   const [analyzingId, setAnalyzingId] = useState(null);
   const [overallAnalysis, setOverallAnalysis] = useState(null);
   const [analyzingOverall, setAnalyzingOverall] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -97,20 +98,20 @@ export default function GlobalNewsApp() {
         analysisResult = analyzeForHyundai(item);
       }
 
-      // setTimeout으로 state 업데이트를 다음 이벤트 루프로 지연
-      setTimeout(() => {
+      // startTransition으로 state 업데이트를 낮은 우선순위로 처리
+      startTransition(() => {
         setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
-        setTimeout(() => setAnalyzingId(null), 0);
-      }, 0);
+        setAnalyzingId(null);
+      });
     } catch (error) {
       console.error('❌ Error analyzing news:', error);
       const analysisResult = analyzeForHyundai(item);
 
-      // setTimeout으로 state 업데이트를 다음 이벤트 루프로 지연
-      setTimeout(() => {
+      // startTransition으로 state 업데이트를 낮은 우선순위로 처리
+      startTransition(() => {
         setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
-        setTimeout(() => setAnalyzingId(null), 0);
-      }, 0);
+        setAnalyzingId(null);
+      });
     }
   };
 
