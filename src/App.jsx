@@ -69,9 +69,6 @@ export default function GlobalNewsApp() {
 
     setAnalyzingId(idx);
 
-    // requestAnimationFrame으로 비동기 처리를 다음 프레임으로 지연
-    await new Promise(resolve => requestAnimationFrame(resolve));
-
     try {
       console.log('🔍 Calling Claude API for analysis...');
       const response = await fetch('/api/analyze', {
@@ -100,20 +97,20 @@ export default function GlobalNewsApp() {
         analysisResult = analyzeForHyundai(item);
       }
 
-      // 다음 프레임에서 state 업데이트
-      requestAnimationFrame(() => {
+      // setTimeout으로 state 업데이트를 다음 이벤트 루프로 지연
+      setTimeout(() => {
         setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
-        setAnalyzingId(null);
-      });
+        setTimeout(() => setAnalyzingId(null), 0);
+      }, 0);
     } catch (error) {
       console.error('❌ Error analyzing news:', error);
       const analysisResult = analyzeForHyundai(item);
 
-      // 다음 프레임에서 state 업데이트
-      requestAnimationFrame(() => {
+      // setTimeout으로 state 업데이트를 다음 이벤트 루프로 지연
+      setTimeout(() => {
         setAnalysis(prev => ({ ...prev, [idx]: analysisResult }));
-        setAnalyzingId(null);
-      });
+        setTimeout(() => setAnalyzingId(null), 0);
+      }, 0);
     }
   };
 
