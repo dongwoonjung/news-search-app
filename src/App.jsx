@@ -191,17 +191,7 @@ export default function GlobalNewsApp() {
                 disabled={analyzingOverall || news.length === 0}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
               >
-                {analyzingOverall ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    분석 중...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="w-5 h-5 mr-2" />
-                    전체 뉴스 종합 분석
-                  </>
-                )}
+                {analyzingOverall ? '⏳ 분석 중...' : '📊 전체 뉴스 종합 분석'}
               </button>
             </div>
           </div>
@@ -256,7 +246,7 @@ export default function GlobalNewsApp() {
 
         {loading && (
           <div className="flex flex-col items-center py-12 bg-white rounded-xl shadow-lg">
-            <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
+            <div className="text-6xl mb-4 animate-pulse">⏳</div>
             <p className="text-gray-600">뉴스를 불러오는 중...</p>
           </div>
         )}
@@ -264,8 +254,8 @@ export default function GlobalNewsApp() {
         {overallAnalysis && (
           <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
             <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <div className="bg-green-600 p-3 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-white" />
+              <div className="bg-green-600 p-3 rounded-xl text-2xl">
+                📊
               </div>
               <div className="flex-1 min-w-0">
                 <h2 className="text-2xl font-bold text-gray-800">현대자동차 전체 뉴스 종합 분석</h2>
