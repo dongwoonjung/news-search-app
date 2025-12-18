@@ -383,13 +383,18 @@ export default function GlobalNewsApp() {
 
                 <button
                   onClick={() => analyzeNews(item, idx)}
-                  disabled={analyzingId === idx}
+                  disabled={analyzingId === idx || analysis[idx]}
                   className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
                 >
                   {analyzingId === idx ? (
                     <>
                       <Loader2 className="w-4 h-4 inline mr-1 animate-spin" />
                       분석 중...
+                    </>
+                  ) : analysis[idx] ? (
+                    <>
+                      <TrendingUp className="w-4 h-4 inline mr-1" />
+                      분석 완료
                     </>
                   ) : (
                     <>
@@ -399,8 +404,7 @@ export default function GlobalNewsApp() {
                   )}
                 </button>
 
-                {analysis[idx] && (
-                  <div className="mt-4 border-t pt-4">
+                <div className={`mt-4 border-t pt-4 transition-all duration-300 ${analysis[idx] ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
                     <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                       <span className="text-green-600">🚗</span>
                       현대자동차 전략 분석 리포트
@@ -535,7 +539,6 @@ export default function GlobalNewsApp() {
                       </div>
                     )}
                   </div>
-                )}
               </div>
             ))}
           </div>
