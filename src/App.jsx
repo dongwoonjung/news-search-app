@@ -24,7 +24,11 @@ export default function GlobalNewsApp() {
   ];
 
   useEffect(() => {
-    loadNews('geopolitics', 'day');
+    // 초기 마운트 시 안전하게 로드
+    const timer = setTimeout(() => {
+      loadNews('geopolitics', 'day');
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const loadNews = async (cat, range) => {
