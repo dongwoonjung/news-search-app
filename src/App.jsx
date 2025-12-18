@@ -54,30 +54,15 @@ export default function GlobalNewsApp() {
 
     try {
       const companiesData = {};
+      const allCompanyArticles = {};
 
-      // 1. 먼저 자동차 산업 전반 뉴스 가져오기 (공통 뉴스)
-      const industryResponse = await fetch(`/api/news?category=automotive&timeRange=week`);
-      if (industryResponse.ok) {
-        const industryData = await industryResponse.json();
-        if (industryData.success && industryData.articles.length > 0) {
-          companiesData['industry'] = industryData.articles.slice(0, 10).map(article => ({
-            title: article.title,
-            summary: article.description || article.content?.substring(0, 200) + '...',
-            date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            source: article.source.name,
-            importance: 'medium',
-            url: article.url,
-          }));
-        }
-      }
-
-      // 2. 각 자동차 회사별로 뉴스 가져오기
+      // 1. 각 자동차 회사별로 뉴스 가져오기
       for (const company of autoCompanies) {
         const response = await fetch(`/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=week`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.articles.length > 0) {
-            companiesData[company.id] = data.articles.slice(0, 3).map(article => ({
+            allCompanyArticles[company.id] = data.articles.slice(0, 10).map(article => ({
               title: article.title,
               summary: article.description || article.content?.substring(0, 200) + '...',
               date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -88,6 +73,63 @@ export default function GlobalNewsApp() {
           }
         }
       }
+
+      // 2. 중복 기사 찾기 및 공통 뉴스 분류
+      const urlCount = {};
+      const titleCount = {};
+      const commonArticles = new Set();
+
+      // URL과 제목으로 중복 카운트
+      Object.values(allCompanyArticles).forEach(articles => {
+        articles.forEach(article => {
+          urlCount[article.url] = (urlCount[article.url] || 0) + 1;
+          const normalizedTitle = article.title.toLowerCase().trim();
+          titleCount[normalizedTitle] = (titleCount[normalizedTitle] || 0) + 1;
+        });
+      });
+
+      // 2개 이상의 회사에 나타나는 기사는 공통 뉴스로 분류
+      Object.values(allCompanyArticles).forEach(articles => {
+        articles.forEach(article => {
+          const normalizedTitle = article.title.toLowerCase().trim();
+          if (urlCount[article.url] >= 2 || titleCount[normalizedTitle] >= 2) {
+            commonArticles.add(article.url);
+          }
+        });
+      });
+
+      // 3. 공통 뉴스 섹션 생성
+      const industryArticles = [];
+      const seenUrls = new Set();
+
+      Object.values(allCompanyArticles).forEach(articles => {
+        articles.forEach(article => {
+          if (commonArticles.has(article.url) && !seenUrls.has(article.url)) {
+            industryArticles.push(article);
+            seenUrls.add(article.url);
+          }
+        });
+      });
+
+      companiesData['industry'] = industryArticles.slice(0, 15);
+
+      // 4. 각 회사별 고유 뉴스만 필터링 (중복 제거)
+      Object.keys(allCompanyArticles).forEach(companyId => {
+        const uniqueArticles = [];
+        const companySeenUrls = new Set();
+
+        allCompanyArticles[companyId].forEach(article => {
+          // 공통 뉴스가 아니고, 해당 회사에서 처음 보는 URL인 경우만 추가
+          if (!commonArticles.has(article.url) && !companySeenUrls.has(article.url)) {
+            uniqueArticles.push(article);
+            companySeenUrls.add(article.url);
+          }
+        });
+
+        if (uniqueArticles.length > 0) {
+          companiesData[companyId] = uniqueArticles.slice(0, 5);
+        }
+      });
 
       setAutoNewsData(companiesData);
       setViewMode('automotive');
