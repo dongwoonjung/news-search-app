@@ -3,6 +3,149 @@ import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, Loader2, ExternalLin
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import './App.css';
 
+// 분석 결과 컴포넌트를 별도로 분리
+function AnalysisResult({ analysis }) {
+  if (!analysis) return null;
+
+  return (
+    <div className="mt-4 border-t pt-4">
+      <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+        <span className="text-green-600">🚗</span>
+        현대자동차 전략 분석 리포트
+      </h4>
+
+      {analysis.summary && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
+          <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
+          <p className="text-gray-700">{analysis.summary}</p>
+        </div>
+      )}
+
+      {analysis.marketImpact && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
+          <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
+          <p className="text-gray-700">{analysis.marketImpact}</p>
+        </div>
+      )}
+
+      {analysis.opportunities && analysis.opportunities.length > 0 && (
+        <div className="mb-3">
+          <h5 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
+            📈 전략적 기회 요인
+          </h5>
+          <div className="space-y-2">
+            {analysis.opportunities.map((opp, i) => (
+              <div key={`opp-${i}`} className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1">
+                    <span className="inline-block px-2 py-0.5 bg-green-600 text-white rounded text-xs font-semibold mb-1">
+                      {opp.category}
+                    </span>
+                    <p className="font-semibold text-gray-800">{opp.point}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                    opp.impact === 'high' ? 'bg-green-200 text-green-800' :
+                    opp.impact === 'medium' ? 'bg-yellow-200 text-yellow-800' :
+                    'bg-blue-200 text-blue-800'
+                  }`}>
+                    영향도: {opp.impact === 'high' ? '높음' : opp.impact === 'medium' ? '중간' : '낮음'}
+                  </span>
+                </div>
+                {opp.details && opp.details.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs font-semibold text-gray-600 mb-1">세부 내용:</p>
+                    <ul className="text-xs text-gray-700 space-y-0.5 ml-3">
+                      {opp.details.map((detail, j) => (
+                        <li key={j} className="list-disc">{detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-green-200">
+                  <span>⏱️ {opp.timeframe}</span>
+                  <span className="text-green-700 font-medium">💡 {opp.expectedBenefit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {analysis.risks && analysis.risks.length > 0 && (
+        <div className="mb-3">
+          <h5 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+            ⚠️ 주요 리스크 요인
+          </h5>
+          <div className="space-y-2">
+            {analysis.risks.map((risk, i) => (
+              <div key={`risk-${i}`} className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1">
+                    <span className="inline-block px-2 py-0.5 bg-red-600 text-white rounded text-xs font-semibold mb-1">
+                      {risk.category}
+                    </span>
+                    <p className="font-semibold text-gray-800">{risk.point}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                    risk.severity === 'high' ? 'bg-red-200 text-red-800' :
+                    risk.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
+                    'bg-yellow-200 text-yellow-800'
+                  }`}>
+                    심각도: {risk.severity === 'high' ? '높음' : risk.severity === 'medium' ? '중간' : '낮음'}
+                  </span>
+                </div>
+                {risk.details && risk.details.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs font-semibold text-gray-600 mb-1">세부 내용:</p>
+                    <ul className="text-xs text-gray-700 space-y-0.5 ml-3">
+                      {risk.details.map((detail, j) => (
+                        <li key={j} className="list-disc">{detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="bg-red-100 rounded p-2 mt-2">
+                  <p className="text-xs font-semibold text-red-800 mb-1">🛡️ 대응 방안:</p>
+                  <p className="text-xs text-gray-700">{risk.mitigationPlan}</p>
+                </div>
+                <div className="text-xs text-gray-600 mt-2">
+                  <span>⏱️ 대응 시점: {risk.timeframe}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {analysis.strategicImplications && analysis.strategicImplications.length > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3 text-sm">
+          <p className="font-semibold text-purple-800 mb-2 flex items-center gap-1">
+            🎯 전략적 시사점
+          </p>
+          <ul className="space-y-1 ml-3">
+            {analysis.strategicImplications.map((impl, i) => (
+              <li key={i} className="text-gray-700 text-xs list-disc">{impl}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {analysis.actionItems && analysis.actionItems.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+          <p className="font-semibold text-amber-800 mb-2 flex items-center gap-1">
+            ✅ 실행 과제
+          </p>
+          <ul className="space-y-1 ml-3">
+            {analysis.actionItems.map((action, i) => (
+              <li key={i} className="text-gray-700 text-xs list-disc">{action}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GlobalNewsApp() {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -405,145 +548,7 @@ export default function GlobalNewsApp() {
                   )}
                 </button>
 
-                <div className={`mt-4 border-t pt-4 transition-all duration-300 ${analysis[idx] ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
-                  {analysis[idx] && (
-                    <>
-                    <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <span className="text-green-600">🚗</span>
-                      현대자동차 전략 분석 리포트
-                    </h4>
-
-                    {analysis[idx].summary && (
-                      <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                        <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                        <p className="text-gray-700">{analysis[idx].summary}</p>
-                      </div>
-                    )}
-
-                    {analysis[idx].marketImpact && (
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                        <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                        <p className="text-gray-700">{analysis[idx].marketImpact}</p>
-                      </div>
-                    )}
-
-                    {analysis[idx].opportunities && analysis[idx].opportunities.length > 0 && (
-                      <div className="mb-3">
-                        <h5 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
-                          📈 전략적 기회 요인
-                        </h5>
-                        <div className="space-y-2">
-                          {analysis[idx].opportunities.map((opp, i) => (
-                            <div key={`opp-${i}`} className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex-1">
-                                  <span className="inline-block px-2 py-0.5 bg-green-600 text-white rounded text-xs font-semibold mb-1">
-                                    {opp.category}
-                                  </span>
-                                  <p className="font-semibold text-gray-800">{opp.point}</p>
-                                </div>
-                                <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-                                  opp.impact === 'high' ? 'bg-green-200 text-green-800' :
-                                  opp.impact === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                                  'bg-blue-200 text-blue-800'
-                                }`}>
-                                  영향도: {opp.impact === 'high' ? '높음' : opp.impact === 'medium' ? '중간' : '낮음'}
-                                </span>
-                              </div>
-                              {opp.details && opp.details.length > 0 && (
-                                <div className="mb-2">
-                                  <p className="text-xs font-semibold text-gray-600 mb-1">세부 내용:</p>
-                                  <ul className="text-xs text-gray-700 space-y-0.5 ml-3">
-                                    {opp.details.map((detail, j) => (
-                                      <li key={j} className="list-disc">{detail}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-green-200">
-                                <span>⏱️ {opp.timeframe}</span>
-                                <span className="text-green-700 font-medium">💡 {opp.expectedBenefit}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis[idx].risks && analysis[idx].risks.length > 0 && (
-                      <div className="mb-3">
-                        <h5 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
-                          ⚠️ 주요 리스크 요인
-                        </h5>
-                        <div className="space-y-2">
-                          {analysis[idx].risks.map((risk, i) => (
-                            <div key={`risk-${i}`} className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex-1">
-                                  <span className="inline-block px-2 py-0.5 bg-red-600 text-white rounded text-xs font-semibold mb-1">
-                                    {risk.category}
-                                  </span>
-                                  <p className="font-semibold text-gray-800">{risk.point}</p>
-                                </div>
-                                <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-                                  risk.severity === 'high' ? 'bg-red-200 text-red-800' :
-                                  risk.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
-                                  'bg-yellow-200 text-yellow-800'
-                                }`}>
-                                  심각도: {risk.severity === 'high' ? '높음' : risk.severity === 'medium' ? '중간' : '낮음'}
-                                </span>
-                              </div>
-                              {risk.details && risk.details.length > 0 && (
-                                <div className="mb-2">
-                                  <p className="text-xs font-semibold text-gray-600 mb-1">세부 내용:</p>
-                                  <ul className="text-xs text-gray-700 space-y-0.5 ml-3">
-                                    {risk.details.map((detail, j) => (
-                                      <li key={j} className="list-disc">{detail}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              <div className="bg-red-100 rounded p-2 mt-2">
-                                <p className="text-xs font-semibold text-red-800 mb-1">🛡️ 대응 방안:</p>
-                                <p className="text-xs text-gray-700">{risk.mitigationPlan}</p>
-                              </div>
-                              <div className="text-xs text-gray-600 mt-2">
-                                <span>⏱️ 대응 시점: {risk.timeframe}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis[idx].strategicImplications && analysis[idx].strategicImplications.length > 0 && (
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3 text-sm">
-                        <p className="font-semibold text-purple-800 mb-2 flex items-center gap-1">
-                          🎯 전략적 시사점
-                        </p>
-                        <ul className="space-y-1 ml-3">
-                          {analysis[idx].strategicImplications.map((impl, i) => (
-                            <li key={i} className="text-gray-700 text-xs list-disc">{impl}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {analysis[idx].actionItems && analysis[idx].actionItems.length > 0 && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-                        <p className="font-semibold text-amber-800 mb-2 flex items-center gap-1">
-                          ✅ 실행 과제
-                        </p>
-                        <ul className="space-y-1 ml-3">
-                          {analysis[idx].actionItems.map((action, i) => (
-                            <li key={i} className="text-gray-700 text-xs list-disc">{action}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    </>
-                  )}
-                  </div>
+                <AnalysisResult analysis={analysis[idx]} />
               </div>
             ))}
           </div>
