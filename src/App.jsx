@@ -557,7 +557,7 @@ export default function GlobalNewsApp() {
                   onClick={() => translations[idx] ? setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; }) : translateNews(item, idx)}
                   className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[idx] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                 >
-                  {translations[idx] ? '📄 영문보기' : '🌐 한글로 번역'}
+                  {translations[idx] ? '📄 원문 보기' : '🌐 한글로 번역'}
                 </button>
 
                 <button
@@ -754,7 +754,7 @@ export default function GlobalNewsApp() {
                           onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
                           className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                         >
-                          {translations[itemKey] ? '📄 영문보기' : '🌐 한글로 번역'}
+                          {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
                         </button>
 
                         <button
@@ -830,7 +830,7 @@ export default function GlobalNewsApp() {
                             onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
                             className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                           >
-                            {translations[itemKey] ? '📄 영문보기' : '🌐 한글로 번역'}
+                            {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
                           </button>
 
                           <button
