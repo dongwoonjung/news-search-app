@@ -74,19 +74,53 @@ export default async function handler(req, res) {
     const data = await response.json();
     const translationText = data.content[0].text;
 
-    // JSON 파싱 (```json ``` 마크다운 제거)
+    console.log('Claude translation response:', translationText);
+
+    // JSON 파싱 (여러 방법 시도)
     let translation;
     try {
-      const jsonMatch = translationText.match(/\{[\s\S]*\}/);
+      // 방법 1: 마크다운 코드블록 제거 후 파싱
+      let cleanText = translationText.trim();
+
+      // ```json ... ``` 제거
+      cleanText = cleanText.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+
+      // JSON 객체 찾기
+      const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         translation = JSON.parse(jsonMatch[0]);
       } else {
-        translation = JSON.parse(translationText);
+        // 방법 2: 전체 텍스트를 JSON으로 파싱 시도
+        translation = JSON.parse(cleanText);
+      }
+
+      // 필수 필드 검증
+      if (!translation.title || !translation.summary) {
+        throw new Error('Missing required fields in translation');
       }
     } catch (parseError) {
       console.error('JSON Parse Error:', parseError);
       console.error('Raw response:', translationText);
-      throw new Error('Failed to parse Claude response as JSON');
+
+      // 폴백: 간단한 텍스트 추출 시도
+      try {
+        // title과 summary를 정규식으로 추출
+        const titleMatch = translationText.match(/"title"\s*:\s*"([^"]*)"/);
+        const summaryMatch = translationText.match(/"summary"\s*:\s*"([^"]*)"/);
+
+        if (titleMatch && summaryMatch) {
+          translation = {
+            title: titleMatch[1],
+            summary: summaryMatch[1]
+          };
+          console.log('Fallback extraction succeeded');
+        } else {
+          throw new Error('Failed to extract translation from response');
+        }
+      } catch (fallbackError) {
+        console.error('Fallback extraction failed:', fallbackError);
+        throw new Error('Failed to parse Claude response as JSON');
+      }
     }
 
     res.status(200).json({
