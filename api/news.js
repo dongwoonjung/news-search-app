@@ -61,8 +61,8 @@ export default async function handler(req, res) {
       pageSize: 100
     });
 
-    // 도메인 제한 적용 (자동차/회사 검색이 아닐 때만)
-    if (!company && category !== 'automotive') {
+    // 도메인 제한 적용 (자동차/AI-자율주행/회사 검색이 아닐 때만)
+    if (!company && category !== 'automotive' && category !== 'ai-tech') {
       const domains = TRUSTED_SOURCES.join(',');
       queryParams.set('domains', domains);
     }
