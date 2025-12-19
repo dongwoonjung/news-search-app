@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         'geopolitics': '(China OR Russia OR Ukraine OR "Middle East" OR Iran OR Israel OR Taiwan OR "South China Sea" OR NATO OR "North Korea" OR Syria OR Yemen OR Venezuela OR "Latin America") AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic)',
         'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
         'automotive': '(automotive OR "auto industry" OR "car industry" OR "vehicle manufacturing") AND (market OR sales OR production OR technology OR EV OR electric OR manufacturing OR factory OR plant OR investment OR strategy OR competition)',
-        'ai-tech': 'AI OR artificial intelligence OR autonomous OR self-driving OR technology OR innovation OR chip OR semiconductor'
+        'ai-tech': '(AI OR "artificial intelligence" OR "machine learning" OR "deep learning") AND ("self-driving" OR "autonomous vehicle" OR "autonomous driving" OR "robotaxi" OR "ADAS" OR "computer vision" OR Tesla OR Waymo OR Cruise OR "autonomous technology" OR "Level 4" OR "Level 5" OR lidar OR sensor OR "neural network")'
       };
       query = categoryQueries[category] || 'technology';
     }
