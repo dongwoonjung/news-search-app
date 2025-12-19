@@ -551,13 +551,13 @@ export default function GlobalNewsApp() {
                 </div>
                 <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
                   <ExternalLink className="w-4 h-4 inline mr-1" />
-                  원문 보기
+                  기사보기
                 </a>
                 <button
                   onClick={() => translations[idx] ? setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; }) : translateNews(item, idx)}
                   className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[idx] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                 >
-                  {translations[idx] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                  {translations[idx] ? '📄 영문보기' : '🌐 한글로 번역'}
                 </button>
 
                 <button
@@ -747,14 +747,14 @@ export default function GlobalNewsApp() {
 
                         <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
                           <ExternalLink className="w-4 h-4 inline mr-1" />
-                          원문 보기
+                          기사보기
                         </a>
 
                         <button
                           onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
                           className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                         >
-                          {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                          {translations[itemKey] ? '📄 영문보기' : '🌐 한글로 번역'}
                         </button>
 
                         <button
@@ -823,14 +823,14 @@ export default function GlobalNewsApp() {
 
                           <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
                             <ExternalLink className="w-4 h-4 inline mr-1" />
-                            원문 보기
+                            기사보기
                           </a>
 
                           <button
                             onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
                             className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
                           >
-                            {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                            {translations[itemKey] ? '📄 영문보기' : '🌐 한글로 번역'}
                           </button>
 
                           <button
