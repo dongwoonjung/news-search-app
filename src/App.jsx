@@ -441,7 +441,7 @@ export default function GlobalNewsApp() {
               <button
                 onClick={loadAutomotiveNews}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
+                className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
               >
                 🚗 경쟁사 분석
               </button>
@@ -450,13 +450,13 @@ export default function GlobalNewsApp() {
                   <button
                     onClick={archiveSelectedArticles}
                     disabled={selectedArticles.size === 0}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center"
+                    className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
                   >
                     📚 선택 아카이브 ({selectedArticles.size})
                   </button>
                   <button
                     onClick={viewArchive}
-                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center"
+                    className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center font-semibold shadow-md"
                   >
                     📂 아카이브 보기 ({archivedArticles.length})
                   </button>
@@ -465,7 +465,7 @@ export default function GlobalNewsApp() {
               {viewMode === 'archive' && (
                 <button
                   onClick={() => setViewMode('automotive')}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center"
+                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 flex items-center font-semibold shadow-md"
                 >
                   ← 경쟁사 분석으로
                 </button>
