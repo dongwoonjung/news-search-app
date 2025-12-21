@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       const categoryQueries = {
         'geopolitics': '(China OR Russia OR Ukraine OR "Middle East" OR Iran OR Israel OR Taiwan OR "South China Sea" OR NATO OR "North Korea" OR Syria OR Yemen OR Venezuela OR "Latin America") AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic)',
         'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
-        'automotive': '("auto industry" OR "car industry" OR "vehicle sales" OR "car sales" OR "automotive market" OR "EV sales" OR "electric vehicle" OR "car manufacturer" OR "automaker" OR "car production" OR Toyota OR Honda OR Ford OR GM OR Tesla OR Volkswagen OR Hyundai OR Kia OR BMW OR Mercedes OR "auto plant" OR "car factory")',
+        'automotive': '(Toyota OR Honda OR Ford OR "General Motors" OR GM OR Tesla OR Volkswagen OR VW OR Hyundai OR Kia OR BMW OR Mercedes OR "electric vehicle" OR EV OR "car sales" OR "auto industry" OR automaker)',
         'ai-tech': 'AI OR "artificial intelligence" OR GPT OR "ChatGPT" OR "Claude AI" OR Gemini OR "Google Gemini" OR "self-driving" OR autonomous OR robotics OR "humanoid robot" OR humanoid OR Tesla OR Waymo OR "machine learning" OR automation OR robot'
       };
       query = categoryQueries[category] || 'technology';
@@ -71,17 +71,10 @@ export default async function handler(req, res) {
       pageSize: 100
     });
 
-    // 도메인 제한 적용
-    if (!company) {
-      if (category === 'automotive') {
-        // 자동차 카테고리는 자동차 전문 소스 사용
-        const domains = AUTO_SOURCES.join(',');
-        queryParams.set('domains', domains);
-      } else if (category !== 'ai-tech') {
-        // AI-자율주행 외 다른 카테고리는 일반 신뢰 소스 사용
-        const domains = TRUSTED_SOURCES.join(',');
-        queryParams.set('domains', domains);
-      }
+    // 도메인 제한 적용 (자동차/AI-자율주행/회사 검색이 아닐 때만)
+    if (!company && category !== 'automotive' && category !== 'ai-tech') {
+      const domains = TRUSTED_SOURCES.join(',');
+      queryParams.set('domains', domains);
     }
 
     const response = await fetch(`https://newsapi.org/v2/everything?${queryParams}`);
