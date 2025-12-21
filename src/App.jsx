@@ -29,6 +29,7 @@ export default function GlobalNewsApp() {
     }
   });
   const [activeArchiveTab, setActiveArchiveTab] = useState('all');
+  const [activeCompanyTab, setActiveCompanyTab] = useState('all');
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -1137,8 +1138,58 @@ export default function GlobalNewsApp() {
         {/* 자동차 회사별 뉴스 뷰 */}
         {!loading && !error && viewMode === 'automotive' && Object.keys(autoNewsData).length > 0 && (
           <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <span className="text-4xl">🚗</span>
+                경쟁사 분석
+              </h2>
+
+              {/* 회사별 탭 */}
+              <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
+                <button
+                  onClick={() => setActiveCompanyTab('all')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    activeCompanyTab === 'all'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  전체
+                </button>
+                {autoCompanies.map(company => {
+                  const count = (autoNewsData[company.id] || []).length;
+                  if (count === 0) return null;
+                  return (
+                    <button
+                      key={company.id}
+                      onClick={() => setActiveCompanyTab(company.id)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        activeCompanyTab === company.id
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {company.name} ({count})
+                    </button>
+                  );
+                })}
+                {autoNewsData['industry'] && autoNewsData['industry'].length > 0 && (
+                  <button
+                    onClick={() => setActiveCompanyTab('industry')}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                      activeCompanyTab === 'industry'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    산업 공통 ({autoNewsData['industry'].length})
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* 자동차 산업 공통 뉴스 섹션 */}
-            {autoNewsData['industry'] && autoNewsData['industry'].length > 0 && (
+            {(activeCompanyTab === 'all' || activeCompanyTab === 'industry') && autoNewsData['industry'] && autoNewsData['industry'].length > 0 && (
               <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl shadow-xl p-6 border-2 border-indigo-200">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
                   <span className="text-3xl">🏭</span>
@@ -1234,7 +1285,9 @@ export default function GlobalNewsApp() {
               </div>
             )}
 
-            {autoCompanies.map(company => {
+            {autoCompanies.filter(company =>
+              activeCompanyTab === 'all' || activeCompanyTab === company.id
+            ).map(company => {
               const companyNews = autoNewsData[company.id] || [];
               if (companyNews.length === 0) return null;
 
