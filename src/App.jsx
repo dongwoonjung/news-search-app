@@ -28,6 +28,7 @@ export default function GlobalNewsApp() {
       return [];
     }
   });
+  const [activeArchiveTab, setActiveArchiveTab] = useState('all');
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -854,8 +855,53 @@ export default function GlobalNewsApp() {
                 </div>
               ) : (
                 <>
+                  {/* 회사별 탭 */}
+                  <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
+                    <button
+                      onClick={() => setActiveArchiveTab('all')}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        activeArchiveTab === 'all'
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      전체 ({archivedArticles.length})
+                    </button>
+                    {autoCompanies.map(company => {
+                      const count = archivedArticles.filter(a => a.companyId === company.id).length;
+                      if (count === 0) return null;
+                      return (
+                        <button
+                          key={company.id}
+                          onClick={() => setActiveArchiveTab(company.id)}
+                          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                            activeArchiveTab === company.id
+                              ? 'bg-indigo-600 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {company.name} ({count})
+                        </button>
+                      );
+                    })}
+                    {archivedArticles.filter(a => a.companyId === 'industry').length > 0 && (
+                      <button
+                        onClick={() => setActiveArchiveTab('industry')}
+                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                          activeArchiveTab === 'industry'
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        산업 공통 ({archivedArticles.filter(a => a.companyId === 'industry').length})
+                      </button>
+                    )}
+                  </div>
+
                   {/* 자동차 회사별로 그룹화 */}
-                  {autoCompanies.map(company => {
+                  {autoCompanies.filter(company =>
+                    activeArchiveTab === 'all' || activeArchiveTab === company.id
+                  ).map(company => {
                     const companyArticles = archivedArticles.filter(article => article.companyId === company.id);
                     if (companyArticles.length === 0) return null;
 
@@ -971,7 +1017,7 @@ export default function GlobalNewsApp() {
                   })}
 
                   {/* 산업 공통 뉴스 아카이브 */}
-                  {archivedArticles.filter(article => article.companyId === 'industry').length > 0 && (
+                  {(activeArchiveTab === 'all' || activeArchiveTab === 'industry') && archivedArticles.filter(article => article.companyId === 'industry').length > 0 && (
                     <div className="mb-8">
                       <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-indigo-200 pb-2">
                         <span>🏭</span>
