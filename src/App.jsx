@@ -15,8 +15,10 @@ export default function GlobalNewsApp() {
   const [analyzingId, setAnalyzingId] = useState(null);
   const [overallAnalysis, setOverallAnalysis] = useState(null);
   const [analyzingOverall, setAnalyzingOverall] = useState(false);
-  const [viewMode, setViewMode] = useState('general'); // 'general' or 'automotive'
+  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', or 'archive'
   const [autoNewsData, setAutoNewsData] = useState({});
+  const [selectedArticles, setSelectedArticles] = useState(new Set());
+  const [archivedArticles, setArchivedArticles] = useState([]);
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -357,6 +359,55 @@ export default function GlobalNewsApp() {
     }, 1500);
   };
 
+  const toggleArticleSelection = (articleKey, articleData, companyId) => {
+    setSelectedArticles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(articleKey)) {
+        newSet.delete(articleKey);
+      } else {
+        newSet.add(articleKey);
+      }
+      return newSet;
+    });
+  };
+
+  const archiveSelectedArticles = () => {
+    const articlesToArchive = [];
+
+    // 선택된 기사들을 수집
+    Object.keys(autoNewsData).forEach(companyId => {
+      const companyNews = autoNewsData[companyId] || [];
+      companyNews.forEach((article, idx) => {
+        const articleKey = `${companyId}-${idx}`;
+        if (selectedArticles.has(articleKey)) {
+          articlesToArchive.push({
+            ...article,
+            company: companyId === 'industry' ? '산업 공통' : autoCompanies.find(c => c.id === companyId)?.name || companyId,
+            companyId: companyId,
+            archivedDate: new Date().toISOString(),
+            articleKey: articleKey
+          });
+        }
+      });
+    });
+
+    if (articlesToArchive.length > 0) {
+      setArchivedArticles(prev => [...prev, ...articlesToArchive]);
+      setSelectedArticles(new Set()); // 선택 초기화
+      alert(`${articlesToArchive.length}개 기사가 아카이브되었습니다.`);
+    } else {
+      alert('선택된 기사가 없습니다.');
+    }
+  };
+
+  const viewArchive = () => {
+    setViewMode('archive');
+  };
+
+  const removeFromArchive = (articleKey) => {
+    setArchivedArticles(prev => prev.filter(article => article.articleKey !== articleKey));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-6xl mx-auto">
@@ -394,6 +445,31 @@ export default function GlobalNewsApp() {
               >
                 🚗 경쟁사 분석
               </button>
+              {viewMode === 'automotive' && (
+                <>
+                  <button
+                    onClick={archiveSelectedArticles}
+                    disabled={selectedArticles.size === 0}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center"
+                  >
+                    📚 선택 아카이브 ({selectedArticles.size})
+                  </button>
+                  <button
+                    onClick={viewArchive}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center"
+                  >
+                    📂 아카이브 보기 ({archivedArticles.length})
+                  </button>
+                </>
+              )}
+              {viewMode === 'archive' && (
+                <button
+                  onClick={() => setViewMode('automotive')}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center"
+                >
+                  ← 경쟁사 분석으로
+                </button>
+              )}
             </div>
           </div>
 
@@ -717,6 +793,159 @@ export default function GlobalNewsApp() {
           </div>
         )}
 
+        {/* 아카이브 뷰 */}
+        {viewMode === 'archive' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <span className="text-4xl">📂</span>
+                아카이브된 기사
+                <span className="text-lg font-normal text-gray-500">총 {archivedArticles.length}개</span>
+              </h2>
+
+              {archivedArticles.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500 text-lg">아카이브된 기사가 없습니다.</p>
+                  <p className="text-gray-400 text-sm mt-2">경쟁사 분석에서 기사를 선택하고 아카이브하세요.</p>
+                </div>
+              ) : (
+                <>
+                  {/* 자동차 회사별로 그룹화 */}
+                  {autoCompanies.map(company => {
+                    const companyArticles = archivedArticles.filter(article => article.companyId === company.id);
+                    if (companyArticles.length === 0) return null;
+
+                    // 날짜별로 그룹화
+                    const articlesByDate = {};
+                    companyArticles.forEach(article => {
+                      if (!articlesByDate[article.date]) {
+                        articlesByDate[article.date] = [];
+                      }
+                      articlesByDate[article.date].push(article);
+                    });
+
+                    return (
+                      <div key={`archive-${company.id}`} className="mb-8">
+                        <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-gray-200 pb-2">
+                          <span>🚗</span>
+                          {company.name}
+                          <span className="text-sm font-normal text-gray-500">({companyArticles.length}개 기사)</span>
+                        </h3>
+
+                        {Object.keys(articlesByDate).sort().reverse().map(date => (
+                          <div key={`${company.id}-${date}`} className="mb-6">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <span>📅</span>
+                              {date}
+                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                            </h4>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {articlesByDate[date].map((article, idx) => (
+                                <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border-2 border-purple-200 shadow-sm">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h5 className="text-md font-bold text-gray-800 flex-1">{article.title}</h5>
+                                    <button
+                                      onClick={() => removeFromArchive(article.articleKey)}
+                                      className="ml-2 text-red-500 hover:text-red-700 text-xl"
+                                      title="삭제"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                  <p className="text-gray-600 text-sm mb-3">{article.summary}</p>
+                                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                    <span>📰 {article.source}</span>
+                                    <span>🕒 {article.date}</span>
+                                  </div>
+                                  <a
+                                    href={article.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block w-full px-3 py-2 bg-purple-600 text-white text-center rounded-lg hover:bg-purple-700 text-sm font-medium"
+                                  >
+                                    <ExternalLink className="w-4 h-4 inline mr-1" />
+                                    기사 원문 보기
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+
+                  {/* 산업 공통 뉴스 아카이브 */}
+                  {archivedArticles.filter(article => article.companyId === 'industry').length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-indigo-200 pb-2">
+                        <span>🏭</span>
+                        자동차 산업 공통
+                        <span className="text-sm font-normal text-gray-500">
+                          ({archivedArticles.filter(article => article.companyId === 'industry').length}개 기사)
+                        </span>
+                      </h3>
+
+                      {(() => {
+                        const industryArticles = archivedArticles.filter(article => article.companyId === 'industry');
+                        const articlesByDate = {};
+                        industryArticles.forEach(article => {
+                          if (!articlesByDate[article.date]) {
+                            articlesByDate[article.date] = [];
+                          }
+                          articlesByDate[article.date].push(article);
+                        });
+
+                        return Object.keys(articlesByDate).sort().reverse().map(date => (
+                          <div key={`industry-${date}`} className="mb-6">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <span>📅</span>
+                              {date}
+                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                            </h4>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {articlesByDate[date].map((article, idx) => (
+                                <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border-2 border-indigo-200 shadow-sm">
+                                  <div className="flex items-start justify-between mb-2">
+                                    <h5 className="text-md font-bold text-gray-800 flex-1">{article.title}</h5>
+                                    <button
+                                      onClick={() => removeFromArchive(article.articleKey)}
+                                      className="ml-2 text-red-500 hover:text-red-700 text-xl"
+                                      title="삭제"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                  <p className="text-gray-600 text-sm mb-3">{article.summary}</p>
+                                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                    <span>📰 {article.source}</span>
+                                    <span>🕒 {article.date}</span>
+                                  </div>
+                                  <a
+                                    href={article.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block w-full px-3 py-2 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium"
+                                  >
+                                    <ExternalLink className="w-4 h-4 inline mr-1" />
+                                    기사 원문 보기
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 자동차 회사별 뉴스 뷰 */}
         {!loading && !error && viewMode === 'automotive' && Object.keys(autoNewsData).length > 0 && (
           <div className="space-y-6">
@@ -732,9 +961,25 @@ export default function GlobalNewsApp() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {autoNewsData['industry'].map((item, idx) => {
                     const itemKey = `industry-${idx}`;
+                    const isSelected = selectedArticles.has(itemKey);
                     return (
-                      <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm">
-                        <h3 className="text-lg font-bold text-gray-800 mb-2">
+                      <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm relative">
+                        <label className="absolute top-3 right-3 z-10 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleArticleSelection(itemKey)}
+                            className="w-6 h-6 cursor-pointer"
+                            style={{
+                              accentColor: '#9333ea',
+                              width: '24px',
+                              height: '24px',
+                              minWidth: '24px',
+                              minHeight: '24px'
+                            }}
+                          />
+                        </label>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2 pr-10">
                           {translations[itemKey] ? translations[itemKey].title : item.title}
                         </h3>
                         <p className="text-gray-600 mb-3 text-sm">
@@ -808,9 +1053,25 @@ export default function GlobalNewsApp() {
                   <div className="grid gap-4 md:grid-cols-2">
                     {companyNews.map((item, idx) => {
                       const itemKey = `${company.id}-${idx}`;
+                      const isSelected = selectedArticles.has(itemKey);
                       return (
-                        <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                          <h3 className="text-lg font-bold text-gray-800 mb-2">
+                        <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative">
+                          <label className="absolute top-3 right-3 z-10 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleArticleSelection(itemKey)}
+                              className="w-6 h-6 cursor-pointer"
+                              style={{
+                                accentColor: '#9333ea',
+                                width: '24px',
+                                height: '24px',
+                                minWidth: '24px',
+                                minHeight: '24px'
+                              }}
+                            />
+                          </label>
+                          <h3 className="text-lg font-bold text-gray-800 mb-2 pr-10">
                             {translations[itemKey] ? translations[itemKey].title : item.title}
                           </h3>
                           <p className="text-gray-600 mb-3 text-sm">
