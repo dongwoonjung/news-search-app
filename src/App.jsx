@@ -472,29 +472,21 @@ export default function GlobalNewsApp() {
               >
                 🚗 경쟁사 분석
               </button>
-              {viewMode === 'automotive' && (
-                <>
-                  <button
-                    onClick={archiveSelectedArticles}
-                    disabled={selectedArticles.size === 0}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
-                  >
-                    📚 선택 아카이브 ({selectedArticles.size})
-                  </button>
-                  <button
-                    onClick={viewArchive}
-                    className="px-4 py-2 bg-violet-700 text-white rounded-lg hover:bg-violet-800 flex items-center font-semibold shadow-md"
-                  >
-                    📂 아카이브 보기 ({archivedArticles.length})
-                  </button>
-                </>
-              )}
-              {viewMode === 'general' && archivedArticles.length > 0 && (
+              {(viewMode === 'general' || viewMode === 'automotive') && (
                 <button
                   onClick={viewArchive}
                   className="px-4 py-2 bg-violet-700 text-white rounded-lg hover:bg-violet-800 flex items-center font-semibold shadow-md"
                 >
                   📂 아카이브 보기 ({archivedArticles.length})
+                </button>
+              )}
+              {viewMode === 'automotive' && (
+                <button
+                  onClick={archiveSelectedArticles}
+                  disabled={selectedArticles.size === 0}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
+                >
+                  📚 선택 아카이브 ({selectedArticles.size})
                 </button>
               )}
               {viewMode === 'archive' && (
