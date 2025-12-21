@@ -1064,22 +1064,29 @@ export default function GlobalNewsApp() {
                     const isSelected = selectedArticles.has(itemKey);
                     return (
                       <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm relative">
-                        <button
-                          type="button"
-                          onClick={() => toggleArticleSelection(itemKey)}
-                          className="absolute top-3 right-3 z-50 w-7 h-7 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-md hover:scale-110"
-                          style={{
-                            borderColor: isSelected ? '#9333ea' : '#cbd5e1',
-                            backgroundColor: isSelected ? '#9333ea' : 'white'
-                          }}
-                        >
-                          {isSelected && (
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                        <h3 className="text-lg font-bold text-gray-800 mb-2 pr-10">
+                        <div className="absolute top-2 right-2 z-[100]">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleArticleSelection(itemKey);
+                            }}
+                            className={`w-8 h-8 rounded-md border-3 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
+                              isSelected
+                                ? 'bg-purple-600 border-purple-700'
+                                : 'bg-white border-gray-400 hover:border-purple-400'
+                            }`}
+                          >
+                            {isSelected ? (
+                              <svg className="w-6 h-6 text-white font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <div className="w-4 h-4 bg-gray-200 rounded-sm"></div>
+                            )}
+                          </button>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2 pr-12">
                           {translations[itemKey] ? translations[itemKey].title : item.title}
                         </h3>
                         <p className="text-gray-600 mb-3 text-sm">
@@ -1156,22 +1163,29 @@ export default function GlobalNewsApp() {
                       const isSelected = selectedArticles.has(itemKey);
                       return (
                         <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative">
-                          <button
-                            type="button"
-                            onClick={() => toggleArticleSelection(itemKey)}
-                            className="absolute top-3 right-3 z-50 w-7 h-7 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-md hover:scale-110"
-                            style={{
-                              borderColor: isSelected ? '#9333ea' : '#cbd5e1',
-                              backgroundColor: isSelected ? '#9333ea' : 'white'
-                            }}
-                          >
-                            {isSelected && (
-                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </button>
-                          <h3 className="text-lg font-bold text-gray-800 mb-2 pr-10">
+                          <div className="absolute top-2 right-2 z-[100]">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleArticleSelection(itemKey);
+                              }}
+                              className={`w-8 h-8 rounded-md border-3 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
+                                isSelected
+                                  ? 'bg-purple-600 border-purple-700'
+                                  : 'bg-white border-gray-400 hover:border-purple-400'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <svg className="w-6 h-6 text-white font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <div className="w-4 h-4 bg-gray-200 rounded-sm"></div>
+                              )}
+                            </button>
+                          </div>
+                          <h3 className="text-lg font-bold text-gray-800 mb-2 pr-12">
                             {translations[itemKey] ? translations[itemKey].title : item.title}
                           </h3>
                           <p className="text-gray-600 mb-3 text-sm">
