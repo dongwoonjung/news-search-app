@@ -631,7 +631,7 @@ export default function GlobalNewsApp() {
                 </a>
                 <button
                   onClick={() => translations[idx] ? setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; }) : translateNews(item, idx)}
-                  className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[idx] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                  className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${translations[idx] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                 >
                   {translations[idx] ? '📄 원문 보기' : '🌐 한글로 번역'}
                 </button>
@@ -1073,12 +1073,12 @@ export default function GlobalNewsApp() {
                             }}
                             className={`w-8 h-8 rounded-md border-3 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
                               isSelected
-                                ? 'bg-purple-600 border-purple-700'
-                                : 'bg-white border-gray-400 hover:border-purple-400'
+                                ? 'bg-white border-red-500'
+                                : 'bg-white border-gray-400 hover:border-red-400'
                             }`}
                           >
                             {isSelected ? (
-                              <svg className="w-6 h-6 text-white font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-6 h-6 text-red-600 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
                               </svg>
                             ) : (
@@ -1104,7 +1104,7 @@ export default function GlobalNewsApp() {
 
                         <button
                           onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
-                          className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                          className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${translations[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                         >
                           {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
                         </button>
@@ -1172,12 +1172,12 @@ export default function GlobalNewsApp() {
                               }}
                               className={`w-8 h-8 rounded-md border-3 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
                                 isSelected
-                                  ? 'bg-purple-600 border-purple-700'
-                                  : 'bg-white border-gray-400 hover:border-purple-400'
+                                  ? 'bg-white border-red-500'
+                                  : 'bg-white border-gray-400 hover:border-red-400'
                               }`}
                             >
                               {isSelected ? (
-                                <svg className="w-6 h-6 text-white font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6 text-red-600 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
                                 </svg>
                               ) : (
@@ -1203,7 +1203,7 @@ export default function GlobalNewsApp() {
 
                           <button
                             onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
-                            className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[itemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                            className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${translations[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
                           >
                             {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
                           </button>
