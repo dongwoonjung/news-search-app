@@ -860,35 +860,39 @@ export default function GlobalNewsApp() {
                                     <p className="text-gray-600 text-sm mb-3">
                                       {translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}
                                     </p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                                       <span>📰 {article.source}</span>
                                       <span>🕒 {article.date}</span>
                                     </div>
 
-                                    <a
-                                      href={article.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm"
-                                    >
-                                      <ExternalLink className="w-4 h-4 inline mr-1" />
-                                      기사보기
-                                    </a>
+                                    <div className="space-y-2">
+                                      <a
+                                        href={article.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                                      >
+                                        <ExternalLink className="w-4 h-4 inline mr-1" />
+                                        기사 원문 보기
+                                      </a>
 
-                                    <button
-                                      onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
-                                      className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[archiveItemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                    >
-                                      {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
-                                    </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
+                                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                                      >
+                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      </button>
 
-                                    <button
-                                      onClick={() => analyzeNews(article, archiveItemKey)}
-                                      disabled={analyzingId === archiveItemKey}
-                                      className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
-                                    >
-                                      {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                    </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => analyzeNews(article, archiveItemKey)}
+                                        disabled={analyzingId === archiveItemKey}
+                                        className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors"
+                                      >
+                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                                      </button>
+                                    </div>
 
                                     {analysis[archiveItemKey] && (
                                       <div className="mt-4 border-t pt-4">
@@ -971,35 +975,39 @@ export default function GlobalNewsApp() {
                                     <p className="text-gray-600 text-sm mb-3">
                                       {translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}
                                     </p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                                       <span>📰 {article.source}</span>
                                       <span>🕒 {article.date}</span>
                                     </div>
 
-                                    <a
-                                      href={article.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm"
-                                    >
-                                      <ExternalLink className="w-4 h-4 inline mr-1" />
-                                      기사보기
-                                    </a>
+                                    <div className="space-y-2">
+                                      <a
+                                        href={article.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
+                                      >
+                                        <ExternalLink className="w-4 h-4 inline mr-1" />
+                                        기사 원문 보기
+                                      </a>
 
-                                    <button
-                                      onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
-                                      className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[archiveItemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
-                                    >
-                                      {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
-                                    </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
+                                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                                      >
+                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      </button>
 
-                                    <button
-                                      onClick={() => analyzeNews(article, archiveItemKey)}
-                                      disabled={analyzingId === archiveItemKey}
-                                      className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
-                                    >
-                                      {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                    </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => analyzeNews(article, archiveItemKey)}
+                                        disabled={analyzingId === archiveItemKey}
+                                        className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors"
+                                      >
+                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                                      </button>
+                                    </div>
 
                                     {analysis[archiveItemKey] && (
                                       <div className="mt-4 border-t pt-4">
@@ -1057,15 +1065,16 @@ export default function GlobalNewsApp() {
                     return (
                       <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm relative">
                         <button
+                          type="button"
                           onClick={() => toggleArticleSelection(itemKey)}
-                          className="absolute top-3 right-3 z-10 w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all"
+                          className="absolute top-3 right-3 z-50 w-7 h-7 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-md hover:scale-110"
                           style={{
                             borderColor: isSelected ? '#9333ea' : '#cbd5e1',
                             backgroundColor: isSelected ? '#9333ea' : 'white'
                           }}
                         >
                           {isSelected && (
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                             </svg>
                           )}
@@ -1148,15 +1157,16 @@ export default function GlobalNewsApp() {
                       return (
                         <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative">
                           <button
+                            type="button"
                             onClick={() => toggleArticleSelection(itemKey)}
-                            className="absolute top-3 right-3 z-10 w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all"
+                            className="absolute top-3 right-3 z-50 w-7 h-7 rounded border-2 flex items-center justify-center cursor-pointer transition-all shadow-md hover:scale-110"
                             style={{
                               borderColor: isSelected ? '#9333ea' : '#cbd5e1',
                               backgroundColor: isSelected ? '#9333ea' : 'white'
                             }}
                           >
                             {isSelected && (
-                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                               </svg>
                             )}
