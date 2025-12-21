@@ -18,7 +18,16 @@ export default function GlobalNewsApp() {
   const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', or 'archive'
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
-  const [archivedArticles, setArchivedArticles] = useState([]);
+  const [archivedArticles, setArchivedArticles] = useState(() => {
+    // localStorage에서 아카이브된 기사 불러오기
+    try {
+      const saved = localStorage.getItem('archivedArticles');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Failed to load archived articles:', error);
+      return [];
+    }
+  });
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -45,6 +54,15 @@ export default function GlobalNewsApp() {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  // 아카이브된 기사가 변경될 때마다 localStorage에 저장
+  useEffect(() => {
+    try {
+      localStorage.setItem('archivedArticles', JSON.stringify(archivedArticles));
+    } catch (error) {
+      console.error('Failed to save archived articles:', error);
+    }
+  }, [archivedArticles]);
 
   const loadAutomotiveNews = async () => {
     setLoading(true);
@@ -471,13 +489,35 @@ export default function GlobalNewsApp() {
                   </button>
                 </>
               )}
-              {viewMode === 'archive' && (
+              {viewMode === 'general' && archivedArticles.length > 0 && (
                 <button
-                  onClick={() => setViewMode('automotive')}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 flex items-center font-semibold shadow-md"
+                  onClick={viewArchive}
+                  className="px-4 py-2 bg-violet-700 text-white rounded-lg hover:bg-violet-800 flex items-center font-semibold shadow-md"
                 >
-                  ← 경쟁사 분석으로
+                  📂 아카이브 보기 ({archivedArticles.length})
                 </button>
+              )}
+              {viewMode === 'archive' && (
+                <>
+                  <button
+                    onClick={() => setViewMode('general')}
+                    className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 flex items-center font-semibold shadow-md"
+                  >
+                    ← 뉴스로 돌아가기
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('모든 아카이브를 삭제하시겠습니까?')) {
+                        setArchivedArticles([]);
+                        alert('모든 아카이브가 삭제되었습니다.');
+                      }
+                    }}
+                    disabled={archivedArticles.length === 0}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
+                  >
+                    🗑️ 전체 삭제
+                  </button>
+                </>
               )}
             </div>
           </div>
