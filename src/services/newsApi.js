@@ -19,8 +19,13 @@ export const newsApi = {
   // 카테고리별 뉴스 검색
   searchByCategory: async (category, timeRange = 'day') => {
     try {
-      // Vercel Serverless Function 호출
-      const response = await fetch(`/api/news?category=${category}&timeRange=${timeRange}`);
+      // 개발 환경에서도 Vercel 배포된 API 사용 (NewsAPI는 localhost를 지원하지 않음)
+      const isDev = import.meta.env.DEV;
+
+      // 로컬 개발 시 배포된 Vercel URL 사용
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`);
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status}`);
