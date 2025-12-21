@@ -841,34 +841,80 @@ export default function GlobalNewsApp() {
                             </h4>
 
                             <div className="grid gap-3 md:grid-cols-2">
-                              {articlesByDate[date].map((article, idx) => (
-                                <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border-2 border-purple-200 shadow-sm">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <h5 className="text-md font-bold text-gray-800 flex-1">{article.title}</h5>
-                                    <button
-                                      onClick={() => removeFromArchive(article.articleKey)}
-                                      className="ml-2 text-red-500 hover:text-red-700 text-xl"
-                                      title="삭제"
+                              {articlesByDate[date].map((article, idx) => {
+                                const archiveItemKey = `archive-${article.articleKey}`;
+                                return (
+                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border-2 border-purple-200 shadow-sm">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <h5 className="text-md font-bold text-gray-800 flex-1">
+                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                      </h5>
+                                      <button
+                                        onClick={() => removeFromArchive(article.articleKey)}
+                                        className="ml-2 text-red-500 hover:text-red-700 text-xl"
+                                        title="삭제"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                    <p className="text-gray-600 text-sm mb-3">
+                                      {translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}
+                                    </p>
+                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                      <span>📰 {article.source}</span>
+                                      <span>🕒 {article.date}</span>
+                                    </div>
+
+                                    <a
+                                      href={article.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm"
                                     >
-                                      ×
+                                      <ExternalLink className="w-4 h-4 inline mr-1" />
+                                      기사보기
+                                    </a>
+
+                                    <button
+                                      onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
+                                      className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[archiveItemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                    >
+                                      {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
                                     </button>
+
+                                    <button
+                                      onClick={() => analyzeNews(article, archiveItemKey)}
+                                      disabled={analyzingId === archiveItemKey}
+                                      className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
+                                    >
+                                      {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                                    </button>
+
+                                    {analysis[archiveItemKey] && (
+                                      <div className="mt-4 border-t pt-4">
+                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                          <span className="text-green-600">🚗</span>
+                                          현대자동차 전략 분석 리포트
+                                        </h4>
+
+                                        {analysis[archiveItemKey].summary && (
+                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
+                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
+                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                          </div>
+                                        )}
+
+                                        {analysis[archiveItemKey].marketImpact && (
+                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
+                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
+                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  <p className="text-gray-600 text-sm mb-3">{article.summary}</p>
-                                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                                    <span>📰 {article.source}</span>
-                                    <span>🕒 {article.date}</span>
-                                  </div>
-                                  <a
-                                    href={article.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block w-full px-3 py-2 bg-purple-600 text-white text-center rounded-lg hover:bg-purple-700 text-sm font-medium"
-                                  >
-                                    <ExternalLink className="w-4 h-4 inline mr-1" />
-                                    기사 원문 보기
-                                  </a>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
@@ -906,34 +952,80 @@ export default function GlobalNewsApp() {
                             </h4>
 
                             <div className="grid gap-3 md:grid-cols-2">
-                              {articlesByDate[date].map((article, idx) => (
-                                <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border-2 border-indigo-200 shadow-sm">
-                                  <div className="flex items-start justify-between mb-2">
-                                    <h5 className="text-md font-bold text-gray-800 flex-1">{article.title}</h5>
-                                    <button
-                                      onClick={() => removeFromArchive(article.articleKey)}
-                                      className="ml-2 text-red-500 hover:text-red-700 text-xl"
-                                      title="삭제"
+                              {articlesByDate[date].map((article, idx) => {
+                                const archiveItemKey = `archive-${article.articleKey}`;
+                                return (
+                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border-2 border-indigo-200 shadow-sm">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <h5 className="text-md font-bold text-gray-800 flex-1">
+                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                      </h5>
+                                      <button
+                                        onClick={() => removeFromArchive(article.articleKey)}
+                                        className="ml-2 text-red-500 hover:text-red-700 text-xl"
+                                        title="삭제"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                    <p className="text-gray-600 text-sm mb-3">
+                                      {translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}
+                                    </p>
+                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                                      <span>📰 {article.source}</span>
+                                      <span>🕒 {article.date}</span>
+                                    </div>
+
+                                    <a
+                                      href={article.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm"
                                     >
-                                      ×
+                                      <ExternalLink className="w-4 h-4 inline mr-1" />
+                                      기사보기
+                                    </a>
+
+                                    <button
+                                      onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
+                                      className={`w-full px-3 py-2 rounded-lg text-sm mb-2 ${translations[archiveItemKey] ? 'bg-gray-100' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
+                                    >
+                                      {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
                                     </button>
+
+                                    <button
+                                      onClick={() => analyzeNews(article, archiveItemKey)}
+                                      disabled={analyzingId === archiveItemKey}
+                                      className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
+                                    >
+                                      {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                                    </button>
+
+                                    {analysis[archiveItemKey] && (
+                                      <div className="mt-4 border-t pt-4">
+                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                          <span className="text-green-600">🚗</span>
+                                          현대자동차 전략 분석 리포트
+                                        </h4>
+
+                                        {analysis[archiveItemKey].summary && (
+                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
+                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
+                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                          </div>
+                                        )}
+
+                                        {analysis[archiveItemKey].marketImpact && (
+                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
+                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
+                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
-                                  <p className="text-gray-600 text-sm mb-3">{article.summary}</p>
-                                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                                    <span>📰 {article.source}</span>
-                                    <span>🕒 {article.date}</span>
-                                  </div>
-                                  <a
-                                    href={article.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block w-full px-3 py-2 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium"
-                                  >
-                                    <ExternalLink className="w-4 h-4 inline mr-1" />
-                                    기사 원문 보기
-                                  </a>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ));
@@ -964,21 +1056,20 @@ export default function GlobalNewsApp() {
                     const isSelected = selectedArticles.has(itemKey);
                     return (
                       <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm relative">
-                        <label className="absolute top-3 right-3 z-10 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleArticleSelection(itemKey)}
-                            className="w-6 h-6 cursor-pointer"
-                            style={{
-                              accentColor: '#9333ea',
-                              width: '24px',
-                              height: '24px',
-                              minWidth: '24px',
-                              minHeight: '24px'
-                            }}
-                          />
-                        </label>
+                        <button
+                          onClick={() => toggleArticleSelection(itemKey)}
+                          className="absolute top-3 right-3 z-10 w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all"
+                          style={{
+                            borderColor: isSelected ? '#9333ea' : '#cbd5e1',
+                            backgroundColor: isSelected ? '#9333ea' : 'white'
+                          }}
+                        >
+                          {isSelected && (
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
                         <h3 className="text-lg font-bold text-gray-800 mb-2 pr-10">
                           {translations[itemKey] ? translations[itemKey].title : item.title}
                         </h3>
@@ -1056,21 +1147,20 @@ export default function GlobalNewsApp() {
                       const isSelected = selectedArticles.has(itemKey);
                       return (
                         <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative">
-                          <label className="absolute top-3 right-3 z-10 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleArticleSelection(itemKey)}
-                              className="w-6 h-6 cursor-pointer"
-                              style={{
-                                accentColor: '#9333ea',
-                                width: '24px',
-                                height: '24px',
-                                minWidth: '24px',
-                                minHeight: '24px'
-                              }}
-                            />
-                          </label>
+                          <button
+                            onClick={() => toggleArticleSelection(itemKey)}
+                            className="absolute top-3 right-3 z-10 w-6 h-6 rounded border-2 flex items-center justify-center cursor-pointer transition-all"
+                            style={{
+                              borderColor: isSelected ? '#9333ea' : '#cbd5e1',
+                              backgroundColor: isSelected ? '#9333ea' : 'white'
+                            }}
+                          >
+                            {isSelected && (
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
                           <h3 className="text-lg font-bold text-gray-800 mb-2 pr-10">
                             {translations[itemKey] ? translations[itemKey].title : item.title}
                           </h3>
