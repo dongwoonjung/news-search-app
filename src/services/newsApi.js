@@ -31,7 +31,17 @@ export const newsApi = {
         throw new Error(`API Error: ${response.status}`);
       }
 
-      const data = await response.json();
+      // 응답 텍스트를 먼저 확인
+      const responseText = await response.text();
+      console.log('API Response (first 200 chars):', responseText.substring(0, 200));
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse JSON. Response:', responseText.substring(0, 500));
+        throw new Error('서버에서 잘못된 응답을 받았습니다. Vercel 환경변수를 확인해주세요.');
+      }
 
       if (data.success) {
         console.log(`📰 총 ${data.articles.length}개의 기사를 가져왔습니다.`);

@@ -58,21 +58,30 @@ export default function GlobalNewsApp() {
       const companiesData = {};
       const allCompanyArticles = {};
 
+      // 개발 환경에서도 배포된 Vercel URL 사용
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
       // 1. 각 자동차 회사별로 뉴스 가져오기
       for (const company of autoCompanies) {
-        const response = await fetch(`/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=week`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.articles.length > 0) {
-            allCompanyArticles[company.id] = data.articles.slice(0, 10).map(article => ({
-              title: article.title,
-              summary: article.description || article.content?.substring(0, 200) + '...',
-              date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-              source: article.source.name,
-              importance: 'medium',
-              url: article.url,
-            }));
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=week`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.articles.length > 0) {
+              allCompanyArticles[company.id] = data.articles.slice(0, 10).map(article => ({
+                title: article.title,
+                summary: article.description || article.content?.substring(0, 200) + '...',
+                date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                source: article.source.name,
+                importance: 'medium',
+                url: article.url,
+              }));
+            }
           }
+        } catch (companyError) {
+          console.error(`Failed to fetch news for ${company.name}:`, companyError);
+          // 개별 회사 실패는 무시하고 계속 진행
         }
       }
 
