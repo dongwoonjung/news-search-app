@@ -45,6 +45,7 @@ export default function GlobalNewsApp() {
     { id: 'ford', name: '포드', keywords: '"Ford Motor" OR "Ford F-150" OR "Ford EV" OR "Ford electric"' },
     { id: 'gm', name: 'GM', keywords: '"General Motors" OR "GM" OR Cadillac OR "Chevrolet electric"' },
     { id: 'bmw', name: 'BMW', keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"' },
+    { id: 'mercedes', name: '벤츠', keywords: '"Mercedes-Benz" OR Mercedes OR "Mercedes EQ" OR "Mercedes electric"' },
     { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler' },
   ];
 
@@ -848,6 +849,46 @@ export default function GlobalNewsApp() {
                 <span className="text-lg font-normal text-gray-500">총 {archivedArticles.length}개</span>
               </h2>
 
+              {/* 회사별 탭 */}
+              <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
+                <button
+                  onClick={() => setActiveArchiveTab('all')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    activeArchiveTab === 'all'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  전체 ({archivedArticles.length})
+                </button>
+                {autoCompanies.map(company => {
+                  const count = archivedArticles.filter(a => a.companyId === company.id).length;
+                  return (
+                    <button
+                      key={company.id}
+                      onClick={() => setActiveArchiveTab(company.id)}
+                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                        activeArchiveTab === company.id
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {company.name} ({count})
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setActiveArchiveTab('industry')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    activeArchiveTab === 'industry'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  산업 공통 ({archivedArticles.filter(a => a.companyId === 'industry').length})
+                </button>
+              </div>
+
               {archivedArticles.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500 text-lg">아카이브된 기사가 없습니다.</p>
@@ -855,49 +896,6 @@ export default function GlobalNewsApp() {
                 </div>
               ) : (
                 <>
-                  {/* 회사별 탭 */}
-                  <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
-                    <button
-                      onClick={() => setActiveArchiveTab('all')}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                        activeArchiveTab === 'all'
-                          ? 'bg-indigo-600 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      전체 ({archivedArticles.length})
-                    </button>
-                    {autoCompanies.map(company => {
-                      const count = archivedArticles.filter(a => a.companyId === company.id).length;
-                      if (count === 0) return null;
-                      return (
-                        <button
-                          key={company.id}
-                          onClick={() => setActiveArchiveTab(company.id)}
-                          className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                            activeArchiveTab === company.id
-                              ? 'bg-indigo-600 text-white shadow-md'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
-                        >
-                          {company.name} ({count})
-                        </button>
-                      );
-                    })}
-                    {archivedArticles.filter(a => a.companyId === 'industry').length > 0 && (
-                      <button
-                        onClick={() => setActiveArchiveTab('industry')}
-                        className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                          activeArchiveTab === 'industry'
-                            ? 'bg-indigo-600 text-white shadow-md'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        산업 공통 ({archivedArticles.filter(a => a.companyId === 'industry').length})
-                      </button>
-                    )}
-                  </div>
-
                   {/* 자동차 회사별로 그룹화 */}
                   {autoCompanies.filter(company =>
                     activeArchiveTab === 'all' || activeArchiveTab === company.id
