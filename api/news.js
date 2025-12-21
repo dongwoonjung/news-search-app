@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       const categoryQueries = {
         'geopolitics': '(China OR Russia OR Ukraine OR "Middle East" OR Iran OR Israel OR Taiwan OR "South China Sea" OR NATO OR "North Korea" OR Syria OR Yemen OR Venezuela OR "Latin America") AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic)',
         'economy': 'economy OR market OR business OR stock OR Federal Reserve OR inflation OR finance OR banking',
-        'automotive': '(Toyota OR Honda OR Ford OR "General Motors" OR GM OR Tesla OR Volkswagen OR VW OR Hyundai OR Kia OR BMW OR Mercedes OR "electric vehicle" OR EV OR "car sales" OR "auto industry" OR automaker)',
+        'automotive': 'Toyota OR Honda OR Ford OR GM OR Tesla OR Volkswagen OR Hyundai OR Kia OR BMW OR Mercedes OR Nissan OR "electric vehicle" OR EV OR "car sales" OR automotive OR automaker OR vehicle',
         'ai-tech': 'AI OR "artificial intelligence" OR GPT OR "ChatGPT" OR "Claude AI" OR Gemini OR "Google Gemini" OR "self-driving" OR autonomous OR robotics OR "humanoid robot" OR humanoid OR Tesla OR Waymo OR "machine learning" OR automation OR robot'
       };
       query = categoryQueries[category] || 'technology';
