@@ -67,7 +67,7 @@ export default function GlobalNewsApp() {
     }
   }, [archivedArticles]);
 
-  const loadAutomotiveNews = async () => {
+  const loadAutomotiveNews = async (range = timeRange) => {
     setLoading(true);
     setError(null);
     setAnalysis({});
@@ -86,7 +86,7 @@ export default function GlobalNewsApp() {
       // 1. 각 자동차 회사별로 뉴스 가져오기
       for (const company of autoCompanies) {
         try {
-          const response = await fetch(`${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=week`);
+          const response = await fetch(`${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`);
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.articles.length > 0) {
@@ -1185,6 +1185,32 @@ export default function GlobalNewsApp() {
                     산업 공통 ({autoNewsData['industry'].length})
                   </button>
                 )}
+              </div>
+
+              {/* 수집 기간 선택 */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <Clock className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600 font-medium">수집 기간:</span>
+                <button
+                  onClick={() => { setTimeRange('day'); loadAutomotiveNews('day'); }}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                    timeRange === 'day'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  최근 2일
+                </button>
+                <button
+                  onClick={() => { setTimeRange('week'); loadAutomotiveNews('week'); }}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                    timeRange === 'week'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  일주일 전
+                </button>
               </div>
             </div>
 
