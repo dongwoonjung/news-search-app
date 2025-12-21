@@ -1071,7 +1071,7 @@ export default function GlobalNewsApp() {
                               e.stopPropagation();
                               toggleArticleSelection(itemKey);
                             }}
-                            className={`w-8 h-8 rounded-md border-3 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
+                            className={`w-8 h-8 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
                               isSelected
                                 ? 'bg-white border-red-500'
                                 : 'bg-white border-gray-400 hover:border-red-400'
@@ -1170,7 +1170,7 @@ export default function GlobalNewsApp() {
                                 e.stopPropagation();
                                 toggleArticleSelection(itemKey);
                               }}
-                              className={`w-8 h-8 rounded-md border-3 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
+                              className={`w-8 h-8 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
                                 isSelected
                                   ? 'bg-white border-red-500'
                                   : 'bg-white border-gray-400 hover:border-red-400'
