@@ -302,7 +302,10 @@ export default function GlobalNewsApp() {
 
   const translateNews = async (item, idx) => {
     try {
-      const response = await fetch('/api/translate', {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/translate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
