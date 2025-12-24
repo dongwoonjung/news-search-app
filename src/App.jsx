@@ -30,6 +30,7 @@ export default function GlobalNewsApp() {
   });
   const [activeArchiveTab, setActiveArchiveTab] = useState('all');
   const [activeCompanyTab, setActiveCompanyTab] = useState('all');
+  const [newsSource, setNewsSource] = useState('google'); // 'newsapi', 'naver', 'google', 'bing', 'all'
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -225,7 +226,7 @@ export default function GlobalNewsApp() {
     }
   };
 
-  const loadNews = async (cat, range) => {
+  const loadNews = async (cat, range, source = newsSource) => {
     setLoading(true);
     setError(null);
     setViewMode('general');
@@ -236,7 +237,7 @@ export default function GlobalNewsApp() {
     setOverallAnalysis(null);
 
     try {
-      const result = await newsApi.searchByCategory(cat, range);
+      const result = await newsApi.searchByCategory(cat, range, source);
 
       if (result.success) {
         setNews(result.articles);
@@ -532,6 +533,24 @@ export default function GlobalNewsApp() {
                 </>
               )}
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <Newspaper className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600 font-medium">뉴스 소스:</span>
+            <button
+              onClick={() => { setNewsSource('newsapi'); loadNews(category, timeRange, 'newsapi'); }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${newsSource === 'newsapi' ? 'bg-purple-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              NewsAPI
+            </button>
+            <button
+              onClick={() => { setNewsSource('google'); loadNews(category, timeRange, 'google'); }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium ${newsSource === 'google' ? 'bg-purple-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Google News
+            </button>
+            <span className="text-xs text-gray-400 ml-2">(네이버, Bing은 API 키 필요)</span>
           </div>
 
           <div className="flex items-center gap-2 mb-4 flex-wrap">

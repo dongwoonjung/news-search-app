@@ -17,7 +17,7 @@ const TRUSTED_SOURCES = [
 
 export const newsApi = {
   // 카테고리별 뉴스 검색
-  searchByCategory: async (category, timeRange = 'day') => {
+  searchByCategory: async (category, timeRange = 'day', newsSource = 'newsapi') => {
     try {
       // 개발 환경에서도 Vercel 배포된 API 사용 (NewsAPI는 localhost를 지원하지 않음)
       const isDev = import.meta.env.DEV;
@@ -25,46 +25,85 @@ export const newsApi = {
       // 로컬 개발 시 배포된 Vercel URL 사용
       const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
 
-      const response = await fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`);
+      // 뉴스 소스에 따라 다른 API 호출
+      let response, data;
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
+      switch (newsSource) {
+        case 'google':
+          // Google News RSS 호출
+          const googleQuery = getCategoryQuery(category);
+          response = await fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(googleQuery)}&language=en`);
 
-      // 응답 텍스트를 먼저 확인
-      const responseText = await response.text();
-      console.log('API Response (first 200 chars):', responseText.substring(0, 200));
+          if (!response.ok) {
+            throw new Error(`Google News API Error: ${response.status}`);
+          }
 
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse JSON. Response:', responseText.substring(0, 500));
-        throw new Error('서버에서 잘못된 응답을 받았습니다. Vercel 환경변수를 확인해주세요.');
-      }
+          data = await response.json();
 
-      if (data.success) {
-        console.log(`📰 총 ${data.articles.length}개의 기사를 가져왔습니다.`);
+          if (data.success) {
+            console.log(`📰 Google News: ${data.articles.length}개의 기사를 가져왔습니다.`);
 
-        const filteredArticles = data.articles.map(article => ({
-          title: article.title,
-          summary: article.description || article.content?.substring(0, 200) + '...',
-          date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          source: article.source.name,
-          importance: determineImportance(article),
-          url: article.url,
-          urlToImage: article.urlToImage,
-          publishedAt: article.publishedAt
-        }));
+            const filteredArticles = data.articles.map(article => ({
+              title: article.title,
+              summary: article.summary,
+              date: article.date,
+              source: article.source,
+              importance: 'medium',
+              url: article.url,
+              publishedAt: article.publishedAt
+            }));
 
-        console.log(`✅ ${filteredArticles.length}개의 기사를 반환합니다.`);
+            return {
+              success: true,
+              articles: filteredArticles.slice(0, timeRange === 'day' ? 5 : 10)
+            };
+          } else {
+            throw new Error(data.error || 'Failed to fetch Google News');
+          }
 
-        return {
-          success: true,
-          articles: filteredArticles
-        };
-      } else {
-        throw new Error(data.error || 'Failed to fetch news');
+        case 'newsapi':
+        default:
+          // 기존 NewsAPI 호출
+          response = await fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`);
+
+          if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+          }
+
+          // 응답 텍스트를 먼저 확인
+          const responseText = await response.text();
+          console.log('API Response (first 200 chars):', responseText.substring(0, 200));
+
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse JSON. Response:', responseText.substring(0, 500));
+            throw new Error('서버에서 잘못된 응답을 받았습니다. Vercel 환경변수를 확인해주세요.');
+          }
+
+          if (data.success) {
+            console.log(`📰 총 ${data.articles.length}개의 기사를 가져왔습니다.`);
+
+            const filteredArticles = data.articles.map(article => ({
+              title: article.title,
+              summary: article.description || article.content?.substring(0, 200) + '...',
+              date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              source: article.source.name,
+              importance: determineImportance(article),
+              url: article.url,
+              urlToImage: article.urlToImage,
+              publishedAt: article.publishedAt
+            }));
+
+            console.log(`✅ ${filteredArticles.length}개의 기사를 반환합니다.`);
+
+            return {
+              success: true,
+              articles: filteredArticles
+            };
+          } else {
+            throw new Error(data.error || 'Failed to fetch news');
+          }
       }
     } catch (error) {
       console.error('Error fetching news:', error);
@@ -76,6 +115,17 @@ export const newsApi = {
     }
   }
 };
+
+// 카테고리별 검색 쿼리 생성 (Google News용)
+function getCategoryQuery(category) {
+  const categoryQueries = {
+    'geopolitics': 'geopolitics China Russia Ukraine Middle East Iran Israel Taiwan',
+    'economy': 'economy market business Federal Reserve inflation finance banking',
+    'automotive': 'electric vehicle EV Tesla Hyundai Kia BYD Toyota Ford GM battery auto industry',
+    'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot'
+  };
+  return categoryQueries[category] || 'technology';
+}
 
 // 기사 중요도 판단 (간단한 휴리스틱)
 function determineImportance(article) {
