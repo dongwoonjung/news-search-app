@@ -159,5 +159,5 @@ MIT License
 
 ---
 
-**Powered by [NewsAPI.org](https://newsapi.org)**
+**Powered by [NewsAPI.org](https://newsapi.org) and Google News RSS**
 # News Search App - Deployed on Vercel
