@@ -89,7 +89,13 @@ export default function GlobalNewsApp() {
         try {
           const url = `${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`;
           console.log(`📡 Fetching ${company.name} with timeRange=${range}`);
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            cache: 'no-cache',
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.articles.length > 0) {
