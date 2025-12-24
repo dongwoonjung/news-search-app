@@ -63,15 +63,21 @@ export default async function handler(req, res) {
       'economist.com'
     ];
 
+    const fromDate = from.toISOString().split('T')[0];
+    const toDate = now.toISOString().split('T')[0];
+
     const queryParams = new URLSearchParams({
       apiKey: process.env.NEWS_API_KEY || process.env.VITE_NEWS_API_KEY,
       q: query,
       language: 'en',
       sortBy: 'publishedAt',
-      from: from.toISOString().split('T')[0],
-      to: now.toISOString().split('T')[0],
+      from: fromDate,
+      to: toDate,
       pageSize: 100
     });
+
+    console.log(`🔍 NewsAPI Query: ${query.substring(0, 50)}...`);
+    console.log(`📅 Date range: ${fromDate} to ${toDate}`);
 
     // 도메인 제한 적용 (자동차/AI-자율주행/회사 검색이 아닐 때만)
     if (!company && category !== 'automotive' && category !== 'ai-tech') {
@@ -82,8 +88,15 @@ export default async function handler(req, res) {
     const response = await fetch(`https://newsapi.org/v2/everything?${queryParams}`);
     const data = await response.json();
 
+    console.log(`✅ NewsAPI Response: ${data.status}, Total articles: ${data.totalResults || 0}, Returned: ${data.articles?.length || 0}`);
+
     if (data.status === 'ok') {
       const targetCount = timeRange === 'day' ? 10 : 20;
+
+      // 첫 번째와 마지막 기사 날짜 출력
+      if (data.articles.length > 0) {
+        console.log(`📅 Article dates: First=${data.articles[0].publishedAt}, Last=${data.articles[data.articles.length - 1].publishedAt}`);
+      }
 
       // 디버깅: 가져온 기사들의 소스 출력
       if (company || category === 'automotive') {
