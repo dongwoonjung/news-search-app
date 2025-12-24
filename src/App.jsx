@@ -72,7 +72,6 @@ export default function GlobalNewsApp() {
     setAnalysis({});
     setTranslations({});
     setAnalyzingId(null);
-    setOverallAnalysis(null);
 
     try {
       const companiesData = {};
@@ -276,7 +275,6 @@ export default function GlobalNewsApp() {
     setAnalysis({});
     setTranslations({});
     setAnalyzingId(null);
-    setOverallAnalysis(null);
 
     try {
       const result = await newsApi.searchByCategory(cat, range);
