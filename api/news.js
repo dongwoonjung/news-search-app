@@ -96,6 +96,14 @@ export default async function handler(req, res) {
       // 첫 번째와 마지막 기사 날짜 출력
       if (data.articles.length > 0) {
         console.log(`📅 Article dates: First=${data.articles[0].publishedAt}, Last=${data.articles[data.articles.length - 1].publishedAt}`);
+
+        // 날짜 분포 확인
+        const dateDistribution = {};
+        data.articles.forEach(article => {
+          const date = article.publishedAt.split('T')[0];
+          dateDistribution[date] = (dateDistribution[date] || 0) + 1;
+        });
+        console.log(`📊 Date distribution:`, JSON.stringify(dateDistribution));
       }
 
       // 디버깅: 가져온 기사들의 소스 출력
