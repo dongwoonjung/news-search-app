@@ -78,6 +78,7 @@ export default async function handler(req, res) {
 
     console.log(`🔍 NewsAPI Query: ${query.substring(0, 50)}...`);
     console.log(`📅 Date range: ${fromDate} to ${toDate}`);
+    console.log(`🔑 API Key status: ${process.env.NEWS_API_KEY ? 'Found' : 'Not found'}`);
 
     // 도메인 제한 적용 (자동차/AI-자율주행/회사 검색이 아닐 때만)
     if (!company && category !== 'automotive' && category !== 'ai-tech') {
