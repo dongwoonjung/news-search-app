@@ -13,8 +13,6 @@ export default function GlobalNewsApp() {
   const [translations, setTranslations] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
-  const [overallAnalysis, setOverallAnalysis] = useState(null);
-  const [analyzingOverall, setAnalyzingOverall] = useState(false);
   const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', or 'archive'
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
@@ -412,45 +410,6 @@ export default function GlobalNewsApp() {
     }
   };
 
-  const analyzeOverallNews = () => {
-    setAnalyzingOverall(true);
-    setTimeout(() => {
-      const allOpportunities = [];
-      const allRisks = [];
-
-      news.forEach(item => {
-        const itemAnalysis = analyzeForHyundai(item);
-        if (itemAnalysis.opportunities) {
-          itemAnalysis.opportunities.forEach(opp => {
-            allOpportunities.push({ ...opp, source: item.title });
-          });
-        }
-        if (itemAnalysis.risks) {
-          itemAnalysis.risks.forEach(risk => {
-            allRisks.push({ ...risk, source: item.title });
-          });
-        }
-      });
-
-      allOpportunities.sort((a, b) => {
-        const order = { high: 3, medium: 2, low: 1 };
-        return (order[b.impact] || 0) - (order[a.impact] || 0);
-      });
-
-      allRisks.sort((a, b) => {
-        const order = { high: 3, medium: 2, low: 1 };
-        return (order[b.severity] || 0) - (order[a.severity] || 0);
-      });
-
-      setOverallAnalysis({
-        opportunities: allOpportunities,
-        risks: allRisks,
-        summary: `현재 ${news.length}개 뉴스 분석 결과: ${allOpportunities.length}개 기회, ${allRisks.length}개 리스크 도출`
-      });
-      setAnalyzingOverall(false);
-    }, 1500);
-  };
-
   const toggleArticleSelection = (articleKey, articleData, companyId) => {
     setSelectedArticles(prev => {
       const newSet = new Set(prev);
@@ -522,13 +481,6 @@ export default function GlobalNewsApp() {
               >
                 <RefreshCw className={`w-5 h-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 새로고침
-              </button>
-              <button
-                onClick={analyzeOverallNews}
-                disabled={analyzingOverall || news.length === 0}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-              >
-                {analyzingOverall ? '⏳ 분석 중...' : '📊 전체 뉴스 종합 분석'}
               </button>
               <button
                 onClick={() => loadAutomotiveNews(timeRange)}
@@ -631,84 +583,6 @@ export default function GlobalNewsApp() {
           <div className="flex flex-col items-center py-12 bg-white rounded-xl shadow-lg">
             <div className="text-6xl mb-4 animate-pulse">⏳</div>
             <p className="text-gray-600">뉴스를 불러오는 중...</p>
-          </div>
-        )}
-
-        {overallAnalysis && (
-          <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-            <div className="flex items-center gap-3 mb-6 flex-wrap">
-              <div className="bg-green-600 p-3 rounded-xl text-2xl">
-                📊
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-2xl font-bold text-gray-800">현대자동차 전체 뉴스 종합 분석</h2>
-                <p className="text-gray-500">{overallAnalysis.summary}</p>
-              </div>
-              <button
-                onClick={() => setOverallAnalysis(null)}
-                className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm"
-              >
-                닫기
-              </button>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-xl font-bold text-green-700 mb-4 flex items-center gap-2">
-                  <span className="bg-green-100 p-2 rounded-lg">📈</span>
-                  종합 기회 요인
-                </h3>
-                <div className="space-y-3">
-                  {overallAnalysis.opportunities && overallAnalysis.opportunities.length > 0 ? (
-                    overallAnalysis.opportunities.map((opp, oppIdx) => (
-                      <div key={`overall-opp-${oppIdx}`} className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2 gap-2">
-                          <p className="font-medium text-gray-800 flex-1">{opp.point}</p>
-                          <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                            opp.impact === 'high' ? 'bg-green-200 text-green-800' :
-                            opp.impact === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                            'bg-blue-200 text-blue-800'
-                          }`}>
-                            {opp.impact === 'high' ? '높음' : opp.impact === 'medium' ? '중간' : '낮음'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 truncate" title={opp.source}>출처: {opp.source}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-sm">분석된 기회 요인이 없습니다.</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold text-red-700 mb-4 flex items-center gap-2">
-                  <span className="bg-red-100 p-2 rounded-lg">⚠️</span>
-                  종합 리스크 요인
-                </h3>
-                <div className="space-y-3">
-                  {overallAnalysis.risks && overallAnalysis.risks.length > 0 ? (
-                    overallAnalysis.risks.map((risk, riskIdx) => (
-                      <div key={`overall-risk-${riskIdx}`} className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-2 gap-2">
-                          <p className="font-medium text-gray-800 flex-1">{risk.point}</p>
-                          <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-                            risk.severity === 'high' ? 'bg-red-200 text-red-800' :
-                            risk.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
-                            'bg-yellow-200 text-yellow-800'
-                          }`}>
-                            {risk.severity === 'high' ? '높음' : risk.severity === 'medium' ? '중간' : '낮음'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 truncate" title={risk.source}>출처: {risk.source}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500 text-sm">분석된 리스크 요인이 없습니다.</p>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
