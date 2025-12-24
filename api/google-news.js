@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, language = 'en' } = req.query;
+    const { query, language = 'en', count = 20 } = req.query;
 
     if (!query) {
       return res.status(400).json({
@@ -32,9 +32,13 @@ export default async function handler(req, res) {
     // Google News RSS URL
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${language}&gl=US&ceid=US:en`;
 
+    console.log(`🔍 Google News RSS Query: ${query}`);
+
     const feed = await parser.parseURL(url);
 
-    const articles = feed.items.slice(0, 20).map(item => ({
+    console.log(`✅ Google News RSS: ${feed.items.length} articles fetched`);
+
+    const articles = feed.items.slice(0, parseInt(count)).map(item => ({
       title: item.title,
       summary: item.contentSnippet || item.content || '',
       date: new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),

@@ -68,8 +68,8 @@ export default function GlobalNewsApp() {
     }
   }, [archivedArticles]);
 
-  const loadAutomotiveNews = async (range = timeRange) => {
-    console.log(`🔍 loadAutomotiveNews called with range: ${range}`);
+  const loadAutomotiveNews = async (range = timeRange, source = newsSource) => {
+    console.log(`🔍 loadAutomotiveNews called with range: ${range}, source: ${source}`);
     setLoading(true);
     setError(null);
     setAnalysis({});
@@ -88,31 +88,67 @@ export default function GlobalNewsApp() {
       // 1. 각 자동차 회사별로 뉴스 가져오기
       for (const company of autoCompanies) {
         try {
-          const url = `${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`;
-          console.log(`📡 Fetching ${company.name} with timeRange=${range}`);
-          const response = await fetch(url, {
-            cache: 'no-cache',
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.articles.length > 0) {
-              console.log(`✅ ${company.name}: ${data.articles.length} articles received`);
-              // 첫 번째와 마지막 기사의 날짜 출력
-              if (data.articles.length > 0) {
-                console.log(`   📅 First: ${data.articles[0].publishedAt}, Last: ${data.articles[data.articles.length - 1].publishedAt}`);
+          let url, response, data;
+
+          if (source === 'google') {
+            // Google News RSS 사용
+            const companyQuery = company.keywords.replace(/"/g, '').replace(/ OR /g, ' ');
+            url = `${apiBaseUrl}/api/google-news?query=${encodeURIComponent(companyQuery)}&count=10`;
+            console.log(`📡 Fetching ${company.name} from Google News`);
+
+            response = await fetch(url, {
+              cache: 'no-cache',
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
               }
-              allCompanyArticles[company.id] = data.articles.slice(0, 10).map(article => ({
-                title: article.title,
-                summary: article.description || article.content?.substring(0, 200) + '...',
-                date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                source: article.source.name,
-                importance: 'medium',
-                url: article.url,
-              }));
+            });
+
+            if (response.ok) {
+              data = await response.json();
+              if (data.success && data.articles.length > 0) {
+                console.log(`✅ ${company.name}: ${data.articles.length} articles received from Google News`);
+                allCompanyArticles[company.id] = data.articles.map(article => ({
+                  title: article.title,
+                  summary: article.summary,
+                  date: article.date,
+                  source: article.source,
+                  importance: 'medium',
+                  url: article.url,
+                  publishedAt: article.publishedAt
+                }));
+              }
+            }
+          } else {
+            // NewsAPI 사용 (기존 코드)
+            url = `${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`;
+            console.log(`📡 Fetching ${company.name} from NewsAPI with timeRange=${range}`);
+
+            response = await fetch(url, {
+              cache: 'no-cache',
+              headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+              }
+            });
+
+            if (response.ok) {
+              data = await response.json();
+              if (data.success && data.articles.length > 0) {
+                console.log(`✅ ${company.name}: ${data.articles.length} articles received from NewsAPI`);
+                if (data.articles.length > 0) {
+                  console.log(`   📅 First: ${data.articles[0].publishedAt}, Last: ${data.articles[data.articles.length - 1].publishedAt}`);
+                }
+                allCompanyArticles[company.id] = data.articles.slice(0, 10).map(article => ({
+                  title: article.title,
+                  summary: article.description || article.content?.substring(0, 200) + '...',
+                  date: new Date(article.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                  source: article.source.name,
+                  importance: 'medium',
+                  url: article.url,
+                  publishedAt: article.publishedAt
+                }));
+              }
             }
           }
         } catch (companyError) {
@@ -487,7 +523,7 @@ export default function GlobalNewsApp() {
                 {analyzingOverall ? '⏳ 분석 중...' : '📊 전체 뉴스 종합 분석'}
               </button>
               <button
-                onClick={() => loadAutomotiveNews()}
+                onClick={() => loadAutomotiveNews(timeRange, newsSource)}
                 disabled={loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
               >
@@ -1225,7 +1261,7 @@ export default function GlobalNewsApp() {
                 <Clock className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-gray-600 font-medium">수집 기간:</span>
                 <button
-                  onClick={() => { setTimeRange('day'); loadAutomotiveNews('day'); }}
+                  onClick={() => { setTimeRange('day'); loadAutomotiveNews('day', newsSource); }}
                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
                     timeRange === 'day'
                       ? 'bg-blue-600 text-white shadow-sm'
@@ -1235,7 +1271,7 @@ export default function GlobalNewsApp() {
                   최근 2일
                 </button>
                 <button
-                  onClick={() => { setTimeRange('week'); loadAutomotiveNews('week'); }}
+                  onClick={() => { setTimeRange('week'); loadAutomotiveNews('week', newsSource); }}
                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
                     timeRange === 'week'
                       ? 'bg-blue-600 text-white shadow-sm'
