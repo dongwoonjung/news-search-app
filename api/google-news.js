@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, language = 'en', count = 20 } = req.query;
+    const { query, language = 'en', count = 20, timeRange = 'day' } = req.query;
 
     if (!query) {
       return res.status(400).json({
@@ -29,16 +29,39 @@ export default async function handler(req, res) {
       }
     });
 
-    // Google News RSS URL
-    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=${language}&gl=US&ceid=US:en`;
+    // 날짜 범위 계산
+    const now = new Date();
+    const fromDate = new Date(now);
 
-    console.log(`🔍 Google News RSS Query: ${query}`);
+    if (timeRange === 'day') {
+      fromDate.setDate(fromDate.getDate() - 2); // 최근 2일
+    } else if (timeRange === 'week') {
+      fromDate.setDate(fromDate.getDate() - 7); // 최근 7일
+    } else {
+      fromDate.setDate(fromDate.getDate() - 2); // 기본값 2일
+    }
+
+    // Google News RSS URL with date range (when:)
+    // when:7d = 지난 7일, when:1d = 지난 1일
+    const whenParam = timeRange === 'week' ? 'when:7d' : 'when:2d';
+    const searchQuery = `${query} ${whenParam}`;
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(searchQuery)}&hl=${language}&gl=US&ceid=US:en`;
+
+    console.log(`🔍 Google News RSS Query: ${searchQuery}, timeRange: ${timeRange}`);
 
     const feed = await parser.parseURL(url);
 
     console.log(`✅ Google News RSS: ${feed.items.length} articles fetched`);
 
-    const articles = feed.items.slice(0, parseInt(count)).map(item => ({
+    // 날짜 필터링 (추가 안전장치)
+    const filteredItems = feed.items.filter(item => {
+      const pubDate = new Date(item.pubDate);
+      return pubDate >= fromDate && pubDate <= now;
+    });
+
+    console.log(`📅 Filtered articles by date: ${filteredItems.length} (from ${feed.items.length})`);
+
+    const articles = filteredItems.slice(0, parseInt(count)).map(item => ({
       title: item.title,
       summary: item.contentSnippet || item.content || '',
       date: new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),

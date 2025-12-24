@@ -32,7 +32,8 @@ export const newsApi = {
         case 'google':
           // Google News RSS 호출
           const googleQuery = getCategoryQuery(category);
-          response = await fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(googleQuery)}&language=en`);
+          const targetCount = timeRange === 'day' ? 5 : 10;
+          response = await fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(googleQuery)}&language=en&timeRange=${timeRange}&count=${targetCount}`);
 
           if (!response.ok) {
             throw new Error(`Google News API Error: ${response.status}`);
@@ -41,7 +42,7 @@ export const newsApi = {
           data = await response.json();
 
           if (data.success) {
-            console.log(`📰 Google News: ${data.articles.length}개의 기사를 가져왔습니다.`);
+            console.log(`📰 Google News (${timeRange}): ${data.articles.length}개의 기사를 가져왔습니다.`);
 
             const filteredArticles = data.articles.map(article => ({
               title: article.title,
@@ -55,7 +56,7 @@ export const newsApi = {
 
             return {
               success: true,
-              articles: filteredArticles.slice(0, timeRange === 'day' ? 5 : 10)
+              articles: filteredArticles
             };
           } else {
             throw new Error(data.error || 'Failed to fetch Google News');

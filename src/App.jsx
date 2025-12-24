@@ -93,8 +93,8 @@ export default function GlobalNewsApp() {
           if (source === 'google') {
             // Google News RSS 사용
             const companyQuery = company.keywords.replace(/"/g, '').replace(/ OR /g, ' ');
-            url = `${apiBaseUrl}/api/google-news?query=${encodeURIComponent(companyQuery)}&count=10`;
-            console.log(`📡 Fetching ${company.name} from Google News`);
+            url = `${apiBaseUrl}/api/google-news?query=${encodeURIComponent(companyQuery)}&count=10&timeRange=${range}`;
+            console.log(`📡 Fetching ${company.name} from Google News with timeRange=${range}`);
 
             response = await fetch(url, {
               cache: 'no-cache',
