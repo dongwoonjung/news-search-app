@@ -37,6 +37,8 @@ export default async function handler(req, res) {
       from.setDate(from.getDate() - 7); // 일주일 전
     }
 
+    console.log(`📅 API Request - timeRange: ${timeRange}, from: ${from.toISOString().split('T')[0]}, to: ${now.toISOString().split('T')[0]}`);
+
     // 지정된 뉴스 소스
     const TRUSTED_SOURCES = [
       'nytimes.com',

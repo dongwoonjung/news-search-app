@@ -68,6 +68,7 @@ export default function GlobalNewsApp() {
   }, [archivedArticles]);
 
   const loadAutomotiveNews = async (range = timeRange) => {
+    console.log(`🔍 loadAutomotiveNews called with range: ${range}`);
     setLoading(true);
     setError(null);
     setAnalysis({});
@@ -86,10 +87,17 @@ export default function GlobalNewsApp() {
       // 1. 각 자동차 회사별로 뉴스 가져오기
       for (const company of autoCompanies) {
         try {
-          const response = await fetch(`${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`);
+          const url = `${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`;
+          console.log(`📡 Fetching ${company.name} with timeRange=${range}`);
+          const response = await fetch(url);
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.articles.length > 0) {
+              console.log(`✅ ${company.name}: ${data.articles.length} articles received`);
+              // 첫 번째와 마지막 기사의 날짜 출력
+              if (data.articles.length > 0) {
+                console.log(`   📅 First: ${data.articles[0].publishedAt}, Last: ${data.articles[data.articles.length - 1].publishedAt}`);
+              }
               allCompanyArticles[company.id] = data.articles.slice(0, 10).map(article => ({
                 title: article.title,
                 summary: article.description || article.content?.substring(0, 200) + '...',
