@@ -486,7 +486,7 @@ export default function GlobalNewsApp() {
                 {analyzingOverall ? '⏳ 분석 중...' : '📊 전체 뉴스 종합 분석'}
               </button>
               <button
-                onClick={loadAutomotiveNews}
+                onClick={() => loadAutomotiveNews()}
                 disabled={loading}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
               >
