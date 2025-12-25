@@ -436,6 +436,11 @@ export default function GlobalNewsApp() {
   const archiveSelectedArticles = () => {
     const articlesToArchive = [];
 
+    console.log('🔍 Archive Debug - viewMode:', viewMode);
+    console.log('🔍 Archive Debug - selectedArticles:', Array.from(selectedArticles));
+    console.log('🔍 Archive Debug - category:', category);
+    console.log('🔍 Archive Debug - news.length:', news.length);
+
     // 자동차 경쟁사 분석 기사 수집
     if (viewMode === 'automotive') {
       Object.keys(autoNewsData).forEach(companyId => {
@@ -459,6 +464,7 @@ export default function GlobalNewsApp() {
       // 일반 뉴스 기사 수집 (지정학, 미국경제, AI/자율주행)
       news.forEach((article, idx) => {
         const articleKey = `${category}-${idx}`;
+        console.log(`🔍 Checking article ${idx}, key: ${articleKey}, selected: ${selectedArticles.has(articleKey)}`);
         if (selectedArticles.has(articleKey)) {
           const categoryInfo = categories.find(c => c.id === category);
           articlesToArchive.push({
@@ -472,17 +478,27 @@ export default function GlobalNewsApp() {
       });
     }
 
-    if (articlesToArchive.length > 0) {
-      setArchivedArticles(prev => [...prev, ...articlesToArchive]);
-      setSelectedArticles(new Set()); // 선택 초기화
+    console.log('📦 Articles to archive:', articlesToArchive.length);
+    console.log('📦 Articles details:', articlesToArchive.map(a => ({ key: a.articleKey, title: a.title.substring(0, 50) })));
 
-      // localStorage에 저장
+    if (articlesToArchive.length > 0) {
+      // localStorage에 먼저 저장 (상태 업데이트 전에)
       try {
         const updated = [...archivedArticles, ...articlesToArchive];
         localStorage.setItem('archivedArticles', JSON.stringify(updated));
+        console.log('✅ Saved to localStorage:', updated.length, 'articles');
       } catch (error) {
         console.error('Failed to save to localStorage:', error);
       }
+
+      // 상태 업데이트
+      setArchivedArticles(prev => {
+        const newArchive = [...prev, ...articlesToArchive];
+        console.log('✅ Updated archivedArticles state:', newArchive.length, 'articles');
+        return newArchive;
+      });
+
+      setSelectedArticles(new Set()); // 선택 초기화
 
       alert(`${articlesToArchive.length}개 기사가 아카이브되었습니다.`);
     } else {
