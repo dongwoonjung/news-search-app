@@ -7,21 +7,28 @@ export default async function handler(req, res) {
 
     const headers = {
       'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${SUPABASE_KEY}`
     };
 
+    console.log('Testing with URL:', SUPABASE_URL);
+    console.log('Key length:', SUPABASE_KEY?.length);
+
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/archived_articles?select=count`,
+      `${SUPABASE_URL}/rest/v1/archived_articles?select=*&limit=1`,
       {
-        method: 'HEAD',
+        method: 'GET',
         headers
       }
     );
 
+    const responseText = await response.text();
+    console.log('Response status:', response.status);
+    console.log('Response:', responseText);
+
     res.status(200).json({
       success: true,
       status: response.status,
+      responseText: responseText.substring(0, 500),
       message: 'Basic fetch works'
     });
   } catch (error) {
