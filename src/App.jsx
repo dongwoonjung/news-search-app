@@ -410,6 +410,14 @@ export default function GlobalNewsApp() {
   };
 
   const toggleArticleSelection = (articleKey, articleData, categoryOrCompany) => {
+    console.log('🔍 toggleArticleSelection called with:', {
+      articleKey,
+      articleData,
+      categoryOrCompany,
+      hasTitle: !!articleData?.title,
+      articleDataKeys: articleData ? Object.keys(articleData) : 'null'
+    });
+
     setSelectedArticles(prev => {
       const newSet = new Set(prev);
       if (newSet.has(articleKey)) {
@@ -431,6 +439,7 @@ export default function GlobalNewsApp() {
           categoryOrCompany: categoryOrCompany,
           viewMode: 'automotive'
         };
+        console.log('✅ Stored article data:', newData[articleKey]);
       }
       return newData;
     });
@@ -478,10 +487,12 @@ export default function GlobalNewsApp() {
         return;
       }
 
+      console.log(`🔍 Processing article: ${articleKey}`, data.article);
+
       if (data.viewMode === 'automotive') {
         // 자동차 뉴스
         const companyId = data.categoryOrCompany;
-        articlesToArchive.push({
+        const archivedArticle = {
           ...data.article,
           category: 'automotive',
           categoryName: '자동차',
@@ -489,7 +500,9 @@ export default function GlobalNewsApp() {
           companyId: companyId,
           archivedDate: new Date().toISOString(),
           articleKey: articleKey
-        });
+        };
+        console.log(`✅ Archived article object:`, archivedArticle);
+        articlesToArchive.push(archivedArticle);
       } else if (data.viewMode === 'general') {
         // 일반 뉴스 (지정학, 미국경제, AI/자율주행)
         const categoryInfo = categories.find(c => c.id === data.category);
@@ -503,8 +516,21 @@ export default function GlobalNewsApp() {
       }
     });
 
-    console.log('📦 Articles to archive:', articlesToArchive.length);
-    console.log('📦 Articles details:', articlesToArchive.map(a => ({ key: a.articleKey, title: a.title.substring(0, 50) })));
+    console.log('📦 Articles to archive COUNT:', articlesToArchive.length);
+    console.log('📦 Full articlesToArchive array:', JSON.stringify(articlesToArchive, null, 2));
+
+    // 각 아카이브 객체의 구조 확인
+    console.log('📦 Starting article structure check...');
+    articlesToArchive.forEach((a, idx) => {
+      console.log(`📦 Article ${idx} structure:`, {
+        articleKey: a.articleKey,
+        hasTitle: !!a.title,
+        titleValue: a.title,
+        allKeys: Object.keys(a),
+        fullObject: a
+      });
+    });
+    console.log('📦 Finished article structure check');
 
     if (articlesToArchive.length > 0) {
       // localStorage에 먼저 저장 (상태 업데이트 전에)
@@ -1429,7 +1455,7 @@ export default function GlobalNewsApp() {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleArticleSelection(itemKey);
+                              toggleArticleSelection(itemKey, item, 'industry');
                             }}
                             className={`w-8 h-8 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
                               isSelected
@@ -1530,7 +1556,7 @@ export default function GlobalNewsApp() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toggleArticleSelection(itemKey);
+                                toggleArticleSelection(itemKey, item, company.id);
                               }}
                               className={`w-8 h-8 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
                                 isSelected
