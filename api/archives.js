@@ -2,10 +2,23 @@ import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
   // Supabase 클라이언트를 함수 내부에서 생성 (환경 변수가 런타임에 주입됨)
+  console.log('🔧 Initializing Supabase client...');
+  console.log('SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
+  console.log('SUPABASE_ANON_KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    console.error('❌ Missing Supabase credentials!');
+    return res.status(500).json({
+      success: false,
+      error: 'Missing Supabase credentials'
+    });
+  }
+
   const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_ANON_KEY
   );
+  console.log('✅ Supabase client created successfully');
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
