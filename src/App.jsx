@@ -72,6 +72,7 @@ export default function GlobalNewsApp() {
     setAnalysis({});
     setTranslations({});
     setAnalyzingId(null);
+    setSelectedArticles(new Set()); // 뷰 모드 변경 시 선택 초기화
 
     try {
       const companiesData = {};
@@ -275,6 +276,7 @@ export default function GlobalNewsApp() {
     setAnalysis({});
     setTranslations({});
     setAnalyzingId(null);
+    setSelectedArticles(new Set()); // 카테고리 변경 시 선택 초기화
 
     try {
       const result = await newsApi.searchByCategory(cat, range);
@@ -508,6 +510,7 @@ export default function GlobalNewsApp() {
 
   const viewArchive = () => {
     setViewMode('archive');
+    setSelectedArticles(new Set()); // 아카이브 뷰로 전환 시 선택 초기화
   };
 
   const removeFromArchive = (articleKey) => {
@@ -564,7 +567,10 @@ export default function GlobalNewsApp() {
               {viewMode === 'archive' && (
                 <>
                   <button
-                    onClick={() => setViewMode('general')}
+                    onClick={() => {
+                      setViewMode('general');
+                      setSelectedArticles(new Set()); // 일반 뷰로 돌아갈 때 선택 초기화
+                    }}
                     className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 flex items-center font-semibold shadow-md"
                   >
                     ← 뉴스로 돌아가기
