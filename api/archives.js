@@ -74,12 +74,12 @@ export default async function handler(req, res) {
       // Transform app format to database format
       const articlesToInsert = articles.map(article => ({
         article_key: article.articleKey,
-        category: article.category,
-        company: article.company,
+        category: article.category || 'general',
+        company: article.company || '',
         title: article.title,
-        description: article.description,
+        description: article.description || '',
         url: article.url,
-        url_to_image: article.urlToImage,
+        url_to_image: article.urlToImage || '',
         published_at: article.publishedAt,
         source_name: article.source?.name || 'Unknown'
       }));
