@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 export default async function handler(req, res) {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -20,6 +18,9 @@ export default async function handler(req, res) {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
       throw new Error('Missing Supabase credentials');
     }
+
+    // Dynamic import for Supabase
+    const { createClient } = await import('@supabase/supabase-js');
 
     const supabase = createClient(
       process.env.SUPABASE_URL,

@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 export default async function handler(req, res) {
   // Supabase 클라이언트를 함수 내부에서 생성 (환경 변수가 런타임에 주입됨)
   console.log('🔧 Initializing Supabase client...');
@@ -13,6 +11,9 @@ export default async function handler(req, res) {
       error: 'Missing Supabase credentials'
     });
   }
+
+  // Dynamic import for Supabase
+  const { createClient } = await import('@supabase/supabase-js');
 
   const supabase = createClient(
     process.env.SUPABASE_URL,
