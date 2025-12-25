@@ -16,6 +16,7 @@ export default function GlobalNewsApp() {
   const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', or 'archive'
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
+  const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
   const [archivedArticles, setArchivedArticles] = useState(() => {
     // localStorage에서 아카이브된 기사 불러오기
     try {
@@ -72,7 +73,6 @@ export default function GlobalNewsApp() {
     setAnalysis({});
     setTranslations({});
     setAnalyzingId(null);
-    setSelectedArticles(new Set()); // 뷰 모드 변경 시 선택 초기화
 
     try {
       const companiesData = {};
@@ -276,7 +276,6 @@ export default function GlobalNewsApp() {
     setAnalysis({});
     setTranslations({});
     setAnalyzingId(null);
-    setSelectedArticles(new Set()); // 카테고리 변경 시 선택 초기화
 
     try {
       const result = await newsApi.searchByCategory(cat, range);
@@ -420,6 +419,21 @@ export default function GlobalNewsApp() {
       }
       return newSet;
     });
+
+    // 선택된 기사 데이터도 함께 저장
+    setSelectedArticlesData(prev => {
+      const newData = { ...prev };
+      if (selectedArticles.has(articleKey)) {
+        delete newData[articleKey];
+      } else {
+        newData[articleKey] = {
+          article: articleData,
+          categoryOrCompany: categoryOrCompany,
+          viewMode: 'automotive'
+        };
+      }
+      return newData;
+    });
   };
 
   const toggleGeneralArticleSelection = (idx, article) => {
@@ -433,52 +447,61 @@ export default function GlobalNewsApp() {
       }
       return newSet;
     });
+
+    // 선택된 기사 데이터도 함께 저장
+    setSelectedArticlesData(prev => {
+      const newData = { ...prev };
+      if (selectedArticles.has(articleKey)) {
+        delete newData[articleKey];
+      } else {
+        newData[articleKey] = {
+          article: article,
+          category: category,
+          viewMode: 'general'
+        };
+      }
+      return newData;
+    });
   };
 
   const archiveSelectedArticles = () => {
     const articlesToArchive = [];
 
-    console.log('🔍 Archive Debug - viewMode:', viewMode);
     console.log('🔍 Archive Debug - selectedArticles:', Array.from(selectedArticles));
-    console.log('🔍 Archive Debug - category:', category);
-    console.log('🔍 Archive Debug - news.length:', news.length);
+    console.log('🔍 Archive Debug - selectedArticlesData:', selectedArticlesData);
 
-    // 자동차 경쟁사 분석 기사 수집
-    if (viewMode === 'automotive') {
-      Object.keys(autoNewsData).forEach(companyId => {
-        const companyNews = autoNewsData[companyId] || [];
-        companyNews.forEach((article, idx) => {
-          const articleKey = `${companyId}-${idx}`;
-          if (selectedArticles.has(articleKey)) {
-            articlesToArchive.push({
-              ...article,
-              category: 'automotive',
-              categoryName: '자동차',
-              company: companyId === 'industry' ? '산업 공통' : autoCompanies.find(c => c.id === companyId)?.name || companyId,
-              companyId: companyId,
-              archivedDate: new Date().toISOString(),
-              articleKey: articleKey
-            });
-          }
+    // 저장된 선택 데이터를 기반으로 아카이브
+    selectedArticles.forEach(articleKey => {
+      const data = selectedArticlesData[articleKey];
+      if (!data) {
+        console.warn(`⚠️ No data found for article key: ${articleKey}`);
+        return;
+      }
+
+      if (data.viewMode === 'automotive') {
+        // 자동차 뉴스
+        const companyId = data.categoryOrCompany;
+        articlesToArchive.push({
+          ...data.article,
+          category: 'automotive',
+          categoryName: '자동차',
+          company: companyId === 'industry' ? '산업 공통' : autoCompanies.find(c => c.id === companyId)?.name || companyId,
+          companyId: companyId,
+          archivedDate: new Date().toISOString(),
+          articleKey: articleKey
         });
-      });
-    } else if (viewMode === 'general') {
-      // 일반 뉴스 기사 수집 (지정학, 미국경제, AI/자율주행)
-      news.forEach((article, idx) => {
-        const articleKey = `${category}-${idx}`;
-        console.log(`🔍 Checking article ${idx}, key: ${articleKey}, selected: ${selectedArticles.has(articleKey)}`);
-        if (selectedArticles.has(articleKey)) {
-          const categoryInfo = categories.find(c => c.id === category);
-          articlesToArchive.push({
-            ...article,
-            category: category,
-            categoryName: categoryInfo?.name || category,
-            archivedDate: new Date().toISOString(),
-            articleKey: articleKey
-          });
-        }
-      });
-    }
+      } else if (data.viewMode === 'general') {
+        // 일반 뉴스 (지정학, 미국경제, AI/자율주행)
+        const categoryInfo = categories.find(c => c.id === data.category);
+        articlesToArchive.push({
+          ...data.article,
+          category: data.category,
+          categoryName: categoryInfo?.name || data.category,
+          archivedDate: new Date().toISOString(),
+          articleKey: articleKey
+        });
+      }
+    });
 
     console.log('📦 Articles to archive:', articlesToArchive.length);
     console.log('📦 Articles details:', articlesToArchive.map(a => ({ key: a.articleKey, title: a.title.substring(0, 50) })));
@@ -501,6 +524,7 @@ export default function GlobalNewsApp() {
       });
 
       setSelectedArticles(new Set()); // 선택 초기화
+      setSelectedArticlesData({}); // 선택된 기사 데이터도 초기화
 
       alert(`${articlesToArchive.length}개 기사가 아카이브되었습니다.`);
     } else {
@@ -510,7 +534,6 @@ export default function GlobalNewsApp() {
 
   const viewArchive = () => {
     setViewMode('archive');
-    setSelectedArticles(new Set()); // 아카이브 뷰로 전환 시 선택 초기화
   };
 
   const removeFromArchive = (articleKey) => {
@@ -567,10 +590,7 @@ export default function GlobalNewsApp() {
               {viewMode === 'archive' && (
                 <>
                   <button
-                    onClick={() => {
-                      setViewMode('general');
-                      setSelectedArticles(new Set()); // 일반 뷰로 돌아갈 때 선택 초기화
-                    }}
+                    onClick={() => setViewMode('general')}
                     className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 flex items-center font-semibold shadow-md"
                   >
                     ← 뉴스로 돌아가기
