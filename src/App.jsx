@@ -17,16 +17,7 @@ export default function GlobalNewsApp() {
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
-  const [archivedArticles, setArchivedArticles] = useState(() => {
-    // localStorage에서 아카이브된 기사 불러오기
-    try {
-      const saved = localStorage.getItem('archivedArticles');
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      console.error('Failed to load archived articles:', error);
-      return [];
-    }
-  });
+  const [archivedArticles, setArchivedArticles] = useState([]);
   const [activeCategoryTab, setActiveCategoryTab] = useState('all'); // 아카이브 카테고리 탭
   const [activeCompanyTab, setActiveCompanyTab] = useState('all');
 
@@ -49,22 +40,37 @@ export default function GlobalNewsApp() {
     { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler' },
   ];
 
+  // 초기 마운트 시 뉴스 및 아카이브 로드
   useEffect(() => {
-    // 초기 마운트 시 안전하게 로드
     const timer = setTimeout(() => {
       loadNews('geopolitics', 'day');
+      loadArchivedArticles(); // Vercel KV에서 아카이브된 기사 로드
     }, 0);
     return () => clearTimeout(timer);
   }, []);
 
-  // 아카이브된 기사가 변경될 때마다 localStorage에 저장
-  useEffect(() => {
+  // Vercel KV에서 아카이브된 기사 로드
+  const loadArchivedArticles = async () => {
     try {
-      localStorage.setItem('archivedArticles', JSON.stringify(archivedArticles));
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/archives`, {
+        cache: 'no-cache',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setArchivedArticles(data.archives);
+          console.log('✅ Loaded archived articles from Vercel KV:', data.archives.length);
+        }
+      }
     } catch (error) {
-      console.error('Failed to save archived articles:', error);
+      console.error('Failed to load archived articles from Vercel KV:', error);
     }
-  }, [archivedArticles]);
+  };
 
   const loadAutomotiveNews = async (range = timeRange) => {
     console.log(`🔍 loadAutomotiveNews called with range: ${range}`);
@@ -533,21 +539,8 @@ export default function GlobalNewsApp() {
     console.log('📦 Finished article structure check');
 
     if (articlesToArchive.length > 0) {
-      // localStorage에 먼저 저장 (상태 업데이트 전에)
-      try {
-        const updated = [...archivedArticles, ...articlesToArchive];
-        localStorage.setItem('archivedArticles', JSON.stringify(updated));
-        console.log('✅ Saved to localStorage:', updated.length, 'articles');
-      } catch (error) {
-        console.error('Failed to save to localStorage:', error);
-      }
-
-      // 상태 업데이트
-      setArchivedArticles(prev => {
-        const newArchive = [...prev, ...articlesToArchive];
-        console.log('✅ Updated archivedArticles state:', newArchive.length, 'articles');
-        return newArchive;
-      });
+      // Vercel KV API에 저장
+      saveToArchive(articlesToArchive);
 
       setSelectedArticles(new Set()); // 선택 초기화
       setSelectedArticlesData({}); // 선택된 기사 데이터도 초기화
@@ -558,12 +551,71 @@ export default function GlobalNewsApp() {
     }
   };
 
+  // Vercel KV API에 아카이브 저장
+  const saveToArchive = async (articlesToArchive) => {
+    try {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/archives`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        body: JSON.stringify({ articles: articlesToArchive })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log(`✅ Saved to Vercel KV: ${data.added} new articles, ${data.total} total`);
+          // 저장 후 아카이브 목록 다시 로드
+          await loadArchivedArticles();
+        }
+      } else {
+        console.error('Failed to save to Vercel KV:', await response.text());
+        alert('아카이브 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error saving to Vercel KV:', error);
+      alert('아카이브 저장 중 오류가 발생했습니다.');
+    }
+  };
+
   const viewArchive = () => {
     setViewMode('archive');
   };
 
-  const removeFromArchive = (articleKey) => {
-    setArchivedArticles(prev => prev.filter(article => article.articleKey !== articleKey));
+  const removeFromArchive = async (articleKey) => {
+    try {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/archives?articleKey=${encodeURIComponent(articleKey)}`, {
+        method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log(`✅ Removed from Vercel KV: ${data.removed} article(s)`);
+          // 삭제 후 아카이브 목록 다시 로드
+          await loadArchivedArticles();
+        }
+      } else {
+        console.error('Failed to remove from Vercel KV:', await response.text());
+        alert('아카이브 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error removing from Vercel KV:', error);
+      alert('아카이브 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   return (
