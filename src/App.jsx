@@ -49,7 +49,7 @@ export default function GlobalNewsApp() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Vercel KV에서 아카이브된 기사 로드
+  // Supabase에서 아카이브된 기사 로드
   const loadArchivedArticles = async () => {
     try {
       const isDev = import.meta.env.DEV;
@@ -64,11 +64,11 @@ export default function GlobalNewsApp() {
         const data = await response.json();
         if (data.success) {
           setArchivedArticles(data.archives);
-          console.log('✅ Loaded archived articles from Vercel KV:', data.archives.length);
+          console.log('✅ Loaded archived articles from Supabase:', data.archives.length);
         }
       }
     } catch (error) {
-      console.error('Failed to load archived articles from Vercel KV:', error);
+      console.error('Failed to load archived articles from Supabase:', error);
     }
   };
 
@@ -551,7 +551,7 @@ export default function GlobalNewsApp() {
     }
   };
 
-  // Vercel KV API에 아카이브 저장
+  // Supabase API에 아카이브 저장
   const saveToArchive = async (articlesToArchive) => {
     try {
       const isDev = import.meta.env.DEV;
@@ -570,16 +570,16 @@ export default function GlobalNewsApp() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log(`✅ Saved to Vercel KV: ${data.added} new articles, ${data.total} total`);
+          console.log(`✅ Saved to Supabase: ${data.added} new articles, ${data.total} total`);
           // 저장 후 아카이브 목록 다시 로드
           await loadArchivedArticles();
         }
       } else {
-        console.error('Failed to save to Vercel KV:', await response.text());
+        console.error('Failed to save to Supabase:', await response.text());
         alert('아카이브 저장에 실패했습니다.');
       }
     } catch (error) {
-      console.error('Error saving to Vercel KV:', error);
+      console.error('Error saving to Supabase:', error);
       alert('아카이브 저장 중 오류가 발생했습니다.');
     }
   };
@@ -604,16 +604,16 @@ export default function GlobalNewsApp() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log(`✅ Removed from Vercel KV: ${data.removed} article(s)`);
+          console.log(`✅ Removed from Supabase: ${data.removed} article(s)`);
           // 삭제 후 아카이브 목록 다시 로드
           await loadArchivedArticles();
         }
       } else {
-        console.error('Failed to remove from Vercel KV:', await response.text());
+        console.error('Failed to remove from Supabase:', await response.text());
         alert('아카이브 삭제에 실패했습니다.');
       }
     } catch (error) {
-      console.error('Error removing from Vercel KV:', error);
+      console.error('Error removing from Supabase:', error);
       alert('아카이브 삭제 중 오류가 발생했습니다.');
     }
   };

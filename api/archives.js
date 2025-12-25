@@ -1,4 +1,9 @@
-import { kv } from '@vercel/kv';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 export default async function handler(req, res) {
   // CORS 헤더 설정
@@ -15,14 +20,33 @@ export default async function handler(req, res) {
   try {
     // GET - 모든 아카이브된 기사 가져오기
     if (req.method === 'GET') {
-      const archives = await kv.get('archived_articles') || [];
+      const { data, error } = await supabase
+        .from('archived_articles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform database format to app format
+      const archives = (data || []).map(row => ({
+        articleKey: row.article_key,
+        category: row.category,
+        company: row.company,
+        title: row.title,
+        description: row.description,
+        url: row.url,
+        urlToImage: row.url_to_image,
+        publishedAt: row.published_at,
+        source: { name: row.source_name }
+      }));
+
       res.status(200).json({
         success: true,
         archives
       });
     }
 
-    // POST - 새 기사 아카이브 또는 전체 목록 업데이트
+    // POST - 새 기사 아카이브
     else if (req.method === 'POST') {
       const { articles } = req.body;
 
@@ -33,21 +57,39 @@ export default async function handler(req, res) {
         });
       }
 
-      // 현재 아카이브 가져오기
-      const currentArchives = await kv.get('archived_articles') || [];
+      // Transform app format to database format
+      const articlesToInsert = articles.map(article => ({
+        article_key: article.articleKey,
+        category: article.category,
+        company: article.company,
+        title: article.title,
+        description: article.description,
+        url: article.url,
+        url_to_image: article.urlToImage,
+        published_at: article.publishedAt,
+        source_name: article.source?.name || 'Unknown'
+      }));
 
-      // 새 기사들을 기존 아카이브에 추가 (중복 제거)
-      const existingKeys = new Set(currentArchives.map(a => a.articleKey));
-      const newArticles = articles.filter(a => !existingKeys.has(a.articleKey));
-      const updatedArchives = [...currentArchives, ...newArticles];
+      // Insert with upsert (ignore duplicates)
+      const { data, error } = await supabase
+        .from('archived_articles')
+        .upsert(articlesToInsert, {
+          onConflict: 'article_key',
+          ignoreDuplicates: true
+        })
+        .select();
 
-      // KV에 저장
-      await kv.set('archived_articles', updatedArchives);
+      if (error) throw error;
+
+      // Count total articles
+      const { count } = await supabase
+        .from('archived_articles')
+        .select('*', { count: 'exact', head: true });
 
       res.status(200).json({
         success: true,
-        added: newArticles.length,
-        total: updatedArchives.length
+        added: data?.length || 0,
+        total: count || 0
       });
     }
 
@@ -62,14 +104,16 @@ export default async function handler(req, res) {
         });
       }
 
-      const currentArchives = await kv.get('archived_articles') || [];
-      const updatedArchives = currentArchives.filter(a => a.articleKey !== articleKey);
+      const { error } = await supabase
+        .from('archived_articles')
+        .delete()
+        .eq('article_key', articleKey);
 
-      await kv.set('archived_articles', updatedArchives);
+      if (error) throw error;
 
       res.status(200).json({
         success: true,
-        removed: currentArchives.length - updatedArchives.length
+        removed: 1
       });
     }
 
