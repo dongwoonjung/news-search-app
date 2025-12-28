@@ -1049,7 +1049,7 @@ export default function GlobalNewsApp() {
                                     </div>
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source}</span>
+                                      <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
                                     </div>
                                     <div className="space-y-2">
@@ -1124,7 +1124,7 @@ export default function GlobalNewsApp() {
                                     </div>
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source}</span>
+                                      <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
                                     </div>
                                     <div className="space-y-2">
@@ -1199,7 +1199,7 @@ export default function GlobalNewsApp() {
                                     </div>
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source}</span>
+                                      <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
                                     </div>
                                     <div className="space-y-2">
