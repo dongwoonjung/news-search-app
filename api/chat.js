@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -30,7 +29,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Claude API 호출
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
