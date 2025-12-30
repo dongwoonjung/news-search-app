@@ -20,47 +20,52 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-    if (!ANTHROPIC_API_KEY) {
+    if (!OPENAI_API_KEY) {
       return res.status(500).json({
-        error: 'Anthropic API key not configured',
+        error: 'OpenAI API key not configured',
         fallback: true
       });
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // GPT-4o API 호출
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2048,
+        model: 'gpt-4o',
         messages: [
+          {
+            role: 'system',
+            content: '당신은 뉴스 분석 전문가입니다. 사용자의 질문에 대해 제공된 뉴스 기사와 최신 정보를 바탕으로 정확하고 유용한 답변을 제공하세요. 답변은 항상 한국어로 해주세요.'
+          },
           {
             role: 'user',
             content: context
-              ? `다음은 현재 표시된 뉴스 기사들입니다:\n\n${context}\n\n사용자 질문: ${message}\n\n위 뉴스 기사들을 참고하여 질문에 답변해주세요. 답변은 한국어로 해주세요.`
-              : `뉴스 분석 전문가로서 다음 질문에 답변해주세요:\n\n${message}\n\n답변은 한국어로 해주세요.`
+              ? `다음은 현재 표시된 뉴스 기사들입니다:\n\n${context}\n\n사용자 질문: ${message}\n\n위 뉴스 기사들을 참고하고, 필요하면 최신 정보도 검색하여 질문에 답변해주세요.`
+              : `다음 질문에 대해 최신 정보를 검색하여 답변해주세요:\n\n${message}`
           }
-        ]
+        ],
+        max_tokens: 2048,
+        temperature: 0.7
       })
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Anthropic API error:', errorData);
+      console.error('OpenAI API error:', errorData);
       return res.status(response.status).json({
-        error: 'Failed to get response from Claude',
+        error: 'Failed to get response from GPT',
         details: errorData
       });
     }
 
     const data = await response.json();
-    const answer = data.content[0].text;
+    const answer = data.choices[0].message.content;
 
     res.status(200).json({
       success: true,
