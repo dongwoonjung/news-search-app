@@ -681,7 +681,7 @@ export default function GlobalNewsApp() {
       console.error('Chat error:', error);
       const errorMessage = {
         role: 'assistant',
-        content: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.'
+        content: `죄송합니다. 응답을 생성하는 중 오류가 발생했습니다.\n\n오류: ${error.message || '알 수 없는 오류'}\n\n나중에 다시 시도해주세요.`
       };
       setChatMessages(prev => [...prev, errorMessage]);
     } finally {
