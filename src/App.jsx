@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock } from 'lucide-react';
+import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock, MessageCircle, Send, X } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import './App.css';
 
@@ -20,6 +20,10 @@ export default function GlobalNewsApp() {
   const [archivedArticles, setArchivedArticles] = useState([]);
   const [activeCategoryTab, setActiveCategoryTab] = useState('all'); // 아카이브 카테고리 탭
   const [activeCompanyTab, setActiveCompanyTab] = useState('all');
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -615,6 +619,73 @@ export default function GlobalNewsApp() {
     } catch (error) {
       console.error('Error removing from Supabase:', error);
       alert('아카이브 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // AI 채팅 기능
+  const sendChatMessage = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMessage = chatInput.trim();
+    setChatInput('');
+
+    // 사용자 메시지 추가
+    const newUserMessage = { role: 'user', content: userMessage };
+    setChatMessages(prev => [...prev, newUserMessage]);
+    setChatLoading(true);
+
+    try {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      // 현재 표시된 뉴스 기사들을 컨텍스트로 전달
+      let context = '';
+      if (viewMode === 'general' && news.length > 0) {
+        context = news.slice(0, 5).map((article, idx) =>
+          `[${idx + 1}] ${article.title}\n${article.description || ''}`
+        ).join('\n\n');
+      } else if (viewMode === 'automotive' && Object.keys(autoNewsData).length > 0) {
+        const allArticles = Object.values(autoNewsData).flat();
+        context = allArticles.slice(0, 5).map((article, idx) =>
+          `[${idx + 1}] ${article.title}\n${article.description || ''}`
+        ).join('\n\n');
+      } else if (viewMode === 'archive' && archivedArticles.length > 0) {
+        context = archivedArticles.slice(0, 5).map((article, idx) =>
+          `[${idx + 1}] ${article.title}\n${article.description || ''}`
+        ).join('\n\n');
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          context: context
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const aiMessage = { role: 'assistant', content: data.answer };
+          setChatMessages(prev => [...prev, aiMessage]);
+        } else {
+          throw new Error(data.error || 'Failed to get response');
+        }
+      } else {
+        throw new Error('API request failed');
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. 나중에 다시 시도해주세요.'
+      };
+      setChatMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -1688,6 +1759,102 @@ export default function GlobalNewsApp() {
           </div>
         )}
       </div>
+
+      {/* AI 채팅 플로팅 버튼 */}
+      <button
+        onClick={() => setChatOpen(!chatOpen)}
+        className="fixed bottom-6 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-2xl hover:bg-indigo-700 transition-all z-50 flex items-center gap-2"
+        title="AI 뉴스 분석 채팅"
+      >
+        <MessageCircle className="w-6 h-6" />
+        {!chatOpen && <span className="text-sm font-semibold pr-1">AI 분석</span>}
+      </button>
+
+      {/* AI 채팅 모달 */}
+      {chatOpen && (
+        <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-white rounded-2xl shadow-2xl flex flex-col z-50 border-2 border-indigo-200">
+          {/* 헤더 */}
+          <div className="bg-indigo-600 text-white p-4 rounded-t-2xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5" />
+              <h3 className="font-bold">AI 뉴스 분석</h3>
+            </div>
+            <button
+              onClick={() => setChatOpen(false)}
+              className="hover:bg-indigo-700 p-1 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* 채팅 메시지 영역 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {chatMessages.length === 0 ? (
+              <div className="text-center text-gray-500 mt-8">
+                <MessageCircle className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">현재 페이지의 뉴스에 대해</p>
+                <p className="text-sm">무엇이든 물어보세요!</p>
+                <div className="mt-4 space-y-2 text-xs text-left bg-gray-50 p-3 rounded-lg">
+                  <p className="font-semibold text-gray-700">예시 질문:</p>
+                  <p className="text-gray-600">• 주요 뉴스 3가지 요약해줘</p>
+                  <p className="text-gray-600">• 이 뉴스들의 공통점은?</p>
+                  <p className="text-gray-600">• 한국에 미치는 영향은?</p>
+                </div>
+              </div>
+            ) : (
+              chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] p-3 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'bg-indigo-600 text-white rounded-br-sm'
+                        : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                    }`}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+            {chatLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 text-gray-800 p-3 rounded-2xl rounded-bl-sm">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 입력 영역 */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChatMessage()}
+                placeholder="메시지를 입력하세요..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={chatLoading}
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={chatLoading || !chatInput.trim()}
+                className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
