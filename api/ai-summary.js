@@ -135,6 +135,46 @@ export default async function handler(req, res) {
         }
 
         console.log('[AI Summary] Using Tavily Extract API with final URL...');
+
+        // Google News URL인 경우 먼저 search API로 실제 기사 찾기
+        if (finalUrl.includes('news.google.com')) {
+          console.log('[AI Summary] Using Tavily Search API to find actual article...');
+
+          try {
+            const searchResponse = await fetch('https://api.tavily.com/search', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                api_key: TAVILY_API_KEY,
+                query: finalUrl,
+                search_depth: 'basic',
+                max_results: 1
+              })
+            });
+
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              console.log('[AI Summary] Tavily search results:', searchData);
+
+              if (searchData.results && searchData.results.length > 0) {
+                // 검색 결과에서 실제 기사 URL 가져오기
+                const actualUrl = searchData.results[0].url;
+                console.log('[AI Summary] Found actual article URL:', actualUrl);
+
+                // 실제 기사 URL이 Google News가 아닌 경우에만 사용
+                if (!actualUrl.includes('news.google.com')) {
+                  finalUrl = actualUrl;
+                  console.log('[AI Summary] Updated final URL to:', finalUrl);
+                }
+              }
+            }
+          } catch (searchError) {
+            console.log('[AI Summary] Tavily search failed, will try extract directly:', searchError.message);
+          }
+        }
+
         // Tavily Extract API를 사용해서 웹페이지의 깨끗한 텍스트 추출
         const tavilyResponse = await fetch('https://api.tavily.com/extract', {
           method: 'POST',
