@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { source } = req.body;
+    const { source, title } = req.body;
 
     if (!source) {
       return res.status(400).json({ error: 'Source content is required' });
@@ -56,38 +56,17 @@ export default async function handler(req, res) {
 
         console.log('[AI Summary] Using Tavily Extract API with final URL...');
 
-        // Google News URL인 경우 먼저 실제 기사를 찾기 위해 다른 방법 시도
+        // Google News URL인 경우 제목으로 검색해서 실제 기사 찾기
         if (finalUrl.includes('news.google.com')) {
           console.log('[AI Summary] Detected Google News URL, trying to find actual article...');
 
-          // 방법: Google News 페이지에서 제목을 추출한 후 그 제목으로 검색
-          try {
-            // Google News 페이지에서 제목 추출
-            const googleResponse = await fetch(finalUrl, {
-              redirect: 'follow',
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-              }
-            });
+          // 클라이언트에서 전달된 제목 사용 (있는 경우)
+          const articleTitle = title;
 
-            const html = await googleResponse.text();
+          if (articleTitle) {
+            console.log('[AI Summary] Using provided article title:', articleTitle);
 
-            // 페이지 제목 추출 (og:title 또는 title 태그)
-            let articleTitle = null;
-
-            const ogTitleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
-            if (ogTitleMatch) {
-              articleTitle = ogTitleMatch[1];
-            } else {
-              const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-              if (titleMatch) {
-                articleTitle = titleMatch[1].replace(/\s*-\s*Google News\s*$/, '').trim();
-              }
-            }
-
-            if (articleTitle) {
-              console.log('[AI Summary] Extracted article title:', articleTitle);
-
+            try {
               // 제목으로 Tavily 검색
               const searchResponse = await fetch('https://api.tavily.com/search', {
                 method: 'POST',
@@ -98,7 +77,9 @@ export default async function handler(req, res) {
                   api_key: TAVILY_API_KEY,
                   query: articleTitle,
                   search_depth: 'basic',
-                  max_results: 3
+                  max_results: 5,
+                  include_domains: [], // 특정 도메인 제한 없음
+                  exclude_domains: ['google.com', 'news.google.com'] // Google 제외
                 })
               });
 
@@ -107,21 +88,32 @@ export default async function handler(req, res) {
                 console.log('[AI Summary] Tavily search found', searchData.results?.length || 0, 'results');
 
                 if (searchData.results && searchData.results.length > 0) {
-                  // Google News가 아닌 첫 번째 결과 사용
+                  // 가장 관련성 높은 실제 뉴스 기사 찾기
                   for (const result of searchData.results) {
-                    if (!result.url.includes('news.google.com') &&
-                        !result.url.includes('google.com') &&
-                        !result.url.match(/\.(css|js|jpg|png|gif|svg|webp|ico|woff|woff2|ttf)$/i)) {
+                    const url = result.url.toLowerCase();
+
+                    // 유효한 뉴스 기사인지 확인
+                    const isValidNewsUrl =
+                      !url.includes('google.com') &&
+                      !url.match(/\.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|pdf)(\?|$)/i) &&
+                      !url.includes('youtube.com') &&
+                      !url.includes('twitter.com') &&
+                      !url.includes('facebook.com');
+
+                    if (isValidNewsUrl) {
                       finalUrl = result.url;
-                      console.log('[AI Summary] Found actual article URL from search:', finalUrl);
+                      console.log('[AI Summary] Found actual article URL:', finalUrl);
+                      console.log('[AI Summary] Article score:', result.score);
                       break;
                     }
                   }
                 }
               }
+            } catch (searchError) {
+              console.log('[AI Summary] Failed to search via title:', searchError.message);
             }
-          } catch (searchError) {
-            console.log('[AI Summary] Failed to find article via search:', searchError.message);
+          } else {
+            console.log('[AI Summary] No title provided, will try to extract from Google News page');
           }
         }
 

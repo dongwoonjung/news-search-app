@@ -224,7 +224,8 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          source: articleSource
+          source: articleSource,
+          title: articleTitle // 제목도 함께 전달
         })
       });
 
