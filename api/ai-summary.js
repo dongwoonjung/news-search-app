@@ -21,6 +21,7 @@ export default async function handler(req, res) {
     }
 
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 
     if (!OPENAI_API_KEY) {
       return res.status(500).json({
@@ -31,29 +32,71 @@ export default async function handler(req, res) {
 
     // URL인지 텍스트인지 판단
     const isUrl = source.trim().startsWith('http://') || source.trim().startsWith('https://');
-    
+
     let contentToSummarize = source;
-    
-    // URL인 경우 웹 페이지 내용 가져오기
+
+    // URL인 경우 Tavily Extract API를 사용해서 웹 페이지 내용 가져오기
     if (isUrl) {
       try {
-        const webResponse = await fetch(source.trim());
-        const html = await webResponse.text();
-        
-        // HTML에서 텍스트 추출 (간단한 방법)
-        const textContent = html
-          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-          .replace(/<[^>]+>/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        
-        contentToSummarize = textContent.substring(0, 8000); // 토큰 제한 고려
-      } catch (fetchError) {
-        console.error('Failed to fetch URL:', fetchError);
-        return res.status(400).json({
-          error: '링크에서 내용을 가져올 수 없습니다. 직접 텍스트를 입력해주세요.'
+        if (!TAVILY_API_KEY) {
+          throw new Error('Tavily API key not configured');
+        }
+
+        // Tavily Extract API를 사용해서 웹페이지의 깨끗한 텍스트 추출
+        const tavilyResponse = await fetch('https://api.tavily.com/extract', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            api_key: TAVILY_API_KEY,
+            urls: [source.trim()]
+          })
         });
+
+        if (!tavilyResponse.ok) {
+          throw new Error('Tavily API request failed');
+        }
+
+        const tavilyData = await tavilyResponse.json();
+
+        if (tavilyData.results && tavilyData.results.length > 0) {
+          // Tavily가 추출한 깨끗한 텍스트 사용
+          const extractedContent = tavilyData.results[0].raw_content || tavilyData.results[0].content;
+          contentToSummarize = extractedContent.substring(0, 12000); // 더 많은 내용 포함
+        } else {
+          throw new Error('No content extracted from URL');
+        }
+      } catch (fetchError) {
+        console.error('Failed to fetch URL with Tavily:', fetchError);
+
+        // Tavily 실패 시 기본 fetch로 대체
+        try {
+          const webResponse = await fetch(source.trim(), {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          const html = await webResponse.text();
+
+          // HTML에서 텍스트 추출
+          const textContent = html
+            .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+            .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+            .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+            .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          contentToSummarize = textContent.substring(0, 8000);
+        } catch (fallbackError) {
+          console.error('Fallback fetch also failed:', fallbackError);
+          return res.status(400).json({
+            error: '링크에서 내용을 가져올 수 없습니다. URL이 올바른지 확인하거나 직접 텍스트를 입력해주세요.'
+          });
+        }
       }
     }
 
@@ -61,11 +104,11 @@ export default async function handler(req, res) {
     const messages = [
       {
         role: 'system',
-        content: '당신은 전문 요약 작성자입니다. 주어진 내용을 명확하고 간결하게 요약하세요. 핵심 내용과 중요한 정보를 빠짐없이 포함하되, 3-5개의 문단으로 정리해주세요. 한국어로 답변하세요.'
+        content: '당신은 전문 뉴스 분석가입니다. 주어진 기사 내용을 분석하여 핵심 정보를 명확하고 체계적으로 요약하세요.\n\n요약 시 다음을 포함하세요:\n1. 기사의 주요 내용과 핵심 사건\n2. 중요한 인물, 기업, 숫자, 날짜 등 구체적인 정보\n3. 배경 맥락과 의미\n\n3-5개의 문단으로 구조화하여 작성하고, 한국어로 답변하세요.'
       },
       {
         role: 'user',
-        content: `다음 내용을 요약해주세요:\n\n${contentToSummarize}`
+        content: `다음 뉴스 기사 또는 문서의 내용을 요약해주세요:\n\n${contentToSummarize}`
       }
     ];
 
