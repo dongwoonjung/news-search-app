@@ -25,6 +25,7 @@ export default function GlobalNewsApp() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [issueArticleData, setIssueArticleData] = useState(null); // 이슈 분석에 전달할 기사 데이터
 
   const categories = [
     { id: 'geopolitics', name: '지정학', icon: Globe },
@@ -692,7 +693,13 @@ export default function GlobalNewsApp() {
 
   // Issue Analysis page
   if (viewMode === 'issue') {
-    return <IssueAnalysis onBack={() => setViewMode('general')} />;
+    return <IssueAnalysis
+      onBack={() => {
+        setViewMode('general');
+        setIssueArticleData(null); // 뒤로 갈 때 데이터 초기화
+      }}
+      initialArticleData={issueArticleData}
+    />;
   }
 
   return (
@@ -1146,6 +1153,17 @@ export default function GlobalNewsApp() {
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setIssueArticleData({ url: article.url, title: article.title });
+                                          setViewMode('issue');
+                                        }}
+                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                                      >
+                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                        분석정리
+                                      </button>
                                     </div>
                                     {analysis[archiveItemKey] && (
                                       <div className="mt-4 border-t pt-4">
@@ -1221,6 +1239,17 @@ export default function GlobalNewsApp() {
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setIssueArticleData({ url: article.url, title: article.title });
+                                          setViewMode('issue');
+                                        }}
+                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                                      >
+                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                        분석정리
+                                      </button>
                                     </div>
                                     {analysis[archiveItemKey] && (
                                       <div className="mt-4 border-t pt-4">
@@ -1295,6 +1324,17 @@ export default function GlobalNewsApp() {
                                       </button>
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setIssueArticleData({ url: article.url, title: article.title });
+                                          setViewMode('issue');
+                                        }}
+                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                                      >
+                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                        분석정리
                                       </button>
                                     </div>
                                     {analysis[archiveItemKey] && (

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles } from 'lucide-react';
 
-export default function IssueAnalysis({ onBack }) {
+export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [folders, setFolders] = useState([]);
   const [articles, setArticles] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(null);
@@ -34,6 +34,15 @@ export default function IssueAnalysis({ onBack }) {
       loadArticles(selectedFolder.id);
     }
   }, [selectedFolder]);
+
+  // 초기 기사 데이터가 있으면 자동으로 폼 열고 채우기
+  useEffect(() => {
+    if (initialArticleData) {
+      setShowArticleForm(true);
+      setArticleTitle(initialArticleData.title || '');
+      setArticleSource(initialArticleData.url || '');
+    }
+  }, [initialArticleData]);
 
   const loadFolders = async () => {
     try {
