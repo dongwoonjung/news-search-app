@@ -35,13 +35,19 @@ export default async function handler(req, res) {
 
     let contentToSummarize = source;
 
+    console.log('[AI Summary] Is URL?', isUrl);
+    console.log('[AI Summary] Source:', source.substring(0, 100));
+
     // URL인 경우 Tavily Extract API를 사용해서 웹 페이지 내용 가져오기
     if (isUrl) {
+      console.log('[AI Summary] Attempting to fetch URL content...');
       try {
         if (!TAVILY_API_KEY) {
+          console.log('[AI Summary] Tavily API key not found');
           throw new Error('Tavily API key not configured');
         }
 
+        console.log('[AI Summary] Using Tavily Extract API...');
         // Tavily Extract API를 사용해서 웹페이지의 깨끗한 텍스트 추출
         const tavilyResponse = await fetch('https://api.tavily.com/extract', {
           method: 'POST',
@@ -54,30 +60,40 @@ export default async function handler(req, res) {
           })
         });
 
+        console.log('[AI Summary] Tavily response status:', tavilyResponse.status);
+
         if (!tavilyResponse.ok) {
-          throw new Error('Tavily API request failed');
+          const errorText = await tavilyResponse.text();
+          console.log('[AI Summary] Tavily error:', errorText);
+          throw new Error('Tavily API request failed: ' + errorText);
         }
 
         const tavilyData = await tavilyResponse.json();
+        console.log('[AI Summary] Tavily data structure:', Object.keys(tavilyData));
 
         if (tavilyData.results && tavilyData.results.length > 0) {
           // Tavily가 추출한 깨끗한 텍스트 사용
           const extractedContent = tavilyData.results[0].raw_content || tavilyData.results[0].content;
+          console.log('[AI Summary] Extracted content length:', extractedContent?.length);
           contentToSummarize = extractedContent.substring(0, 12000); // 더 많은 내용 포함
         } else {
+          console.log('[AI Summary] No results from Tavily');
           throw new Error('No content extracted from URL');
         }
       } catch (fetchError) {
-        console.error('Failed to fetch URL with Tavily:', fetchError);
+        console.error('[AI Summary] Failed to fetch URL with Tavily:', fetchError);
 
         // Tavily 실패 시 기본 fetch로 대체
+        console.log('[AI Summary] Trying fallback direct fetch...');
         try {
           const webResponse = await fetch(source.trim(), {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
           });
+          console.log('[AI Summary] Fallback fetch status:', webResponse.status);
           const html = await webResponse.text();
+          console.log('[AI Summary] HTML length:', html.length);
 
           // HTML에서 텍스트 추출
           const textContent = html
@@ -90,15 +106,19 @@ export default async function handler(req, res) {
             .replace(/\s+/g, ' ')
             .trim();
 
+          console.log('[AI Summary] Extracted text length:', textContent.length);
           contentToSummarize = textContent.substring(0, 8000);
         } catch (fallbackError) {
-          console.error('Fallback fetch also failed:', fallbackError);
+          console.error('[AI Summary] Fallback fetch also failed:', fallbackError);
           return res.status(400).json({
             error: '링크에서 내용을 가져올 수 없습니다. URL이 올바른지 확인하거나 직접 텍스트를 입력해주세요.'
           });
         }
       }
     }
+
+    console.log('[AI Summary] Final content to summarize length:', contentToSummarize.length);
+    console.log('[AI Summary] First 200 chars:', contentToSummarize.substring(0, 200));
 
     // GPT를 사용한 요약
     const messages = [
