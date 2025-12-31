@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X } from 'lucide-react';
+import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles } from 'lucide-react';
 
 export default function IssueAnalysis({ onBack }) {
   const [folders, setFolders] = useState([]);
@@ -20,6 +20,7 @@ export default function IssueAnalysis({ onBack }) {
   const [articleSummary, setArticleSummary] = useState('');
   const [articleInsight, setArticleInsight] = useState('');
   const [articleFolderId, setArticleFolderId] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const isDev = import.meta.env.DEV;
   const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
@@ -198,6 +199,39 @@ export default function IssueAnalysis({ onBack }) {
     setArticleSummary('');
     setArticleInsight('');
     setArticleFolderId('');
+  };
+
+  const handleGenerateAISummary = async () => {
+    if (!articleSource.trim()) {
+      alert('정보 소스를 먼저 입력해주세요.');
+      return;
+    }
+
+    setIsGeneratingSummary(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/ai-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          source: articleSource
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setArticleSummary(data.summary);
+      } else {
+        alert('요약 생성에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+      }
+    } catch (error) {
+      console.error('Failed to generate AI summary:', error);
+      alert('요약 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsGeneratingSummary(false);
+    }
   };
 
   const openEditFolder = (folder) => {
@@ -468,11 +502,22 @@ export default function IssueAnalysis({ onBack }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-blue-700 mb-2">📝 내용 요약 *</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-bold text-blue-700">📝 내용 요약 *</label>
+                    <button
+                      type="button"
+                      onClick={handleGenerateAISummary}
+                      disabled={isGeneratingSummary || !articleSource.trim()}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
+                    >
+                      <Sparkles className={`w-4 h-4 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                      {isGeneratingSummary ? 'AI 요약 중...' : 'AI 요약'}
+                    </button>
+                  </div>
                   <textarea
                     value={articleSummary}
                     onChange={(e) => setArticleSummary(e.target.value)}
-                    placeholder="핵심 내용을 요약해서 입력하세요"
+                    placeholder="핵심 내용을 요약해서 입력하세요 (또는 AI 요약 버튼을 사용하세요)"
                     rows={5}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
