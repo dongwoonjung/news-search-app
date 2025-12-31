@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock, MessageCircle, Send, X } from 'lucide-react';
+import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock, MessageCircle, Send, X, BookOpen } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
+import IssueAnalysis from './IssueAnalysis';
 import './App.css';
 
 export default function GlobalNewsApp() {
@@ -13,7 +14,7 @@ export default function GlobalNewsApp() {
   const [translations, setTranslations] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
-  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', or 'archive'
+  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', or 'issue'
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
@@ -689,6 +690,11 @@ export default function GlobalNewsApp() {
     }
   };
 
+  // Issue Analysis page
+  if (viewMode === 'issue') {
+    return <IssueAnalysis onBack={() => setViewMode('general')} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-6xl mx-auto">
@@ -718,6 +724,13 @@ export default function GlobalNewsApp() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
               >
                 🚗 경쟁사 분석
+              </button>
+              <button
+                onClick={() => setViewMode('issue')}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center font-semibold shadow-md"
+              >
+                <BookOpen className="w-5 h-5 mr-2" />
+                이슈별 분석정리
               </button>
               {(viewMode === 'general' || viewMode === 'automotive') && (
                 <>
