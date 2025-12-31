@@ -41,13 +41,33 @@ export default async function handler(req, res) {
     // URL인 경우 Tavily Extract API를 사용해서 웹 페이지 내용 가져오기
     if (isUrl) {
       console.log('[AI Summary] Attempting to fetch URL content...');
+
+      // 먼저 리디렉션을 따라가서 최종 URL을 얻기
+      let finalUrl = source.trim();
+      try {
+        console.log('[AI Summary] Following redirects to get final URL...');
+        const headResponse = await fetch(source.trim(), {
+          method: 'HEAD',
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        finalUrl = headResponse.url;
+        console.log('[AI Summary] Original URL:', source.trim());
+        console.log('[AI Summary] Final URL after redirects:', finalUrl);
+      } catch (redirectError) {
+        console.log('[AI Summary] Could not follow redirects, using original URL:', redirectError.message);
+        finalUrl = source.trim();
+      }
+
       try {
         if (!TAVILY_API_KEY) {
           console.log('[AI Summary] Tavily API key not found');
           throw new Error('Tavily API key not configured');
         }
 
-        console.log('[AI Summary] Using Tavily Extract API...');
+        console.log('[AI Summary] Using Tavily Extract API with final URL...');
         // Tavily Extract API를 사용해서 웹페이지의 깨끗한 텍스트 추출
         const tavilyResponse = await fetch('https://api.tavily.com/extract', {
           method: 'POST',
@@ -56,7 +76,7 @@ export default async function handler(req, res) {
           },
           body: JSON.stringify({
             api_key: TAVILY_API_KEY,
-            urls: [source.trim()]
+            urls: [finalUrl]
           })
         });
 
@@ -84,14 +104,16 @@ export default async function handler(req, res) {
         console.error('[AI Summary] Failed to fetch URL with Tavily:', fetchError);
 
         // Tavily 실패 시 기본 fetch로 대체
-        console.log('[AI Summary] Trying fallback direct fetch...');
+        console.log('[AI Summary] Trying fallback direct fetch with final URL...');
         try {
-          const webResponse = await fetch(source.trim(), {
+          const webResponse = await fetch(finalUrl, {
+            redirect: 'follow',
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
           });
           console.log('[AI Summary] Fallback fetch status:', webResponse.status);
+          console.log('[AI Summary] Fallback final URL:', webResponse.url);
           const html = await webResponse.text();
           console.log('[AI Summary] HTML length:', html.length);
 
