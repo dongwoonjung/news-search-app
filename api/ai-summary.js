@@ -141,10 +141,14 @@ export default async function handler(req, res) {
         console.log('[AI Summary] Tavily data structure:', Object.keys(tavilyData));
 
         if (tavilyData.results && tavilyData.results.length > 0) {
-          // Tavily가 추출한 깨끗한 텍스트 사용
+          // Tavily가 추출한 깨끗한 텍스트 사용 (전체 내용)
           const extractedContent = tavilyData.results[0].raw_content || tavilyData.results[0].content;
           console.log('[AI Summary] Extracted content length:', extractedContent?.length);
-          contentToSummarize = extractedContent.substring(0, 12000); // 더 많은 내용 포함
+
+          // GPT-4o-mini의 컨텍스트 윈도우는 128k 토큰이므로, 충분히 긴 텍스트 허용
+          // 약 100,000자까지 처리 가능 (한글 기준)
+          contentToSummarize = extractedContent.substring(0, 100000);
+          console.log('[AI Summary] Content to summarize length:', contentToSummarize.length);
         } else {
           console.log('[AI Summary] No results from Tavily');
           throw new Error('No content extracted from URL');
@@ -178,7 +182,7 @@ export default async function handler(req, res) {
             .trim();
 
           console.log('[AI Summary] Extracted text length:', textContent.length);
-          contentToSummarize = textContent.substring(0, 8000);
+          contentToSummarize = textContent.substring(0, 50000); // 폴백도 더 긴 텍스트 허용
         } catch (fallbackError) {
           console.error('[AI Summary] Fallback fetch also failed:', fallbackError);
           return res.status(400).json({
@@ -195,11 +199,11 @@ export default async function handler(req, res) {
     const messages = [
       {
         role: 'system',
-        content: '당신은 전문 뉴스 분석가입니다. 주어진 기사 내용을 분석하여 핵심 정보를 명확하고 체계적으로 요약하세요.\n\n요약 시 다음을 포함하세요:\n1. 기사의 주요 내용과 핵심 사건\n2. 중요한 인물, 기업, 숫자, 날짜 등 구체적인 정보\n3. 배경 맥락과 의미\n\n3-5개의 문단으로 구조화하여 작성하고, 한국어로 답변하세요.'
+        content: '당신은 전문 뉴스 분석가입니다. 주어진 기사의 **전체 내용**을 빠짐없이 분석하여 포괄적이고 상세하게 요약하세요.\n\n요약 시 반드시 다음을 포함하세요:\n1. 기사의 주요 내용과 핵심 사건 (처음부터 끝까지 모든 중요 내용)\n2. 중요한 인물, 기업, 조직, 구체적인 숫자, 날짜, 장소 등\n3. 배경 맥락, 원인, 결과, 향후 전망\n4. 기사에 언급된 세부 사항과 부가 정보\n5. 전문가 의견이나 인용문이 있다면 포함\n\n**중요**: 기사의 일부만 요약하지 말고, 전체 내용을 충실하게 반영하세요. 5-8개 문단으로 상세하게 구조화하여 작성하고, 한국어로 답변하세요.'
       },
       {
         role: 'user',
-        content: `다음 뉴스 기사 또는 문서의 내용을 요약해주세요:\n\n${contentToSummarize}`
+        content: `다음 뉴스 기사의 전체 내용을 상세하게 요약해주세요:\n\n${contentToSummarize}`
       }
     ];
 
@@ -212,7 +216,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: messages,
-        max_tokens: 1000,
+        max_tokens: 2500, // 더 상세한 요약을 위해 토큰 증가
         temperature: 0.5
       })
     });
