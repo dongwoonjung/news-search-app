@@ -42,29 +42,70 @@ export default async function handler(req, res) {
     if (isUrl) {
       console.log('[AI Summary] Attempting to fetch URL content...');
 
-      // 먼저 리디렉션을 따라가서 최종 URL을 얻기
+      // Google News RSS 링크 처리 및 리디렉션 추적
       let finalUrl = source.trim();
-      try {
-        console.log('[AI Summary] Following redirects to get final URL...');
-        // GET 요청으로 리디렉션 따라가기 (HEAD가 작동하지 않는 경우 대비)
-        const redirectResponse = await fetch(source.trim(), {
-          method: 'GET',
-          redirect: 'follow',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-          }
-        });
-        finalUrl = redirectResponse.url;
-        console.log('[AI Summary] Original URL:', source.trim());
-        console.log('[AI Summary] Final URL after redirects:', finalUrl);
-        console.log('[AI Summary] Redirect response status:', redirectResponse.status);
 
-        // 응답 본문은 사용하지 않으므로 스트림 취소
-        await redirectResponse.arrayBuffer();
-      } catch (redirectError) {
-        console.log('[AI Summary] Could not follow redirects, using original URL:', redirectError.message);
-        finalUrl = source.trim();
+      // Google News RSS 링크인 경우 페이지를 가져와서 실제 링크 추출
+      if (finalUrl.includes('news.google.com')) {
+        console.log('[AI Summary] Detected Google News URL, fetching page to extract real article URL...');
+        try {
+          const googleResponse = await fetch(finalUrl, {
+            redirect: 'follow',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+
+          const html = await googleResponse.text();
+          console.log('[AI Summary] Google News response received, HTML length:', html.length);
+
+          // HTML에서 실제 기사 링크 찾기 (여러 패턴 시도)
+          const urlPatterns = [
+            /<a[^>]+href=["']([^"']+)["'][^>]*>Read more/i,
+            /<a[^>]+href=["']([^"']+)["'][^>]*>Full coverage/i,
+            /window\.location\.href\s*=\s*["']([^"']+)["']/i,
+            /content=["']0;url=([^"']+)["']/i,
+            /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i
+          ];
+
+          for (const pattern of urlPatterns) {
+            const match = html.match(pattern);
+            if (match && match[1] && match[1].startsWith('http')) {
+              finalUrl = match[1];
+              console.log('[AI Summary] Extracted article URL from Google News:', finalUrl);
+              break;
+            }
+          }
+
+          // 패턴 매칭 실패 시, 응답 URL이 Google이 아닌 경우 사용
+          if (finalUrl.includes('news.google.com') && !googleResponse.url.includes('news.google.com')) {
+            finalUrl = googleResponse.url;
+            console.log('[AI Summary] Using response URL:', finalUrl);
+          }
+        } catch (googleError) {
+          console.log('[AI Summary] Failed to extract from Google News:', googleError.message);
+        }
+      } else {
+        // 일반 URL의 경우 리디렉션 추적
+        try {
+          console.log('[AI Summary] Following redirects to get final URL...');
+          const redirectResponse = await fetch(source.trim(), {
+            method: 'GET',
+            redirect: 'follow',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+          finalUrl = redirectResponse.url;
+          console.log('[AI Summary] Final URL after redirects:', finalUrl);
+          await redirectResponse.arrayBuffer();
+        } catch (redirectError) {
+          console.log('[AI Summary] Could not follow redirects:', redirectError.message);
+        }
       }
+
+      console.log('[AI Summary] Original URL:', source.trim());
+      console.log('[AI Summary] Final URL to use:', finalUrl);
 
       try {
         if (!TAVILY_API_KEY) {
