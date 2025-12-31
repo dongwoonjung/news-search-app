@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles } from 'lucide-react';
+import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 
 export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [folders, setFolders] = useState([]);
   const [articles, setArticles] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(null);
+  const [selectedArticle, setSelectedArticle] = useState(null);
+  const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [folderArticles, setFolderArticles] = useState({}); // 폴더별 글 목록 저장
   const [showFolderForm, setShowFolderForm] = useState(false);
   const [showArticleForm, setShowArticleForm] = useState(false);
   const [editingFolder, setEditingFolder] = useState(null);
@@ -66,6 +69,40 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     } catch (error) {
       console.error('Failed to load articles:', error);
     }
+  };
+
+  // 폴더별 글 목록 로드
+  const loadFolderArticles = async (folderId) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/issue-articles?folderId=${folderId}`);
+      const data = await response.json();
+      if (data.success) {
+        setFolderArticles(prev => ({
+          ...prev,
+          [folderId]: data.articles
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load folder articles:', error);
+    }
+  };
+
+  // 폴더 클릭 시 확장/축소 및 글 목록 로드
+  const toggleFolder = async (folder) => {
+    const newExpanded = new Set(expandedFolders);
+
+    if (newExpanded.has(folder.id)) {
+      // 축소
+      newExpanded.delete(folder.id);
+    } else {
+      // 확장 및 글 목록 로드
+      newExpanded.add(folder.id);
+      if (!folderArticles[folder.id]) {
+        await loadFolderArticles(folder.id);
+      }
+    }
+
+    setExpandedFolders(newExpanded);
   };
 
   const handleCreateFolder = async () => {
@@ -176,6 +213,8 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
       const data = await response.json();
       if (data.success) {
+        // 해당 폴더의 글 목록 새로고침
+        await loadFolderArticles(articleFolderId);
         if (selectedFolder?.id === parseInt(articleFolderId)) {
           loadArticles(articleFolderId);
         }
@@ -190,10 +229,6 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   };
 
   const handleDeleteArticle = async (articleId) => {
-    if (!confirm('이 글을 삭제하시겠습니까?')) {
-      return;
-    }
-
     try {
       const response = await fetch(`${apiBaseUrl}/api/issue-articles?id=${articleId}`, {
         method: 'DELETE'
@@ -201,7 +236,13 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
       const data = await response.json();
       if (data.success) {
-        loadArticles(selectedFolder.id);
+        // 해당 글이 속한 폴더의 글 목록 새로고침
+        if (selectedArticle?.folder_id) {
+          await loadFolderArticles(selectedArticle.folder_id);
+        }
+        if (selectedFolder?.id) {
+          loadArticles(selectedFolder.id);
+        }
         alert('글이 삭제되었습니다.');
       }
     } catch (error) {
@@ -298,112 +339,172 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 폴더 목록 */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
+          {/* 폴더 및 글 트리 목록 */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-800 mb-4">폴더 목록</h2>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {folders.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">폴더가 없습니다.<br/>새 폴더를 만들어주세요.</p>
               ) : (
-                folders.map(folder => (
-                  <div
-                    key={folder.id}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                      selectedFolder?.id === folder.id
-                        ? 'bg-purple-50 border-purple-500'
-                        : 'bg-gray-50 border-gray-200 hover:border-purple-300'
-                    }`}
-                    onClick={() => setSelectedFolder(folder)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-800">{folder.name}</h3>
-                        {folder.description && (
-                          <p className="text-sm text-gray-600 mt-1">{folder.description}</p>
-                        )}
-                      </div>
-                      <div className="flex gap-1">
+                folders.map(folder => {
+                  const isExpanded = expandedFolders.has(folder.id);
+                  const articles = folderArticles[folder.id] || [];
+
+                  return (
+                    <div key={folder.id} className="border-b border-gray-200 last:border-b-0">
+                      {/* 폴더 헤더 */}
+                      <div className="flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditFolder(folder);
-                          }}
-                          className="p-2 hover:bg-purple-100 rounded-lg transition-colors"
+                          onClick={() => toggleFolder(folder)}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
                         >
-                          <Edit className="w-4 h-4 text-purple-600" />
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-gray-600" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-600" />
+                          )}
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteFolder(folder.id);
-                          }}
-                          className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </button>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-800">{folder.name}</h3>
+                          {folder.description && (
+                            <p className="text-xs text-gray-500 mt-0.5">{folder.description}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditFolder(folder);
+                            }}
+                            className="p-1.5 hover:bg-purple-100 rounded transition-colors"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-purple-600" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteFolder(folder.id);
+                            }}
+                            className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                          </button>
+                        </div>
                       </div>
+
+                      {/* 폴더 내 글 목록 */}
+                      {isExpanded && (
+                        <div className="ml-8 space-y-1 mb-2">
+                          {articles.length === 0 ? (
+                            <p className="text-xs text-gray-400 py-2 px-3">글이 없습니다</p>
+                          ) : (
+                            articles.map(article => (
+                              <div
+                                key={article.id}
+                                onClick={() => setSelectedArticle(article)}
+                                className={`p-2 rounded cursor-pointer transition-colors ${
+                                  selectedArticle?.id === article.id
+                                    ? 'bg-indigo-100 border border-indigo-300'
+                                    : 'hover:bg-gray-100'
+                                }`}
+                              >
+                                <p className="text-sm font-medium text-gray-700 line-clamp-2">
+                                  {article.title}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(article.created_at).toLocaleDateString('ko-KR')}
+                                </p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
 
-          {/* 글 목록 */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6">
-            {selectedFolder ? (
+          {/* 글 상세 보기 */}
+          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+            {selectedArticle ? (
               <>
-                <h2 className="text-xl font-bold text-gray-800 mb-4">
-                  {selectedFolder.name} - 글 목록
-                </h2>
-                <div className="space-y-4">
-                  {articles.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">글이 없습니다.<br/>새 글을 작성해주세요.</p>
-                  ) : (
-                    articles.map(article => (
-                      <div key={article.id} className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-5 border-2 border-purple-200">
-                        <div className="flex items-start justify-between mb-3">
-                          <h3 className="text-lg font-bold text-gray-800 flex-1">{article.title}</h3>
-                          <button
-                            onClick={() => handleDeleteArticle(article.id)}
-                            className="p-2 hover:bg-red-100 rounded-lg transition-colors ml-2"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{selectedArticle.title}</h2>
+                    <p className="text-sm text-gray-500">
+                      작성일: {new Date(selectedArticle.created_at).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingArticle(selectedArticle);
+                        setArticleTitle(selectedArticle.title);
+                        setArticleSource(selectedArticle.source);
+                        setArticleSummary(selectedArticle.summary);
+                        setArticleInsight(selectedArticle.insight);
+                        setArticleFolderId(selectedArticle.folder_id);
+                        setShowArticleForm(true);
+                      }}
+                      className="p-2 hover:bg-indigo-100 rounded-lg transition-colors"
+                    >
+                      <Edit className="w-5 h-5 text-indigo-600" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('이 글을 삭제하시겠습니까?')) {
+                          handleDeleteArticle(selectedArticle.id);
+                          setSelectedArticle(null);
+                        }
+                      }}
+                      className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5 text-red-600" />
+                    </button>
+                  </div>
+                </div>
 
-                        <div className="space-y-3">
-                          <div>
-                            <h4 className="text-sm font-bold text-purple-700 mb-1">📚 정보 소스</h4>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{article.source}</p>
-                          </div>
+                <div className="space-y-6">
+                  {/* 정보 소스 */}
+                  <div>
+                    <h3 className="text-sm font-bold text-purple-700 mb-2">📎 정보 소스</h3>
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-700 break-all">{selectedArticle.source}</p>
+                    </div>
+                  </div>
 
-                          <div>
-                            <h4 className="text-sm font-bold text-blue-700 mb-1">📝 내용 요약</h4>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{article.summary}</p>
-                          </div>
+                  {/* 내용 요약 */}
+                  <div>
+                    <h3 className="text-sm font-bold text-blue-700 mb-2">📝 내용 요약</h3>
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {selectedArticle.summary}
+                      </p>
+                    </div>
+                  </div>
 
-                          <div>
-                            <h4 className="text-sm font-bold text-green-700 mb-1">💡 인사이트</h4>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{article.insight}</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 pt-3 border-t border-purple-200">
-                          <p className="text-xs text-gray-500">
-                            작성일: {new Date(article.created_at).toLocaleDateString('ko-KR')}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
+                  {/* 인사이트 */}
+                  <div>
+                    <h3 className="text-sm font-bold text-green-700 mb-2">💡 인사이트</h3>
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {selectedArticle.insight}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </>
             ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-gray-500 text-center">
-                  왼쪽에서 폴더를 선택하거나<br/>새 폴더를 만들어주세요.
-                </p>
+              <div className="flex flex-col items-center justify-center h-full text-center py-20">
+                <FileText className="w-16 h-16 text-gray-300 mb-4" />
+                <p className="text-gray-500 text-lg">왼쪽 폴더에서 글을 선택해주세요</p>
+                <p className="text-gray-400 text-sm mt-2">폴더를 클릭하여 글 목록을 확인할 수 있습니다</p>
               </div>
             )}
           </div>
