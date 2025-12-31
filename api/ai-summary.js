@@ -77,10 +77,17 @@ export default async function handler(req, res) {
                 !url.includes('google.com/url') &&
                 !url.includes('accounts.google.com') &&
                 !url.includes('support.google.com') &&
-                !url.includes('policies.google.com')
+                !url.includes('policies.google.com') &&
+                !url.includes('gstatic.com') &&
+                !url.includes('youtube.com') &&
+                // 이미지, CSS, JS 파일 제외
+                !url.match(/\.(jpg|jpeg|png|gif|svg|webp|css|js|ico)$/i)
               );
 
             console.log('[AI Summary] Found', externalLinks.length, 'external links');
+            if (externalLinks.length > 0) {
+              console.log('[AI Summary] First 5 external links:', externalLinks.slice(0, 5));
+            }
 
             if (externalLinks.length > 0) {
               // 첫 번째 외부 링크를 실제 기사로 간주
