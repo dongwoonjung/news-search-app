@@ -83,10 +83,18 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
       const data = await response.json();
       if (data.success) {
-        loadFolders();
+        await loadFolders(); // 폴더 목록 새로고침
         setShowFolderForm(false);
         setFolderName('');
         setFolderDescription('');
+
+        // 새로 생성된 폴더를 자동 선택
+        if (data.folder && data.folder.id) {
+          setArticleFolderId(data.folder.id);
+        }
+
+        // 글 작성 폼으로 다시 돌아가기
+        setShowArticleForm(true);
         alert('폴더가 생성되었습니다.');
       }
     } catch (error) {
@@ -476,7 +484,20 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">폴더 선택 *</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-bold text-gray-700">폴더 선택 *</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowArticleForm(false);
+                        setShowFolderForm(true);
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                      새 폴더
+                    </button>
+                  </div>
                   <select
                     value={articleFolderId}
                     onChange={(e) => setArticleFolderId(e.target.value)}
@@ -487,6 +508,11 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                       <option key={folder.id} value={folder.id}>{folder.name}</option>
                     ))}
                   </select>
+                  {folders.length === 0 && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      생성된 폴더가 없습니다. "새 폴더" 버튼을 눌러 폴더를 먼저 만들어주세요.
+                    </p>
+                  )}
                 </div>
 
                 <div>
