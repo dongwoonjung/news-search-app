@@ -46,16 +46,21 @@ export default async function handler(req, res) {
       let finalUrl = source.trim();
       try {
         console.log('[AI Summary] Following redirects to get final URL...');
-        const headResponse = await fetch(source.trim(), {
-          method: 'HEAD',
+        // GET 요청으로 리디렉션 따라가기 (HEAD가 작동하지 않는 경우 대비)
+        const redirectResponse = await fetch(source.trim(), {
+          method: 'GET',
           redirect: 'follow',
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           }
         });
-        finalUrl = headResponse.url;
+        finalUrl = redirectResponse.url;
         console.log('[AI Summary] Original URL:', source.trim());
         console.log('[AI Summary] Final URL after redirects:', finalUrl);
+        console.log('[AI Summary] Redirect response status:', redirectResponse.status);
+
+        // 응답 본문은 사용하지 않으므로 스트림 취소
+        await redirectResponse.arrayBuffer();
       } catch (redirectError) {
         console.log('[AI Summary] Could not follow redirects, using original URL:', redirectError.message);
         finalUrl = source.trim();
