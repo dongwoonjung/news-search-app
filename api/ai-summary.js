@@ -73,15 +73,17 @@ export default async function handler(req, res) {
               .filter(url =>
                 url &&
                 url.startsWith('http') &&
-                !url.includes('news.google.com') &&
-                !url.includes('google.com/url') &&
-                !url.includes('accounts.google.com') &&
-                !url.includes('support.google.com') &&
-                !url.includes('policies.google.com') &&
+                !url.includes('google.com') &&  // 모든 Google 도메인 제외
+                !url.includes('googleusercontent.com') &&  // Google 이미지 호스팅
                 !url.includes('gstatic.com') &&
                 !url.includes('youtube.com') &&
+                !url.includes('doubleclick.net') &&
+                // 이미지 쿼리 파라미터 체크
+                !url.includes('=w16') &&
+                !url.includes('=w24') &&
+                !url.includes('=w48') &&
                 // 이미지, CSS, JS 파일 제외
-                !url.match(/\.(jpg|jpeg|png|gif|svg|webp|css|js|ico)$/i)
+                !url.match(/\.(jpg|jpeg|png|gif|svg|webp|css|js|ico|woff|woff2|ttf)(\?|$)/i)
               );
 
             console.log('[AI Summary] Found', externalLinks.length, 'external links');
