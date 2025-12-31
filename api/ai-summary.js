@@ -59,25 +59,37 @@ export default async function handler(req, res) {
           const html = await googleResponse.text();
           console.log('[AI Summary] Google News response received, HTML length:', html.length);
 
-          // HTML에서 실제 기사 링크 찾기 (여러 패턴 시도)
-          const urlPatterns = [
-            /<a[^>]+href=["']([^"']+)["'][^>]*>Read more/i,
-            /<a[^>]+href=["']([^"']+)["'][^>]*>Full coverage/i,
-            /window\.location\.href\s*=\s*["']([^"']+)["']/i,
-            /content=["']0;url=([^"']+)["']/i,
-            /<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i
-          ];
+          // HTML에서 모든 링크 찾기
+          const allLinks = html.match(/href=["']([^"']+)["']/g);
+          console.log('[AI Summary] Found', allLinks?.length || 0, 'total links in page');
 
-          for (const pattern of urlPatterns) {
-            const match = html.match(pattern);
-            if (match && match[1] && match[1].startsWith('http')) {
-              finalUrl = match[1];
+          // Google News가 아닌 외부 링크만 필터링
+          if (allLinks) {
+            const externalLinks = allLinks
+              .map(link => {
+                const match = link.match(/href=["']([^"']+)["']/);
+                return match ? match[1] : null;
+              })
+              .filter(url =>
+                url &&
+                url.startsWith('http') &&
+                !url.includes('news.google.com') &&
+                !url.includes('google.com/url') &&
+                !url.includes('accounts.google.com') &&
+                !url.includes('support.google.com') &&
+                !url.includes('policies.google.com')
+              );
+
+            console.log('[AI Summary] Found', externalLinks.length, 'external links');
+
+            if (externalLinks.length > 0) {
+              // 첫 번째 외부 링크를 실제 기사로 간주
+              finalUrl = externalLinks[0];
               console.log('[AI Summary] Extracted article URL from Google News:', finalUrl);
-              break;
             }
           }
 
-          // 패턴 매칭 실패 시, 응답 URL이 Google이 아닌 경우 사용
+          // 여전히 Google News URL인 경우, 응답 URL 확인
           if (finalUrl.includes('news.google.com') && !googleResponse.url.includes('news.google.com')) {
             finalUrl = googleResponse.url;
             console.log('[AI Summary] Using response URL:', finalUrl);
