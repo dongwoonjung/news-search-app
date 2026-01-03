@@ -513,8 +513,9 @@ export default function GlobalNewsApp() {
       console.log(`🔍 Processing article: ${articleKey}`, data.article);
 
       // URL 기반 고유 키 생성 (같은 URL이면 항상 같은 키 = 중복 방지)
+      // 전체 URL을 base64 인코딩하고 특수문자 제거 (길이 제한 없음)
       const uniqueArticleKey = data.article.url
-        ? btoa(data.article.url).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)
+        ? btoa(encodeURIComponent(data.article.url)).replace(/[^a-zA-Z0-9]/g, '')
         : articleKey;
 
       if (data.viewMode === 'automotive') {
