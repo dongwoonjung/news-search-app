@@ -563,6 +563,7 @@ export default function GlobalNewsApp() {
         const companyId = data.categoryOrCompany;
         const archivedArticle = {
           ...data.article,
+          source: data.article.source || 'News Source', // source가 비어있으면 기본값 제공
           category: 'automotive',
           categoryName: '자동차',
           company: companyId === 'industry' ? '산업 공통' : autoCompanies.find(c => c.id === companyId)?.name || companyId,
@@ -577,6 +578,7 @@ export default function GlobalNewsApp() {
         const categoryInfo = categories.find(c => c.id === data.category);
         articlesToArchive.push({
           ...data.article,
+          source: data.article.source || 'News Source', // source가 비어있으면 기본값 제공
           category: data.category,
           categoryName: categoryInfo?.name || data.category,
           archivedDate: new Date().toISOString(),
