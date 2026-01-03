@@ -25,7 +25,7 @@ export const newsApi = {
       // 로컬 개발 시 배포된 Vercel URL 사용
       const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
 
-      const targetCount = timeRange === 'day' ? 5 : 10;
+      const targetCount = timeRange === 'day' ? 10 : 10;
 
       // NewsAPI, Google News, Naver News를 병렬로 호출
       const [newsApiResult, googleNewsResult, naverNewsResult] = await Promise.allSettled([
