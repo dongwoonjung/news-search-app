@@ -71,6 +71,13 @@ export default function GlobalNewsApp() {
         if (data.success) {
           setArchivedArticles(data.archives);
           console.log('✅ Loaded archived articles from Supabase:', data.archives.length);
+
+          // 자동차 카테고리 기사의 companyId 확인
+          const automotiveArticles = data.archives.filter(a => a.category === 'automotive');
+          console.log('🚗 Automotive articles:', automotiveArticles.length);
+          automotiveArticles.forEach((article, idx) => {
+            console.log(`  Article ${idx + 1}: companyId="${article.companyId}", company="${article.company}", title="${article.title?.substring(0, 50)}..."`);
+          });
         }
       }
     } catch (error) {
