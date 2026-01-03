@@ -27,8 +27,8 @@ export const newsApi = {
 
       const targetCount = timeRange === 'day' ? 5 : 10;
 
-      // NewsAPI와 Google News를 병렬로 호출
-      const [newsApiResult, googleNewsResult] = await Promise.allSettled([
+      // NewsAPI, Google News, Naver News를 병렬로 호출
+      const [newsApiResult, googleNewsResult, naverNewsResult] = await Promise.allSettled([
         // NewsAPI 호출
         fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`)
           .then(res => res.ok ? res.text() : Promise.reject(`NewsAPI Error: ${res.status}`))
@@ -49,6 +49,14 @@ export const newsApi = {
           .then(res => res.ok ? res.json() : Promise.reject(`Google News Error: ${res.status}`))
           .catch(err => {
             console.warn('Google News failed:', err);
+            return { success: false, articles: [] };
+          }),
+
+        // Naver News 호출 (한국어 뉴스)
+        fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(getKoreanCategoryQuery(category))}&display=${targetCount}`)
+          .then(res => res.ok ? res.json() : Promise.reject(`Naver News Error: ${res.status}`))
+          .catch(err => {
+            console.warn('Naver News failed:', err);
             return { success: false, articles: [] };
           })
       ]);
@@ -79,10 +87,22 @@ export const newsApi = {
           }))
         : [];
 
-      console.log(`📰 NewsAPI: ${newsApiArticles.length}개, Google News: ${googleArticles.length}개 기사 수집`);
+      const naverArticles = naverNewsResult.status === 'fulfilled' && naverNewsResult.value.success
+        ? naverNewsResult.value.articles.map(article => ({
+            title: article.title,
+            summary: article.summary,
+            date: article.date,
+            source: article.source,
+            importance: 'medium',
+            url: article.url,
+            publishedAt: article.publishedAt
+          }))
+        : [];
 
-      // 두 소스의 기사 합치기 (중복 제거)
-      const allArticles = [...newsApiArticles, ...googleArticles];
+      console.log(`📰 NewsAPI: ${newsApiArticles.length}개, Google News: ${googleArticles.length}개, Naver News: ${naverArticles.length}개 기사 수집`);
+
+      // 세 소스의 기사 합치기 (중복 제거)
+      const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles];
 
       // URL 기준으로 중복 제거
       const uniqueArticles = [];
@@ -131,6 +151,17 @@ function getCategoryQuery(category) {
     'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot'
   };
   return categoryQueries[category] || 'technology';
+}
+
+// 카테고리별 한국어 검색 쿼리 생성 (Naver News용)
+function getKoreanCategoryQuery(category) {
+  const koreanQueries = {
+    'geopolitics': '국제 정치 중국 러시아 우크라이나 중동 이란 이스라엘 대만',
+    'economy': '경제 시장 금융 연준 인플레이션 은행',
+    'automotive': '전기차 EV 테슬라 현대차 기아 자동차 배터리',
+    'ai-tech': '인공지능 AI 챗GPT 자율주행 로봇 휴머노이드'
+  };
+  return koreanQueries[category] || '기술';
 }
 
 // 기사 중요도 판단 (간단한 휴리스틱)

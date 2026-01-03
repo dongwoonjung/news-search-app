@@ -35,15 +35,15 @@ export default function GlobalNewsApp() {
   ];
 
   const autoCompanies = [
-    { id: 'hyundai', name: '현대자동차', keywords: '"Hyundai Motor" OR "Hyundai Motors" OR "Hyundai EV"' },
-    { id: 'kia', name: '기아', keywords: '"Kia Motors" OR "Kia Corp" OR "Kia Corporation" OR "Kia EV"' },
-    { id: 'toyota', name: '도요타', keywords: '"Toyota Motor" OR "Toyota" OR "Toyota EV" OR "Toyota hybrid"' },
-    { id: 'tesla', name: '테슬라', keywords: 'Tesla OR "Elon Musk" OR Cybertruck OR "Tesla Model"' },
-    { id: 'ford', name: '포드', keywords: '"Ford Motor" OR "Ford F-150" OR "Ford EV" OR "Ford electric"' },
-    { id: 'gm', name: 'GM', keywords: '"General Motors" OR "GM" OR Cadillac OR "Chevrolet electric"' },
-    { id: 'bmw', name: 'BMW', keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"' },
-    { id: 'mercedes', name: '벤츠', keywords: '"Mercedes-Benz" OR Mercedes OR "Mercedes EQ" OR "Mercedes electric"' },
-    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler' },
+    { id: 'hyundai', name: '현대자동차', keywords: '"Hyundai Motor" OR "Hyundai Motors" OR "Hyundai EV"', koreanKeywords: '현대자동차 전기차 아이오닉' },
+    { id: 'kia', name: '기아', keywords: '"Kia Motors" OR "Kia Corp" OR "Kia Corporation" OR "Kia EV"', koreanKeywords: '기아 전기차 EV6' },
+    { id: 'toyota', name: '도요타', keywords: '"Toyota Motor" OR "Toyota" OR "Toyota EV" OR "Toyota hybrid"', koreanKeywords: '도요타 전기차 하이브리드' },
+    { id: 'tesla', name: '테슬라', keywords: 'Tesla OR "Elon Musk" OR Cybertruck OR "Tesla Model"', koreanKeywords: '테슬라 일론머스크 사이버트럭' },
+    { id: 'ford', name: '포드', keywords: '"Ford Motor" OR "Ford F-150" OR "Ford EV" OR "Ford electric"', koreanKeywords: '포드 전기차 F-150' },
+    { id: 'gm', name: 'GM', keywords: '"General Motors" OR "GM" OR Cadillac OR "Chevrolet electric"', koreanKeywords: 'GM 제너럴모터스 캐딜락 전기차' },
+    { id: 'bmw', name: 'BMW', keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"', koreanKeywords: 'BMW 전기차 iX' },
+    { id: 'mercedes', name: '벤츠', keywords: '"Mercedes-Benz" OR Mercedes OR "Mercedes EQ" OR "Mercedes electric"', koreanKeywords: '벤츠 메르세데스 전기차 EQ' },
+    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler', koreanKeywords: '스텔란티스 지프 피아트 크라이슬러' },
   ];
 
   // 초기 마운트 시 뉴스 및 아카이브 로드
@@ -137,12 +137,13 @@ export default function GlobalNewsApp() {
       // 1. 각 자동차 회사별로 뉴스 가져오기 (NewsAPI + Google News 통합)
       for (const company of autoCompanies) {
         try {
-          console.log(`📡 Fetching ${company.name} from NewsAPI & Google News`);
+          console.log(`📡 Fetching ${company.name} from NewsAPI, Google News & Naver News`);
 
-          // NewsAPI와 Google News를 병렬로 호출
+          // NewsAPI, Google News, Naver News를 병렬로 호출
           const companyQuery = company.keywords.replace(/"/g, '').replace(/ OR /g, ' ');
+          const koreanQuery = company.koreanKeywords || companyQuery; // 한국어 키워드 사용
 
-          const [newsApiResult, googleNewsResult] = await Promise.allSettled([
+          const [newsApiResult, googleNewsResult, naverNewsResult] = await Promise.allSettled([
             // NewsAPI 호출
             fetch(`${apiBaseUrl}/api/news?category=automotive&company=${encodeURIComponent(company.keywords)}&timeRange=${range}`, {
               cache: 'no-cache',
@@ -153,6 +154,14 @@ export default function GlobalNewsApp() {
 
             // Google News 호출
             fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(companyQuery)}&count=10&timeRange=${range}`, {
+              cache: 'no-cache',
+              headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            })
+              .then(res => res.ok ? res.json() : Promise.reject())
+              .catch(() => ({ success: false, articles: [] })),
+
+            // Naver News 호출 (한국어)
+            fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(koreanQuery)}&display=10`, {
               cache: 'no-cache',
               headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
             })
@@ -186,8 +195,21 @@ export default function GlobalNewsApp() {
               }))
             : [];
 
-          // 두 소스 합치기 (중복 제거)
-          const allArticles = [...newsApiArticles, ...googleArticles];
+          // Naver News 결과 처리
+          const naverArticles = naverNewsResult.status === 'fulfilled' && naverNewsResult.value.success
+            ? naverNewsResult.value.articles.map(article => ({
+                title: article.title,
+                summary: article.summary,
+                date: article.date,
+                source: article.source,
+                importance: 'medium',
+                url: article.url,
+                publishedAt: article.publishedAt
+              }))
+            : [];
+
+          // 세 소스 합치기 (중복 제거)
+          const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles];
           const uniqueArticles = [];
           const seenUrls = new Set();
 
@@ -206,7 +228,7 @@ export default function GlobalNewsApp() {
           });
 
           if (uniqueArticles.length > 0) {
-            console.log(`✅ ${company.name}: ${uniqueArticles.length} articles (NewsAPI: ${newsApiArticles.length}, Google: ${googleArticles.length})`);
+            console.log(`✅ ${company.name}: ${uniqueArticles.length} articles (NewsAPI: ${newsApiArticles.length}, Google: ${googleArticles.length}, Naver: ${naverArticles.length})`);
             allCompanyArticles[company.id] = uniqueArticles.slice(0, 10);
           }
         } catch (companyError) {
