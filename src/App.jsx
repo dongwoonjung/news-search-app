@@ -44,6 +44,7 @@ export default function GlobalNewsApp() {
     { id: 'bmw', name: 'BMW', keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"', koreanKeywords: 'BMW 전기차 iX' },
     { id: 'mercedes', name: '벤츠', keywords: '"Mercedes-Benz" OR Mercedes OR "Mercedes EQ" OR "Mercedes electric"', koreanKeywords: '벤츠 메르세데스 전기차 EQ' },
     { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler', koreanKeywords: '스텔란티스 지프 피아트 크라이슬러' },
+    { id: 'chinese-oem', name: '중국 OEM', keywords: 'BYD OR NIO OR XPeng OR "Li Auto" OR Geely OR Chery OR "Chinese EV" OR "China electric vehicle"', koreanKeywords: 'BYD 니오 샤오펑 리오토 지리 체리 중국전기차' },
   ];
 
   // 초기 마운트 시 뉴스 및 아카이브 로드
