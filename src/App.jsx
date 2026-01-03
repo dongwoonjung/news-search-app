@@ -1196,9 +1196,9 @@ export default function GlobalNewsApp() {
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source?.name || article.source}</span>
-                                      <span>🕒 {article.date}</span>
+                                    <div className="flex items-center justify-between text-xs mb-3">
+                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
+                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
                                     </div>
                                     <div className="space-y-2">
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
@@ -1282,9 +1282,9 @@ export default function GlobalNewsApp() {
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source?.name || article.source}</span>
-                                      <span>🕒 {article.date}</span>
+                                    <div className="flex items-center justify-between text-xs mb-3">
+                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
+                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
                                     </div>
                                     <div className="space-y-2">
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
@@ -1368,9 +1368,9 @@ export default function GlobalNewsApp() {
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source?.name || article.source}</span>
-                                      <span>🕒 {article.date}</span>
+                                    <div className="flex items-center justify-between text-xs mb-3">
+                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
+                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
                                     </div>
                                     <div className="space-y-2">
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
@@ -1529,9 +1529,9 @@ export default function GlobalNewsApp() {
                                       </div>
                                     )}
                                     <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
-                                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                      <span>📰 {article.source?.name || article.source}</span>
-                                      <span>🕒 {article.date}</span>
+                                    <div className="flex items-center justify-between text-xs mb-3">
+                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
+                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
                                     </div>
 
                                     <div className="space-y-2">
