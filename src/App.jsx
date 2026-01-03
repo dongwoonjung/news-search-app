@@ -430,6 +430,9 @@ export default function GlobalNewsApp() {
       articleDataKeys: articleData ? Object.keys(articleData) : 'null'
     });
 
+    // 현재 선택 상태 확인 (현재 상태 기준)
+    const isCurrentlySelected = selectedArticles.has(articleKey);
+
     setSelectedArticles(prev => {
       const newSet = new Set(prev);
       if (newSet.has(articleKey)) {
@@ -440,12 +443,14 @@ export default function GlobalNewsApp() {
       return newSet;
     });
 
-    // 선택된 기사 데이터도 함께 저장
+    // 선택된 기사 데이터도 함께 저장 (현재 상태 기준으로 토글)
     setSelectedArticlesData(prev => {
       const newData = { ...prev };
-      if (selectedArticles.has(articleKey)) {
+      if (isCurrentlySelected) {
+        // 현재 선택되어 있으면 제거
         delete newData[articleKey];
       } else {
+        // 현재 선택 안되어 있으면 추가
         newData[articleKey] = {
           article: articleData,
           categoryOrCompany: categoryOrCompany,
@@ -459,6 +464,10 @@ export default function GlobalNewsApp() {
 
   const toggleGeneralArticleSelection = (idx, article) => {
     const articleKey = `${category}-${idx}`;
+
+    // 현재 선택 상태 확인 (현재 상태 기준)
+    const isCurrentlySelected = selectedArticles.has(articleKey);
+
     setSelectedArticles(prev => {
       const newSet = new Set(prev);
       if (newSet.has(articleKey)) {
@@ -469,12 +478,14 @@ export default function GlobalNewsApp() {
       return newSet;
     });
 
-    // 선택된 기사 데이터도 함께 저장
+    // 선택된 기사 데이터도 함께 저장 (현재 상태 기준으로 토글)
     setSelectedArticlesData(prev => {
       const newData = { ...prev };
-      if (selectedArticles.has(articleKey)) {
+      if (isCurrentlySelected) {
+        // 현재 선택되어 있으면 제거
         delete newData[articleKey];
       } else {
+        // 현재 선택 안되어 있으면 추가
         newData[articleKey] = {
           article: article,
           category: category,
@@ -501,6 +512,11 @@ export default function GlobalNewsApp() {
 
       console.log(`🔍 Processing article: ${articleKey}`, data.article);
 
+      // URL 기반 고유 키 생성 (같은 URL이면 항상 같은 키 = 중복 방지)
+      const uniqueArticleKey = data.article.url
+        ? btoa(data.article.url).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32)
+        : articleKey;
+
       if (data.viewMode === 'automotive') {
         // 자동차 뉴스
         const companyId = data.categoryOrCompany;
@@ -511,7 +527,7 @@ export default function GlobalNewsApp() {
           company: companyId === 'industry' ? '산업 공통' : autoCompanies.find(c => c.id === companyId)?.name || companyId,
           companyId: companyId,
           archivedDate: new Date().toISOString(),
-          articleKey: articleKey
+          articleKey: uniqueArticleKey
         };
         console.log(`✅ Archived article object:`, archivedArticle);
         articlesToArchive.push(archivedArticle);
@@ -523,7 +539,7 @@ export default function GlobalNewsApp() {
           category: data.category,
           categoryName: categoryInfo?.name || data.category,
           archivedDate: new Date().toISOString(),
-          articleKey: articleKey
+          articleKey: uniqueArticleKey
         });
       }
     });
