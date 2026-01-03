@@ -1195,7 +1195,7 @@ export default function GlobalNewsApp() {
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                                       <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
@@ -1281,7 +1281,7 @@ export default function GlobalNewsApp() {
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                                       <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
@@ -1367,7 +1367,7 @@ export default function GlobalNewsApp() {
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                                       <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
@@ -1528,7 +1528,7 @@ export default function GlobalNewsApp() {
                                         </span>
                                       </div>
                                     )}
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : article.summary}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
                                     <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                                       <span>📰 {article.source?.name || article.source}</span>
                                       <span>🕒 {article.date}</span>
