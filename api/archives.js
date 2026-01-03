@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,PATCH,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control, Pragma');
 
   if (req.method === 'OPTIONS') {
@@ -132,6 +132,99 @@ export default async function handler(req, res) {
       res.status(200).json({
         success: true,
         removed: 1
+      });
+    }
+
+    // PATCH - 자동차 카테고리 기사의 companyId 자동 매핑
+    else if (req.method === 'PATCH') {
+      console.log('🔄 Starting auto-mapping of company IDs...');
+
+      // 회사명 -> companyId 매핑 테이블
+      const companyNameToId = {
+        '현대자동차': 'hyundai',
+        '현대': 'hyundai',
+        'Hyundai': 'hyundai',
+        '테슬라': 'tesla',
+        'Tesla': 'tesla',
+        '도요타': 'toyota',
+        'Toyota': 'toyota',
+        'GM': 'gm',
+        '벤츠': 'mercedes',
+        'Mercedes': 'mercedes',
+        'Mercedes-Benz': 'mercedes',
+        '포드': 'ford',
+        'Ford': 'ford',
+        '산업 공통': 'industry',
+        '산업공통': 'industry'
+      };
+
+      // 자동차 카테고리이면서 company_id가 비어있는 기사들 찾기
+      const { data: articlesToUpdate, error: fetchError } = await supabase
+        .from('archived_articles')
+        .select('*')
+        .eq('category', 'automotive')
+        .or('company_id.is.null,company_id.eq.');
+
+      if (fetchError) throw fetchError;
+
+      console.log(`📊 Found ${articlesToUpdate?.length || 0} automotive articles with empty companyId`);
+
+      let updatedCount = 0;
+      const updates = [];
+
+      // 각 기사의 company 필드를 보고 companyId 추론
+      for (const article of articlesToUpdate || []) {
+        const companyName = article.company?.trim();
+
+        if (!companyName) {
+          console.log(`⚠️ Skipping article "${article.title?.substring(0, 50)}" - no company name`);
+          continue;
+        }
+
+        // 매핑 테이블에서 companyId 찾기
+        let inferredCompanyId = null;
+
+        for (const [name, id] of Object.entries(companyNameToId)) {
+          if (companyName.includes(name)) {
+            inferredCompanyId = id;
+            break;
+          }
+        }
+
+        if (inferredCompanyId) {
+          console.log(`✅ Mapping: "${companyName}" → "${inferredCompanyId}"`);
+          updates.push({
+            article_key: article.article_key,
+            company_id: inferredCompanyId
+          });
+        } else {
+          console.log(`⚠️ No mapping found for: "${companyName}"`);
+        }
+      }
+
+      // 일괄 업데이트
+      if (updates.length > 0) {
+        for (const update of updates) {
+          const { error: updateError } = await supabase
+            .from('archived_articles')
+            .update({ company_id: update.company_id })
+            .eq('article_key', update.article_key);
+
+          if (!updateError) {
+            updatedCount++;
+          } else {
+            console.error(`❌ Failed to update ${update.article_key}:`, updateError);
+          }
+        }
+      }
+
+      console.log(`🎉 Auto-mapping complete: ${updatedCount} articles updated`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Company IDs auto-mapped successfully',
+        updated: updatedCount,
+        total: articlesToUpdate?.length || 0
       });
     }
 

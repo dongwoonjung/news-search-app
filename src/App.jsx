@@ -85,6 +85,39 @@ export default function GlobalNewsApp() {
     }
   };
 
+  // 자동차 카테고리 기사의 companyId 자동 매핑 실행
+  const autoMapCompanyIds = async () => {
+    try {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      console.log('🔄 Starting auto-mapping of company IDs...');
+
+      const response = await fetch(`${apiBaseUrl}/api/archives`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log(`✅ Auto-mapping complete: ${data.updated}/${data.total} articles updated`);
+
+          // 아카이브 새로고침
+          await loadArchivedArticles();
+
+          alert(`자동 매핑 완료!\n\n업데이트된 기사: ${data.updated}개\n전체 기사: ${data.total}개`);
+        }
+      } else {
+        console.error('Failed to auto-map company IDs');
+        alert('자동 매핑에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to auto-map company IDs:', error);
+      alert('자동 매핑 중 오류가 발생했습니다.');
+    }
+  };
+
   const loadAutomotiveNews = async (range = timeRange) => {
     console.log(`🔍 loadAutomotiveNews called with range: ${range}`);
     setLoading(true);
@@ -1399,46 +1432,57 @@ export default function GlobalNewsApp() {
 
                       {/* 회사별 하위 탭 (자동차 탭에서만) */}
                       {activeCategoryTab === 'automotive' && (
-                        <div className="flex flex-wrap gap-2 mb-6 pb-4">
-                          <button
-                            onClick={() => setActiveCompanyTab('all')}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                              activeCompanyTab === 'all'
-                                ? 'bg-orange-500 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            전체
-                          </button>
-                          {autoCompanies.map(company => {
-                            const count = archivedArticles.filter(a => a.category === 'automotive' && a.companyId === company.id).length;
-                            if (count === 0) return null;
-                            return (
-                              <button
-                                key={company.id}
-                                onClick={() => setActiveCompanyTab(company.id)}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                                  activeCompanyTab === company.id
-                                    ? 'bg-orange-500 text-white shadow-md'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                              >
-                                {company.name} ({count})
-                              </button>
-                            );
-                          })}
-                          {archivedArticles.filter(a => a.category === 'automotive' && a.companyId === 'industry').length > 0 && (
+                        <div className="mb-6 pb-4 space-y-3">
+                          <div className="flex flex-wrap gap-2">
                             <button
-                              onClick={() => setActiveCompanyTab('industry')}
+                              onClick={() => setActiveCompanyTab('all')}
                               className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                                activeCompanyTab === 'industry'
+                                activeCompanyTab === 'all'
                                   ? 'bg-orange-500 text-white shadow-md'
                                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                               }`}
                             >
-                              산업 공통 ({archivedArticles.filter(a => a.category === 'automotive' && a.companyId === 'industry').length})
+                              전체
                             </button>
-                          )}
+                            {autoCompanies.map(company => {
+                              const count = archivedArticles.filter(a => a.category === 'automotive' && a.companyId === company.id).length;
+                              if (count === 0) return null;
+                              return (
+                                <button
+                                  key={company.id}
+                                  onClick={() => setActiveCompanyTab(company.id)}
+                                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                                    activeCompanyTab === company.id
+                                      ? 'bg-orange-500 text-white shadow-md'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {company.name} ({count})
+                                </button>
+                              );
+                            })}
+                            {archivedArticles.filter(a => a.category === 'automotive' && a.companyId === 'industry').length > 0 && (
+                              <button
+                                onClick={() => setActiveCompanyTab('industry')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                                  activeCompanyTab === 'industry'
+                                    ? 'bg-orange-500 text-white shadow-md'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                              >
+                                산업 공통 ({archivedArticles.filter(a => a.category === 'automotive' && a.companyId === 'industry').length})
+                              </button>
+                            )}
+                          </div>
+                          {/* 자동 매핑 버튼 */}
+                          <div className="flex justify-end">
+                            <button
+                              onClick={autoMapCompanyIds}
+                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                            >
+                              🔄 회사별 자동 분류 실행
+                            </button>
+                          </div>
                         </div>
                       )}
 
