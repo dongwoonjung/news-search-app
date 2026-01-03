@@ -77,11 +77,13 @@ export default async function handler(req, res) {
         category: article.category || 'general',
         company: article.company || '',
         title: article.title,
-        description: article.description || '',
+        description: article.description || article.summary || '',
         url: article.url,
         url_to_image: article.urlToImage || '',
         published_at: article.publishedAt,
-        source_name: article.source?.name || 'Unknown'
+        source_name: typeof article.source === 'string'
+          ? article.source
+          : (article.source?.name || 'Unknown')
       }));
 
       // Insert with upsert (ignore duplicates)
