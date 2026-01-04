@@ -393,6 +393,10 @@ export default function GlobalNewsApp() {
 
     try {
       console.log('🔍 Calling Claude API for analysis...');
+
+      // 아카이브된 기사는 description, 일반 기사는 summary 사용
+      const summaryText = item.summary || item.description || '';
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
@@ -400,7 +404,7 @@ export default function GlobalNewsApp() {
         },
         body: JSON.stringify({
           title: item.title,
-          summary: item.summary,
+          summary: summaryText,
           source: item.source,
           date: item.date
         })
