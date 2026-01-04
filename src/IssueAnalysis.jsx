@@ -680,8 +680,9 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
         {/* 글 작성 모달 */}
         {showArticleForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8">
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+            <div className="min-h-screen flex items-start justify-center p-4 pt-8">
+              <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-800">새 글 작성하기</h3>
                 <button
@@ -879,6 +880,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                   <Save className="w-5 h-5" />
                   등록하기
                 </button>
+              </div>
               </div>
             </div>
           </div>
