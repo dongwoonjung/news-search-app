@@ -53,17 +53,24 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
       setArticleTitle(initialArticleData.title || '');
       setArticleSource(initialArticleData.url || '');
 
-      // 폼이 열릴 때 페이지 맨 위로 스크롤
+      // 폼이 열릴 때 페이지 맨 위로 스크롤 (즉시 + 지연 모두 실행)
+      window.scrollTo(0, 0);
       setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 100);
+        window.scrollTo(0, 0);
+      }, 50);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 200);
     }
   }, [initialArticleData]);
 
   // 글 작성 폼이 열릴 때 맨 위로 스크롤
   useEffect(() => {
     if (showArticleForm) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 100);
     }
   }, [showArticleForm]);
 
