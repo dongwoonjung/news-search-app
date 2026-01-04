@@ -41,6 +41,9 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   // 초기 기사 데이터가 있으면 자동으로 폼 열고 채우기
   useEffect(() => {
     if (initialArticleData) {
+      console.log('📝 [IssueAnalysis] Initializing form with article data:');
+      console.log('  Title:', initialArticleData.title);
+      console.log('  URL:', initialArticleData.url);
       setShowArticleForm(true);
       setArticleTitle(initialArticleData.title || '');
       setArticleSource(initialArticleData.url || '');
@@ -264,6 +267,10 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
       alert('정보 소스를 먼저 입력해주세요.');
       return;
     }
+
+    console.log('🔍 [AI Summary Request]');
+    console.log('  Title:', articleTitle);
+    console.log('  Source:', articleSource);
 
     setIsGeneratingSummary(true);
     try {

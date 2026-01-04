@@ -1245,6 +1245,9 @@ export default function GlobalNewsApp() {
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
+                                          console.log('  Title:', article.title);
+                                          console.log('  URL:', article.url);
                                           setIssueArticleData({ url: article.url, title: article.title });
                                           setViewMode('issue');
                                         }}
@@ -1331,6 +1334,9 @@ export default function GlobalNewsApp() {
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
+                                          console.log('  Title:', article.title);
+                                          console.log('  URL:', article.url);
                                           setIssueArticleData({ url: article.url, title: article.title });
                                           setViewMode('issue');
                                         }}
@@ -1417,6 +1423,9 @@ export default function GlobalNewsApp() {
                                       <button
                                         type="button"
                                         onClick={() => {
+                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
+                                          console.log('  Title:', article.title);
+                                          console.log('  URL:', article.url);
                                           setIssueArticleData({ url: article.url, title: article.title });
                                           setViewMode('issue');
                                         }}
