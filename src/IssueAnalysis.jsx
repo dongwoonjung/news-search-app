@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
+import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 
 export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [folders, setFolders] = useState([]);
@@ -28,6 +28,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isGeneratingInsightGPT, setIsGeneratingInsightGPT] = useState(false);
   const [isGeneratingInsightClaude, setIsGeneratingInsightClaude] = useState(false);
+  const [showExternalAIMenu, setShowExternalAIMenu] = useState(false);
 
   const isDev = import.meta.env.DEV;
   const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
@@ -53,6 +54,20 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
       setArticleSource(initialArticleData.url || '');
     }
   }, [initialArticleData]);
+
+  // 외부 AI 메뉴 닫기 (외부 클릭 감지)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showExternalAIMenu && !event.target.closest('.relative')) {
+        setShowExternalAIMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExternalAIMenu]);
 
   const loadFolders = async () => {
     try {
@@ -344,6 +359,31 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenExternalAI = (aiType) => {
+    if (!articleTitle.trim() || !articleSummary.trim()) {
+      alert('제목과 내용 요약을 먼저 입력해주세요.');
+      return;
+    }
+
+    const prompt = `다음 뉴스 기사를 현대차 관점에서 분석하여 전략적 인사이트를 도출해주세요:\n\n제목: ${articleTitle}\n\n요약:\n${articleSummary}`;
+
+    if (aiType === 'chatgpt') {
+      // ChatGPT로 프롬프트 복사 후 사이트 열기
+      navigator.clipboard.writeText(prompt).then(() => {
+        window.open('https://chat.openai.com/', '_blank');
+        alert('프롬프트가 클립보드에 복사되었습니다. ChatGPT에 붙여넣기 하세요.');
+      });
+    } else if (aiType === 'gemini') {
+      // Google Gemini로 프롬프트 복사 후 사이트 열기
+      navigator.clipboard.writeText(prompt).then(() => {
+        window.open('https://gemini.google.com/', '_blank');
+        alert('프롬프트가 클립보드에 복사되었습니다. Gemini에 붙여넣기 하세요.');
+      });
+    }
+
+    setShowExternalAIMenu(false);
   };
 
   const openEditFolder = (folder) => {
@@ -716,6 +756,38 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-bold text-green-700">💡 인사이트 (현대차 관점) *</label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowExternalAIMenu(!showExternalAIMenu)}
+                        disabled={!articleTitle.trim() || !articleSummary.trim()}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-600 text-white text-sm rounded-lg hover:from-orange-600 hover:to-red-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        다른 AI 사용하기
+                      </button>
+
+                      {showExternalAIMenu && (
+                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenExternalAI('chatgpt')}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 rounded-t-lg flex items-center gap-2"
+                          >
+                            <ExternalLink className="w-4 h-4 text-green-600" />
+                            <span>ChatGPT</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenExternalAI('gemini')}
+                            className="w-full px-4 py-2 text-left hover:bg-gray-100 rounded-b-lg flex items-center gap-2"
+                          >
+                            <ExternalLink className="w-4 h-4 text-blue-600" />
+                            <span>Google Gemini</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <textarea
                     value={articleInsight}
