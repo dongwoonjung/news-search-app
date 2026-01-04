@@ -24,6 +24,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [articleInsight, setArticleInsight] = useState('');
   const [articleFolderId, setArticleFolderId] = useState('');
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
 
   const isDev = import.meta.env.DEV;
   const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
@@ -297,6 +298,44 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
       alert('요약 생성 중 오류가 발생했습니다.');
     } finally {
       setIsGeneratingSummary(false);
+    }
+  };
+
+  const handleGenerateAIInsight = async () => {
+    if (!articleTitle.trim() || !articleSummary.trim()) {
+      alert('제목과 내용 요약을 먼저 입력해주세요.');
+      return;
+    }
+
+    console.log('💡 [AI Insight Request]');
+    console.log('  Title:', articleTitle);
+    console.log('  Summary length:', articleSummary.length);
+
+    setIsGeneratingInsight(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/ai-insight`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: articleTitle,
+          summary: articleSummary
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setArticleInsight(data.insight);
+      } else {
+        alert('인사이트 생성에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+      }
+    } catch (error) {
+      console.error('Failed to generate AI insight:', error);
+      alert('인사이트 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsGeneratingInsight(false);
     }
   };
 
@@ -668,11 +707,22 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-green-700 mb-2">💡 인사이트 *</label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-bold text-green-700">💡 인사이트 (현대차 관점) *</label>
+                    <button
+                      type="button"
+                      onClick={handleGenerateAIInsight}
+                      disabled={isGeneratingInsight || !articleTitle.trim() || !articleSummary.trim()}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm rounded-lg hover:from-green-600 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
+                    >
+                      <Sparkles className={`w-4 h-4 ${isGeneratingInsight ? 'animate-spin' : ''}`} />
+                      {isGeneratingInsight ? 'AI 분석 중...' : 'AI 분석 (현대차 관점)'}
+                    </button>
+                  </div>
                   <textarea
                     value={articleInsight}
                     onChange={(e) => setArticleInsight(e.target.value)}
-                    placeholder="분석 및 개인적인 인사이트를 입력하세요"
+                    placeholder="현대차 관점에서의 전략적 인사이트를 입력하세요 (또는 AI 분석 버튼을 사용하세요)"
                     rows={5}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
