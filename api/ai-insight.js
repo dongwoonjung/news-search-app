@@ -14,30 +14,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { title, summary } = req.body;
+    const { title, summary, model = 'gpt' } = req.body;
 
     if (!title || !summary) {
       return res.status(400).json({ error: 'Title and summary are required' });
     }
 
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-    if (!OPENAI_API_KEY) {
-      return res.status(500).json({
-        error: 'OpenAI API key not configured',
-        fallback: true
-      });
-    }
-
     console.log('[AI Insight] Generating Hyundai-perspective insight...');
+    console.log('[AI Insight] Model:', model);
     console.log('[AI Insight] Title:', title);
     console.log('[AI Insight] Summary length:', summary.length);
 
-    // GPT를 사용한 현대차 관점 인사이트 생성
-    const messages = [
-      {
-        role: 'system',
-        content: `당신은 현대자동차 그룹의 전략 분석가입니다. 주어진 뉴스 기사를 현대차 관점에서 분석하여 인사이트를 도출하세요.
+    // 현대차 관점 인사이트 생성 프롬프트
+    const systemPrompt = `당신은 현대자동차 그룹의 전략 분석가입니다. 주어진 뉴스 기사를 현대차 관점에서 분석하여 인사이트를 도출하세요.
 
 분석 시 다음을 포함하세요:
 1. **현대차에 미치는 영향**: 이 뉴스가 현대차에 긍정적/부정적으로 미치는 영향
@@ -48,50 +37,121 @@ export default async function handler(req, res) {
 
 **중요**: 현대차의 전기차 전환, 배터리 기술, 글로벌 시장 확대, 자율주행, 수소차 등 핵심 사업 영역과 연결하여 분석하세요.
 
-답변은 4-6개 문단으로 구조화하여 한국어로 작성하세요.`
-      },
-      {
-        role: 'user',
-        content: `다음 뉴스 기사를 현대차 관점에서 분석하여 전략적 인사이트를 도출해주세요:
+답변은 4-6개 문단으로 구조화하여 한국어로 작성하세요.`;
+
+    const userPrompt = `다음 뉴스 기사를 현대차 관점에서 분석하여 전략적 인사이트를 도출해주세요:
 
 제목: ${title}
 
 요약:
-${summary}`
+${summary}`;
+
+    let insight;
+
+    // GPT 사용
+    if (model === 'gpt') {
+      const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+      if (!OPENAI_API_KEY) {
+        return res.status(500).json({
+          error: 'OpenAI API key not configured',
+          fallback: true
+        });
       }
-    ];
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: messages,
-        max_tokens: 2000,
-        temperature: 0.7
-      })
-    });
+      const messages = [
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: userPrompt
+        }
+      ];
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
-      return res.status(response.status).json({
-        error: 'Failed to generate insight',
-        details: errorData
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: messages,
+          max_tokens: 2000,
+          temperature: 0.7
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('OpenAI API error:', errorData);
+        return res.status(response.status).json({
+          error: 'Failed to generate insight',
+          details: errorData
+        });
+      }
+
+      const data = await response.json();
+      insight = data.choices[0].message.content;
+    }
+    // Claude 사용
+    else if (model === 'claude') {
+      const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+      if (!ANTHROPIC_API_KEY) {
+        return res.status(500).json({
+          error: 'Anthropic API key not configured',
+          fallback: true
+        });
+      }
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          temperature: 0.7,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: userPrompt
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Anthropic API error:', errorData);
+        return res.status(response.status).json({
+          error: 'Failed to generate insight',
+          details: errorData
+        });
+      }
+
+      const data = await response.json();
+      insight = data.content[0].text;
+    }
+    else {
+      return res.status(400).json({
+        error: 'Invalid model. Must be "gpt" or "claude"'
       });
     }
-
-    const data = await response.json();
-    const insight = data.choices[0].message.content;
 
     console.log('[AI Insight] Successfully generated insight, length:', insight.length);
 
     res.status(200).json({
       success: true,
-      insight
+      insight,
+      model
     });
 
   } catch (error) {
