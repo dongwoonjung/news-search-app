@@ -47,31 +47,57 @@ export default async function handler(req, res) {
 
       console.log('[AI Summary] Original URL:', source.trim());
 
-      // Google News URL인 경우 먼저 리디렉션을 따라가서 실제 URL 찾기
+      // Google News URL인 경우 실제 뉴스 URL 추출
       if (finalUrl.includes('news.google.com')) {
-        console.log('[AI Summary] Detected Google News URL, following redirects...');
+        console.log('[AI Summary] Detected Google News URL, extracting actual article URL...');
 
         try {
-          const redirectResponse = await fetch(finalUrl, {
-            method: 'HEAD',
+          // Google News 페이지를 실제로 가져와서 파싱
+          const googleResponse = await fetch(finalUrl, {
             redirect: 'follow',
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
           });
 
-          // 리디렉션 후 최종 URL 가져오기
-          const redirectedUrl = redirectResponse.url;
+          const googleHtml = await googleResponse.text();
+          console.log('[AI Summary] Fetched Google News page, length:', googleHtml.length);
 
-          if (redirectedUrl && redirectedUrl !== finalUrl && !redirectedUrl.includes('news.google.com')) {
-            finalUrl = redirectedUrl;
-            console.log('[AI Summary] Successfully followed redirect to actual article URL:', finalUrl);
-          } else {
-            console.log('[AI Summary] Redirect did not lead to a different URL, will try to extract from Google News page');
+          // 실제 뉴스 URL 추출 방법 1: <a> 태그의 href에서 실제 뉴스 URL 찾기
+          // Google News는 보통 실제 기사로 리디렉션하는 링크를 포함
+          const linkMatch = googleHtml.match(/https?:\/\/(?!news\.google\.com)[^\s"'<>]+/);
+
+          if (linkMatch) {
+            const extractedUrl = linkMatch[0]
+              .replace(/&amp;/g, '&')
+              .replace(/&#x3D;/g, '=')
+              .split(/[<>"']/)[0]; // 첫 번째 구분자까지만
+
+            // 유효한 뉴스 URL인지 확인
+            if (extractedUrl &&
+                !extractedUrl.includes('google.com') &&
+                !extractedUrl.includes('gstatic.com') &&
+                !extractedUrl.match(/\.(css|js|jpg|jpeg|png|gif|svg|webp|ico)$/i)) {
+              finalUrl = extractedUrl;
+              console.log('[AI Summary] Extracted actual article URL from Google News:', finalUrl);
+            }
           }
-        } catch (redirectError) {
-          console.log('[AI Summary] Failed to follow redirect:', redirectError.message);
-          console.log('[AI Summary] Will proceed with original Google News URL');
+
+          // 추출 실패 시 리디렉션 체인 따라가기
+          if (finalUrl.includes('news.google.com')) {
+            console.log('[AI Summary] Could not extract URL from HTML, trying redirect chain...');
+            const redirectedUrl = googleResponse.url;
+
+            if (redirectedUrl && !redirectedUrl.includes('news.google.com')) {
+              finalUrl = redirectedUrl;
+              console.log('[AI Summary] Found URL via redirect chain:', finalUrl);
+            } else {
+              console.log('[AI Summary] Still on Google News after redirect, will try direct extraction');
+            }
+          }
+        } catch (googleError) {
+          console.log('[AI Summary] Failed to extract URL from Google News:', googleError.message);
+          console.log('[AI Summary] Will proceed with original URL');
         }
       }
 
