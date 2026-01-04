@@ -46,6 +46,35 @@ export default async function handler(req, res) {
       let finalUrl = source.trim();
 
       console.log('[AI Summary] Original URL:', source.trim());
+
+      // Google News URL인 경우 먼저 리디렉션을 따라가서 실제 URL 찾기
+      if (finalUrl.includes('news.google.com')) {
+        console.log('[AI Summary] Detected Google News URL, following redirects...');
+
+        try {
+          const redirectResponse = await fetch(finalUrl, {
+            method: 'HEAD',
+            redirect: 'follow',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+
+          // 리디렉션 후 최종 URL 가져오기
+          const redirectedUrl = redirectResponse.url;
+
+          if (redirectedUrl && redirectedUrl !== finalUrl && !redirectedUrl.includes('news.google.com')) {
+            finalUrl = redirectedUrl;
+            console.log('[AI Summary] Successfully followed redirect to actual article URL:', finalUrl);
+          } else {
+            console.log('[AI Summary] Redirect did not lead to a different URL, will try to extract from Google News page');
+          }
+        } catch (redirectError) {
+          console.log('[AI Summary] Failed to follow redirect:', redirectError.message);
+          console.log('[AI Summary] Will proceed with original Google News URL');
+        }
+      }
+
       console.log('[AI Summary] Final URL to use:', finalUrl);
 
       try {
@@ -55,67 +84,6 @@ export default async function handler(req, res) {
         }
 
         console.log('[AI Summary] Using Tavily Extract API with final URL...');
-
-        // Google News URL인 경우 제목으로 검색해서 실제 기사 찾기
-        if (finalUrl.includes('news.google.com')) {
-          console.log('[AI Summary] Detected Google News URL, trying to find actual article...');
-
-          // 클라이언트에서 전달된 제목 사용 (있는 경우)
-          const articleTitle = title;
-
-          if (articleTitle) {
-            console.log('[AI Summary] Using provided article title:', articleTitle);
-
-            try {
-              // 제목으로 Tavily 검색
-              const searchResponse = await fetch('https://api.tavily.com/search', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  api_key: TAVILY_API_KEY,
-                  query: articleTitle,
-                  search_depth: 'basic',
-                  max_results: 5,
-                  include_domains: [], // 특정 도메인 제한 없음
-                  exclude_domains: ['google.com', 'news.google.com'] // Google 제외
-                })
-              });
-
-              if (searchResponse.ok) {
-                const searchData = await searchResponse.json();
-                console.log('[AI Summary] Tavily search found', searchData.results?.length || 0, 'results');
-
-                if (searchData.results && searchData.results.length > 0) {
-                  // 가장 관련성 높은 실제 뉴스 기사 찾기
-                  for (const result of searchData.results) {
-                    const url = result.url.toLowerCase();
-
-                    // 유효한 뉴스 기사인지 확인
-                    const isValidNewsUrl =
-                      !url.includes('google.com') &&
-                      !url.match(/\.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|pdf)(\?|$)/i) &&
-                      !url.includes('youtube.com') &&
-                      !url.includes('twitter.com') &&
-                      !url.includes('facebook.com');
-
-                    if (isValidNewsUrl) {
-                      finalUrl = result.url;
-                      console.log('[AI Summary] Found actual article URL:', finalUrl);
-                      console.log('[AI Summary] Article score:', result.score);
-                      break;
-                    }
-                  }
-                }
-              }
-            } catch (searchError) {
-              console.log('[AI Summary] Failed to search via title:', searchError.message);
-            }
-          } else {
-            console.log('[AI Summary] No title provided, will try to extract from Google News page');
-          }
-        }
 
         // Tavily Extract API를 사용해서 웹페이지의 깨끗한 텍스트 추출
         const tavilyResponse = await fetch('https://api.tavily.com/extract', {
