@@ -52,8 +52,20 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
       setShowArticleForm(true);
       setArticleTitle(initialArticleData.title || '');
       setArticleSource(initialArticleData.url || '');
+
+      // 폼이 열릴 때 페이지 맨 위로 스크롤
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
     }
   }, [initialArticleData]);
+
+  // 글 작성 폼이 열릴 때 맨 위로 스크롤
+  useEffect(() => {
+    if (showArticleForm) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [showArticleForm]);
 
   // 외부 AI 메뉴 닫기 (외부 클릭 감지)
   useEffect(() => {
