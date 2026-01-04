@@ -439,6 +439,9 @@ export default function GlobalNewsApp() {
       const isDev = import.meta.env.DEV;
       const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
 
+      // 아카이브된 기사는 description, 일반 기사는 summary 사용
+      const summaryText = item.summary || item.description || '';
+
       const response = await fetch(`${apiBaseUrl}/api/translate`, {
         method: 'POST',
         headers: {
@@ -446,7 +449,7 @@ export default function GlobalNewsApp() {
         },
         body: JSON.stringify({
           title: item.title,
-          summary: item.summary
+          summary: summaryText
         })
       });
 
@@ -467,7 +470,7 @@ export default function GlobalNewsApp() {
           ...prev,
           [idx]: {
             title: `[번역 실패] ${item.title}`,
-            summary: `[번역 실패] ${item.summary}`
+            summary: `[번역 실패] ${summaryText}`
           }
         }));
       }
@@ -478,7 +481,7 @@ export default function GlobalNewsApp() {
         ...prev,
         [idx]: {
           title: `[오류] ${item.title}`,
-          summary: `[오류] ${item.summary}`
+          summary: `[오류] ${summaryText}`
         }
       }));
     }
