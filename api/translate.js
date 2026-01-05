@@ -46,29 +46,65 @@ export default async function handler(req, res) {
 
 **중요:** 반드시 JSON 형식으로만 응답해주세요. 다른 텍스트는 포함하지 마세요.`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2048,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      })
-    });
+    // 재시도 로직 추가 (최대 3번 시도)
+    let response;
+    let lastError;
+    const maxRetries = 3;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Claude API Error:', errorData);
-      throw new Error(`Claude API error: ${response.status}`);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-haiku-20240307',
+            max_tokens: 2048,
+            messages: [
+              {
+                role: 'user',
+                content: prompt
+              }
+            ]
+          })
+        });
+
+        if (response.ok) {
+          break; // 성공하면 루프 탈출
+        }
+
+        // 529 (과부하) 또는 500번대 에러인 경우 재시도
+        if (response.status === 529 || response.status >= 500) {
+          console.log(`[Translate] Attempt ${attempt}/${maxRetries} failed with status ${response.status}, retrying...`);
+          lastError = new Error(`Claude API error: ${response.status}`);
+
+          // 재시도 전 대기 (지수 백오프)
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+          continue;
+        }
+
+        // 다른 4xx 에러는 재시도하지 않음
+        const errorData = await response.json();
+        console.error('Claude API Error:', errorData);
+        throw new Error(`Claude API error: ${response.status}`);
+
+      } catch (err) {
+        lastError = err;
+        if (attempt === maxRetries) {
+          throw err;
+        }
+        console.log(`[Translate] Attempt ${attempt}/${maxRetries} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+
+    if (!response || !response.ok) {
+      throw lastError || new Error('Failed to translate after retries');
     }
 
     const data = await response.json();
