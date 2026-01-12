@@ -604,37 +604,38 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
               </button>
               <h1 className="text-3xl font-bold text-gray-800">이슈별 분석 정리</h1>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setShowFolderForm(true);
-                  setEditingFolder(null);
-                  setFolderName('');
-                  setFolderDescription('');
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <FolderPlus className="w-5 h-5" />
-                폴더 생성
-              </button>
-              <button
-                onClick={() => {
-                  setShowArticleForm(true);
-                  resetArticleForm();
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <FileText className="w-5 h-5" />
-                글 작성하기
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setShowArticleForm(true);
+                resetArticleForm();
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              <FileText className="w-5 h-5" />
+              글 작성하기
+            </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 폴더 및 글 트리 목록 */}
           <div className="bg-white rounded-2xl shadow-xl p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">폴더 목록</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">폴더 목록</h2>
+              <button
+                onClick={() => {
+                  setShowFolderForm(true);
+                  setEditingFolder(null);
+                  setFolderName('');
+                  setFolderDescription('');
+                  setParentFolderForNew(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <FolderPlus className="w-4 h-4" />
+                새 폴더
+              </button>
+            </div>
             <div className="space-y-1">
               {folders.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">폴더가 없습니다.<br/>새 폴더를 만들어주세요.</p>
@@ -726,18 +727,32 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                                 onDragStart={(e) => handleDragStart(e, article)}
                                 onDragEnd={handleDragEnd}
                                 onClick={() => setSelectedArticle(article)}
-                                className={`p-2 rounded cursor-grab transition-colors ${
+                                className={`p-2 rounded cursor-grab transition-colors group ${
                                   selectedArticle?.id === article.id
                                     ? 'bg-indigo-100 border border-indigo-300'
                                     : 'hover:bg-gray-100'
                                 } ${draggedArticle?.id === article.id ? 'opacity-50' : ''}`}
                               >
-                                <p className="text-sm font-medium text-gray-700 line-clamp-2">
-                                  {article.title}
-                                </p>
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {new Date(article.created_at).toLocaleDateString('ko-KR')}
-                                </p>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-700 line-clamp-2">
+                                      {article.title}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      {new Date(article.created_at).toLocaleDateString('ko-KR')}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteArticle(article.id);
+                                    }}
+                                    className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                    title="글 삭제"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                  </button>
+                                </div>
                               </div>
                             ))
                           )}
