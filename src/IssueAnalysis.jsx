@@ -38,6 +38,10 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   // 하위 폴더 생성 상태
   const [parentFolderForNew, setParentFolderForNew] = useState(null);
 
+  // 드래그 앤 드롭 상태
+  const [draggedArticle, setDraggedArticle] = useState(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState(null);
+
   const isDev = import.meta.env.DEV;
   const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
 
@@ -409,6 +413,74 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   const folderTree = buildFolderTree(folders);
   const flatFolders = flattenFolderTree(folderTree);
 
+  // 드래그 앤 드롭 핸들러
+  const handleDragStart = (e, article) => {
+    setDraggedArticle(article);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', article.id);
+    // 드래그 시작 시 반투명하게
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    setDraggedArticle(null);
+    setDragOverFolderId(null);
+    e.target.style.opacity = '1';
+  };
+
+  const handleDragOver = (e, folderId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // 같은 폴더가 아닐 때만 하이라이트
+    if (draggedArticle && draggedArticle.folder_id !== folderId) {
+      setDragOverFolderId(folderId);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    // 자식 요소로 이동할 때는 무시
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setDragOverFolderId(null);
+  };
+
+  const handleDrop = async (e, targetFolderId) => {
+    e.preventDefault();
+    setDragOverFolderId(null);
+
+    if (!draggedArticle || draggedArticle.folder_id === targetFolderId) {
+      setDraggedArticle(null);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/issue-articles`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: draggedArticle.id,
+          folderId: targetFolderId
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // 이전 폴더와 새 폴더의 글 목록 갱신
+        await loadFolderArticles(draggedArticle.folder_id);
+        await loadFolderArticles(targetFolderId);
+
+        // 선택된 글이 이동한 글이면 선택 해제
+        if (selectedArticle?.id === draggedArticle.id) {
+          setSelectedArticle(null);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to move article:', error);
+      alert('글 이동에 실패했습니다.');
+    }
+
+    setDraggedArticle(null);
+  };
+
   const handleGenerateAISummary = async () => {
     if (!articleSource.trim()) {
       alert('정보 소스를 먼저 입력해주세요.');
@@ -574,10 +646,17 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
                   return (
                     <div key={folder.id} className="border-b border-gray-200 last:border-b-0">
-                      {/* 폴더 헤더 */}
+                      {/* 폴더 헤더 - 드롭 대상 */}
                       <div
-                        className="flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg"
+                        className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                          dragOverFolderId === folder.id
+                            ? 'bg-green-100 border-2 border-green-400 border-dashed'
+                            : 'hover:bg-gray-50'
+                        }`}
                         style={{ marginLeft: `${indent}px` }}
+                        onDragOver={(e) => handleDragOver(e, folder.id)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, folder.id)}
                       >
                         <button
                           onClick={() => toggleFolder(folder)}
@@ -643,12 +722,15 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                             articles.map(article => (
                               <div
                                 key={article.id}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, article)}
+                                onDragEnd={handleDragEnd}
                                 onClick={() => setSelectedArticle(article)}
-                                className={`p-2 rounded cursor-pointer transition-colors ${
+                                className={`p-2 rounded cursor-grab transition-colors ${
                                   selectedArticle?.id === article.id
                                     ? 'bg-indigo-100 border border-indigo-300'
                                     : 'hover:bg-gray-100'
-                                }`}
+                                } ${draggedArticle?.id === article.id ? 'opacity-50' : ''}`}
                               >
                                 <p className="text-sm font-medium text-gray-700 line-clamp-2">
                                   {article.title}
