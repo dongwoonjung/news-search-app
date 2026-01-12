@@ -31,7 +31,11 @@ export default async function handler(req, res) {
 
     // 날짜 범위 계산
     const now = new Date();
+    const toDate = new Date(now);
     const fromDate = new Date(now);
+
+    // UTC 시차 문제 해결: toDate를 내일로 설정
+    toDate.setDate(toDate.getDate() + 1);
 
     if (timeRange === 'day') {
       fromDate.setDate(fromDate.getDate() - 2); // 최근 2일
@@ -53,10 +57,10 @@ export default async function handler(req, res) {
 
     console.log(`✅ Google News RSS: ${feed.items.length} articles fetched`);
 
-    // 날짜 필터링 (추가 안전장치)
+    // 날짜 필터링 (추가 안전장치) - toDate를 사용하여 UTC 시차 문제 해결
     const filteredItems = feed.items.filter(item => {
       const pubDate = new Date(item.pubDate);
-      return pubDate >= fromDate && pubDate <= now;
+      return pubDate >= fromDate && pubDate <= toDate;
     });
 
     console.log(`📅 Filtered articles by date: ${filteredItems.length} (from ${feed.items.length})`);
