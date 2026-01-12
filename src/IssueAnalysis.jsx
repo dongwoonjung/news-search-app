@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles, ChevronDown, ChevronRight, ExternalLink, MoveRight, Plus } from 'lucide-react';
 
 export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [folders, setFolders] = useState([]);
@@ -29,6 +29,14 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [isGeneratingInsightGPT, setIsGeneratingInsightGPT] = useState(false);
   const [isGeneratingInsightClaude, setIsGeneratingInsightClaude] = useState(false);
   const [showExternalAIMenu, setShowExternalAIMenu] = useState(false);
+
+  // 글 이동 모달 상태
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [articleToMove, setArticleToMove] = useState(null);
+  const [targetFolderId, setTargetFolderId] = useState('');
+
+  // 하위 폴더 생성 상태
+  const [parentFolderForNew, setParentFolderForNew] = useState(null);
 
   const isDev = import.meta.env.DEV;
   const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
@@ -300,6 +308,107 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     setArticleFolderId('');
   };
 
+  // 글 다른 폴더로 이동
+  const handleMoveArticle = async () => {
+    if (!articleToMove || !targetFolderId) {
+      alert('이동할 폴더를 선택해주세요.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/issue-articles`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: articleToMove.id,
+          folderId: parseInt(targetFolderId)
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // 이전 폴더와 새 폴더의 글 목록 갱신
+        if (articleToMove.folder_id) {
+          await loadFolderArticles(articleToMove.folder_id);
+        }
+        await loadFolderArticles(parseInt(targetFolderId));
+
+        setShowMoveModal(false);
+        setArticleToMove(null);
+        setTargetFolderId('');
+        setSelectedArticle(null);
+        alert('글이 이동되었습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to move article:', error);
+      alert('글 이동에 실패했습니다.');
+    }
+  };
+
+  // 하위 폴더 생성
+  const handleCreateSubfolder = async () => {
+    if (!folderName.trim()) {
+      alert('폴더 이름을 입력해주세요.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/issue-folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: folderName,
+          description: folderDescription,
+          parentId: parentFolderForNew?.id || null
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await loadFolders();
+        setShowFolderForm(false);
+        setFolderName('');
+        setFolderDescription('');
+        setParentFolderForNew(null);
+        alert('폴더가 생성되었습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to create subfolder:', error);
+      alert('폴더 생성에 실패했습니다.');
+    }
+  };
+
+  // 폴더를 계층 구조로 정렬
+  const buildFolderTree = (folders) => {
+    const rootFolders = folders.filter(f => !f.parent_id);
+    const getChildren = (parentId) => folders.filter(f => f.parent_id === parentId);
+
+    const addChildren = (folder, level = 0) => {
+      const children = getChildren(folder.id);
+      return {
+        ...folder,
+        level,
+        children: children.map(child => addChildren(child, level + 1))
+      };
+    };
+
+    return rootFolders.map(folder => addChildren(folder, 0));
+  };
+
+  // 폴더 트리를 평면 리스트로 변환 (들여쓰기 레벨 포함)
+  const flattenFolderTree = (tree, result = []) => {
+    tree.forEach(folder => {
+      result.push(folder);
+      if (folder.children && folder.children.length > 0) {
+        flattenFolderTree(folder.children, result);
+      }
+    });
+    return result;
+  };
+
+  const folderTree = buildFolderTree(folders);
+  const flatFolders = flattenFolderTree(folderTree);
+
   const handleGenerateAISummary = async () => {
     if (!articleSource.trim()) {
       alert('정보 소스를 먼저 입력해주세요.');
@@ -458,14 +567,18 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
               {folders.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">폴더가 없습니다.<br/>새 폴더를 만들어주세요.</p>
               ) : (
-                folders.map(folder => {
+                flatFolders.map(folder => {
                   const isExpanded = expandedFolders.has(folder.id);
                   const articles = folderArticles[folder.id] || [];
+                  const indent = (folder.level || 0) * 16;
 
                   return (
                     <div key={folder.id} className="border-b border-gray-200 last:border-b-0">
                       {/* 폴더 헤더 */}
-                      <div className="flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg">
+                      <div
+                        className="flex items-center gap-2 p-3 hover:bg-gray-50 rounded-lg"
+                        style={{ marginLeft: `${indent}px` }}
+                      >
                         <button
                           onClick={() => toggleFolder(folder)}
                           className="p-1 hover:bg-gray-200 rounded transition-colors"
@@ -483,12 +596,28 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                           )}
                         </div>
                         <div className="flex gap-1">
+                          {/* 하위 폴더 추가 버튼 */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setParentFolderForNew(folder);
+                              setShowFolderForm(true);
+                              setEditingFolder(null);
+                              setFolderName('');
+                              setFolderDescription('');
+                            }}
+                            className="p-1.5 hover:bg-green-100 rounded transition-colors"
+                            title="하위 폴더 추가"
+                          >
+                            <Plus className="w-3.5 h-3.5 text-green-600" />
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               openEditFolder(folder);
                             }}
                             className="p-1.5 hover:bg-purple-100 rounded transition-colors"
+                            title="폴더 수정"
                           >
                             <Edit className="w-3.5 h-3.5 text-purple-600" />
                           </button>
@@ -498,6 +627,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                               handleDeleteFolder(folder.id);
                             }}
                             className="p-1.5 hover:bg-red-100 rounded transition-colors"
+                            title="폴더 삭제"
                           >
                             <Trash2 className="w-3.5 h-3.5 text-red-600" />
                           </button>
@@ -506,7 +636,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
                       {/* 폴더 내 글 목록 */}
                       {isExpanded && (
-                        <div className="ml-8 space-y-1 mb-2">
+                        <div className="space-y-1 mb-2" style={{ marginLeft: `${indent + 32}px` }}>
                           {articles.length === 0 ? (
                             <p className="text-xs text-gray-400 py-2 px-3">글이 없습니다</p>
                           ) : (
@@ -554,6 +684,18 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    {/* 다른 폴더로 이동 버튼 */}
+                    <button
+                      onClick={() => {
+                        setArticleToMove(selectedArticle);
+                        setTargetFolderId('');
+                        setShowMoveModal(true);
+                      }}
+                      className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+                      title="다른 폴더로 이동"
+                    >
+                      <MoveRight className="w-5 h-5 text-green-600" />
+                    </button>
                     <button
                       onClick={() => {
                         setEditingArticle(selectedArticle);
@@ -565,6 +707,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                         setShowArticleForm(true);
                       }}
                       className="p-2 hover:bg-indigo-100 rounded-lg transition-colors"
+                      title="글 수정"
                     >
                       <Edit className="w-5 h-5 text-indigo-600" />
                     </button>
@@ -576,6 +719,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                         }
                       }}
                       className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                      title="글 삭제"
                     >
                       <Trash2 className="w-5 h-5 text-red-600" />
                     </button>
@@ -622,20 +766,17 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
           </div>
         </div>
 
-        {/* 폴더 생성/수정 모달 */}
-        {(showFolderForm || editingFolder) && (
+        {/* 글 이동 모달 */}
+        {showMoveModal && articleToMove && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl p-6 max-w-md w-full">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">
-                  {editingFolder ? '폴더 수정' : '새 폴더 만들기'}
-                </h3>
+                <h3 className="text-xl font-bold text-gray-800">글 이동</h3>
                 <button
                   onClick={() => {
-                    setShowFolderForm(false);
-                    setEditingFolder(null);
-                    setFolderName('');
-                    setFolderDescription('');
+                    setShowMoveModal(false);
+                    setArticleToMove(null);
+                    setTargetFolderId('');
                   }}
                   className="p-2 hover:bg-gray-100 rounded-lg"
                 >
@@ -644,6 +785,73 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
               </div>
 
               <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-600">이동할 글:</p>
+                  <p className="font-medium text-gray-800 mt-1">{articleToMove.title}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">이동할 폴더 선택</label>
+                  <select
+                    value={targetFolderId}
+                    onChange={(e) => setTargetFolderId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">폴더를 선택하세요</option>
+                    {flatFolders
+                      .filter(f => f.id !== articleToMove.folder_id)
+                      .map(folder => (
+                        <option key={folder.id} value={folder.id}>
+                          {'　'.repeat(folder.level || 0)}{folder.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handleMoveArticle}
+                  disabled={!targetFolderId}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  <MoveRight className="w-5 h-5" />
+                  이동하기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 폴더 생성/수정 모달 */}
+        {(showFolderForm || editingFolder) && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {editingFolder ? '폴더 수정' : parentFolderForNew ? `하위 폴더 만들기` : '새 폴더 만들기'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowFolderForm(false);
+                    setEditingFolder(null);
+                    setFolderName('');
+                    setFolderDescription('');
+                    setParentFolderForNew(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* 부모 폴더 표시 */}
+                {parentFolderForNew && !editingFolder && (
+                  <div className="bg-purple-50 rounded-lg p-3">
+                    <p className="text-sm text-purple-600">상위 폴더:</p>
+                    <p className="font-medium text-purple-800 mt-1">{parentFolderForNew.name}</p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">폴더 이름 *</label>
                   <input
@@ -667,7 +875,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                 </div>
 
                 <button
-                  onClick={editingFolder ? handleUpdateFolder : handleCreateFolder}
+                  onClick={editingFolder ? handleUpdateFolder : (parentFolderForNew ? handleCreateSubfolder : handleCreateFolder)}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
                 >
                   <Save className="w-5 h-5" />
@@ -718,8 +926,10 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">폴더를 선택하세요</option>
-                    {folders.map(folder => (
-                      <option key={folder.id} value={folder.id}>{folder.name}</option>
+                    {flatFolders.map(folder => (
+                      <option key={folder.id} value={folder.id}>
+                        {'　'.repeat(folder.level || 0)}{folder.name}
+                      </option>
                     ))}
                   </select>
                   {folders.length === 0 && (

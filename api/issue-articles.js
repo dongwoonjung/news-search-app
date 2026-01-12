@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
@@ -85,6 +85,33 @@ export default async function handler(req, res) {
           source,
           summary,
           insight,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select();
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      return res.status(200).json({ success: true, article: data[0] });
+    }
+
+    // PATCH - 글 폴더 이동
+    if (req.method === 'PATCH') {
+      const { id, folderId } = req.body;
+
+      if (!id || !folderId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Article ID and folder ID are required'
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('issue_articles')
+        .update({
+          folder_id: folderId,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)

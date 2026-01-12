@@ -32,15 +32,20 @@ export default async function handler(req, res) {
 
     // POST - 새 폴더 생성
     if (req.method === 'POST') {
-      const { name, description } = req.body;
+      const { name, description, parentId } = req.body;
 
       if (!name) {
         return res.status(400).json({ success: false, error: 'Folder name is required' });
       }
 
+      const insertData = { name, description: description || '' };
+      if (parentId) {
+        insertData.parent_id = parentId;
+      }
+
       const { data, error } = await supabase
         .from('issue_folders')
-        .insert([{ name, description: description || '' }])
+        .insert([insertData])
         .select();
 
       if (error) {
