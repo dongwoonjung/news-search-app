@@ -38,6 +38,16 @@ export default async function handler(req, res) {
     console.log('[AI Summary] Is URL?', isUrl);
     console.log('[AI Summary] Source:', source.substring(0, 100));
 
+    // X(트위터) URL 체크 - JavaScript 필수 사이트라 크롤링 불가
+    if (isUrl) {
+      const urlLower = source.trim().toLowerCase();
+      if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
+        return res.status(400).json({
+          error: 'X(트위터) 링크는 직접 크롤링이 불가능합니다. 트윗 내용을 복사해서 직접 입력해주세요.'
+        });
+      }
+    }
+
     // URL인 경우 Tavily Extract API를 사용해서 웹 페이지 내용 가져오기
     if (isUrl) {
       console.log('[AI Summary] Attempting to fetch URL content...');
@@ -93,14 +103,26 @@ export default async function handler(req, res) {
           console.log('[AI Summary] Tavily search results count:', searchData.results?.length || 0);
 
           if (searchData.results && searchData.results.length > 0) {
-            // 첫 번째 검색 결과 사용
-            const firstResult = searchData.results[0];
-            finalUrl = firstResult.url;
+            // X/트위터, 소셜미디어 URL 필터링 후 실제 뉴스 기사 찾기
+            const blockedDomains = ['twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'reddit.com'];
+            const validResult = searchData.results.find(result => {
+              const urlLower = result.url.toLowerCase();
+              return !blockedDomains.some(domain => urlLower.includes(domain));
+            });
+
+            if (!validResult) {
+              console.log('[AI Summary] All search results are from blocked domains (social media)');
+              return res.status(400).json({
+                error: '뉴스 기사를 찾을 수 없습니다. 검색 결과가 소셜미디어 링크뿐입니다. 원문 기사 URL을 직접 입력해주세요.'
+              });
+            }
+
+            finalUrl = validResult.url;
             console.log('[AI Summary] Found article URL via Tavily search:', finalUrl);
 
             // raw_content가 있으면 바로 사용
-            if (firstResult.raw_content) {
-              contentToSummarize = firstResult.raw_content.substring(0, 100000);
+            if (validResult.raw_content) {
+              contentToSummarize = validResult.raw_content.substring(0, 100000);
               console.log('[AI Summary] Using raw_content from search result, length:', contentToSummarize.length);
 
               // 콘텐츠를 찾았으면 Tavily Extract 단계를 건너뛰고 바로 요약으로 이동
