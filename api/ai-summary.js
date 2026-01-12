@@ -57,12 +57,63 @@ export default async function handler(req, res) {
 
       console.log('[AI Summary] Original URL:', source.trim());
 
-      // Google News URL인 경우 - 원문 URL 요청
+      // Google News URL인 경우 - Tavily로 직접 추출 시도
       if (finalUrl.includes('news.google.com')) {
-        console.log('[AI Summary] Detected Google News URL');
-        return res.status(400).json({
-          error: 'Google News 링크는 직접 요약할 수 없습니다. 기사를 클릭해서 원문 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
-        });
+        console.log('[AI Summary] Detected Google News URL, attempting Tavily extract...');
+
+        if (!TAVILY_API_KEY) {
+          return res.status(400).json({
+            error: 'Google News 링크는 직접 요약할 수 없습니다. 기사를 클릭해서 원문 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
+          });
+        }
+
+        try {
+          // Tavily Extract로 Google News URL에서 원문 콘텐츠 추출 시도
+          const gnewsResponse = await fetch('https://api.tavily.com/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              api_key: TAVILY_API_KEY,
+              urls: [finalUrl]
+            })
+          });
+
+          if (gnewsResponse.ok) {
+            const gnewsData = await gnewsResponse.json();
+            console.log('[AI Summary] Tavily Google News extract result:', gnewsData.results?.length || 0);
+
+            if (gnewsData.results && gnewsData.results.length > 0) {
+              const extractedContent = gnewsData.results[0].raw_content || gnewsData.results[0].content;
+
+              // 추출된 콘텐츠가 JavaScript 에러 메시지인지 확인
+              if (extractedContent &&
+                  !extractedContent.toLowerCase().includes('javascript') &&
+                  !extractedContent.toLowerCase().includes('enable javascript') &&
+                  extractedContent.length > 500) {
+                contentToSummarize = extractedContent.substring(0, 100000);
+                console.log('[AI Summary] Successfully extracted Google News content, length:', contentToSummarize.length);
+              } else {
+                console.log('[AI Summary] Google News extract returned invalid content');
+                return res.status(400).json({
+                  error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 기사를 클릭해서 원문 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
+                });
+              }
+            } else {
+              return res.status(400).json({
+                error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 기사를 클릭해서 원문 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
+              });
+            }
+          } else {
+            return res.status(400).json({
+              error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 기사를 클릭해서 원문 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
+            });
+          }
+        } catch (gnewsError) {
+          console.error('[AI Summary] Google News extract failed:', gnewsError);
+          return res.status(400).json({
+            error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 기사를 클릭해서 원문 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
+          });
+        }
       }
 
       console.log('[AI Summary] Final URL to use:', finalUrl);
