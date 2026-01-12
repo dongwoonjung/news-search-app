@@ -75,7 +75,9 @@ export default async function handler(req, res) {
           });
         }
 
-        console.log('[AI Summary] Using Tavily Search to find article by title:', title);
+        // 검색 쿼리 생성: 제목을 따옴표로 감싸서 정확한 검색
+        const searchQuery = `"${title.replace(/"/g, '')}"`;
+        console.log('[AI Summary] Using Tavily Search to find article by title:', searchQuery);
 
         try {
           // Tavily Search API로 제목 기반 검색
@@ -86,9 +88,9 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
               api_key: TAVILY_API_KEY,
-              query: title,
-              search_depth: 'basic',
-              max_results: 3,
+              query: searchQuery,
+              search_depth: 'advanced',
+              max_results: 5,
               include_raw_content: true
             })
           });
@@ -103,18 +105,47 @@ export default async function handler(req, res) {
           console.log('[AI Summary] Tavily search results count:', searchData.results?.length || 0);
 
           if (searchData.results && searchData.results.length > 0) {
-            // X/트위터, 소셜미디어 URL 필터링 후 실제 뉴스 기사 찾기
+            // X/트위터, 소셜미디어 URL 필터링
             const blockedDomains = ['twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'reddit.com'];
-            const validResult = searchData.results.find(result => {
+            const validResults = searchData.results.filter(result => {
               const urlLower = result.url.toLowerCase();
               return !blockedDomains.some(domain => urlLower.includes(domain));
             });
 
-            if (!validResult) {
+            if (validResults.length === 0) {
               console.log('[AI Summary] All search results are from blocked domains (social media)');
               return res.status(400).json({
                 error: '뉴스 기사를 찾을 수 없습니다. 검색 결과가 소셜미디어 링크뿐입니다. 원문 기사 URL을 직접 입력해주세요.'
               });
+            }
+
+            // 제목에서 출처 추출 (예: "Title - Source Name" 형식)
+            const sourceParts = title.split(' - ');
+            const sourceHint = sourceParts.length > 1 ? sourceParts[sourceParts.length - 1].toLowerCase().trim() : '';
+
+            console.log('[AI Summary] Source hint from title:', sourceHint);
+            console.log('[AI Summary] Valid results count:', validResults.length);
+
+            // 출처가 매칭되는 결과 우선 선택
+            let validResult = null;
+            if (sourceHint) {
+              // 출처 이름이 URL이나 제목에 포함된 결과 찾기
+              const sourceKeywords = sourceHint.replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+              validResult = validResults.find(result => {
+                const urlLower = result.url.toLowerCase();
+                const resultTitleLower = (result.title || '').toLowerCase();
+                return sourceKeywords.some(keyword => urlLower.includes(keyword) || resultTitleLower.includes(keyword));
+              });
+
+              if (validResult) {
+                console.log('[AI Summary] Found matching source in results');
+              }
+            }
+
+            // 출처 매칭 실패 시 첫 번째 결과 사용
+            if (!validResult) {
+              validResult = validResults[0];
+              console.log('[AI Summary] Using first valid result (no source match)');
             }
 
             finalUrl = validResult.url;
