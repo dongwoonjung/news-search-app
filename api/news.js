@@ -28,16 +28,21 @@ export default async function handler(req, res) {
       query = categoryQueries[category] || 'technology';
     }
 
-    // 날짜 계산
+    // 날짜 계산 (한국 시간 기준으로 처리)
     const now = new Date();
     const from = new Date(now);
+    const to = new Date(now);
+
+    // to 날짜를 내일로 설정하여 오늘 기사가 확실히 포함되도록 함 (UTC 시차 문제 해결)
+    to.setDate(to.getDate() + 1);
+
     if (timeRange === 'day') {
-      from.setDate(from.getDate() - 1); // 당일과 하루 전 (총 2일)
+      from.setDate(from.getDate() - 1); // 어제부터
     } else {
-      from.setDate(from.getDate() - 7); // 일주일 전
+      from.setDate(from.getDate() - 7); // 일주일 전부터
     }
 
-    console.log(`📅 API Request - timeRange: ${timeRange}, from: ${from.toISOString().split('T')[0]}, to: ${now.toISOString().split('T')[0]}`);
+    console.log(`📅 API Request - timeRange: ${timeRange}, from: ${from.toISOString().split('T')[0]}, to: ${to.toISOString().split('T')[0]}`);
 
     // 지정된 뉴스 소스
     const TRUSTED_SOURCES = [
@@ -64,7 +69,7 @@ export default async function handler(req, res) {
     ];
 
     const fromDate = from.toISOString().split('T')[0];
-    const toDate = now.toISOString().split('T')[0];
+    const toDate = to.toISOString().split('T')[0];
 
     const queryParams = new URLSearchParams({
       apiKey: process.env.NEWS_API_KEY || process.env.VITE_NEWS_API_KEY,
