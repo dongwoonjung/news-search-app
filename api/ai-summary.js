@@ -57,8 +57,104 @@ export default async function handler(req, res) {
 
       console.log('[AI Summary] Original URL:', source.trim());
 
+      // MSN URL인 경우 - 원본 기사 URL 추출 시도
+      if (finalUrl.includes('msn.com')) {
+        console.log('[AI Summary] Detected MSN URL, attempting to extract original article...');
+
+        if (!TAVILY_API_KEY) {
+          return res.status(400).json({
+            error: 'MSN 링크에서 기사 내용을 가져오려면 Tavily API가 필요합니다.'
+          });
+        }
+
+        try {
+          // MSN 페이지에서 원본 기사 URL 추출 시도
+          const msnResponse = await fetch(finalUrl, {
+            redirect: 'follow',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+
+          if (msnResponse.ok) {
+            const msnHtml = await msnResponse.text();
+            console.log('[AI Summary] MSN HTML length:', msnHtml.length);
+
+            // MSN 페이지에서 원본 기사 URL 찾기 (og:url 또는 canonical)
+            const originalUrlMatch = msnHtml.match(/property="og:url"\s+content="([^"]+)"/) ||
+                                    msnHtml.match(/content="([^"]+)"\s+property="og:url"/) ||
+                                    msnHtml.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/) ||
+                                    msnHtml.match(/data-original-url="([^"]+)"/);
+
+            if (originalUrlMatch && originalUrlMatch[1] && !originalUrlMatch[1].includes('msn.com')) {
+              console.log('[AI Summary] Found original article URL:', originalUrlMatch[1]);
+              finalUrl = originalUrlMatch[1];
+            } else {
+              console.log('[AI Summary] No external original URL found, using MSN content directly');
+            }
+          }
+
+          // Tavily Extract로 콘텐츠 추출 시도 (원본 URL 또는 MSN URL)
+          const msnExtractResponse = await fetch('https://api.tavily.com/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              api_key: TAVILY_API_KEY,
+              urls: [finalUrl]
+            })
+          });
+
+          if (msnExtractResponse.ok) {
+            const msnData = await msnExtractResponse.json();
+            console.log('[AI Summary] Tavily MSN extract result:', msnData.results?.length || 0);
+
+            if (msnData.results && msnData.results.length > 0) {
+              const extractedContent = msnData.results[0].raw_content || msnData.results[0].content;
+
+              // 추출된 콘텐츠가 유효한지 확인
+              if (extractedContent &&
+                  !extractedContent.toLowerCase().includes('enable javascript') &&
+                  extractedContent.length > 300) {
+                contentToSummarize = extractedContent.substring(0, 100000);
+                console.log('[AI Summary] Successfully extracted MSN content, length:', contentToSummarize.length);
+              } else {
+                console.log('[AI Summary] MSN extract returned invalid content, trying direct HTML parse');
+                // HTML에서 직접 기사 내용 추출 시도
+                const articleMatch = msnHtml.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+                if (articleMatch) {
+                  const articleText = articleMatch[1]
+                    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+                    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                    .replace(/<[^>]+>/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                  if (articleText.length > 300) {
+                    contentToSummarize = articleText.substring(0, 100000);
+                    console.log('[AI Summary] Extracted MSN article from HTML, length:', contentToSummarize.length);
+                  } else {
+                    throw new Error('Article content too short');
+                  }
+                } else {
+                  throw new Error('Could not extract article from MSN');
+                }
+              }
+            } else {
+              throw new Error('No results from Tavily for MSN');
+            }
+          } else {
+            throw new Error('Tavily extract failed for MSN');
+          }
+        } catch (msnError) {
+          console.error('[AI Summary] MSN extract failed:', msnError);
+          return res.status(400).json({
+            error: 'MSN 링크에서 기사 내용을 가져올 수 없습니다. 기사 내의 "원문 보기" 링크를 클릭해서 원본 사이트로 이동한 후, 해당 URL을 복사해서 입력해주세요.'
+          });
+        }
+      }
+
       // Google News URL인 경우 - Tavily로 직접 추출 시도
-      if (finalUrl.includes('news.google.com')) {
+      else if (finalUrl.includes('news.google.com')) {
         console.log('[AI Summary] Detected Google News URL, attempting Tavily extract...');
 
         if (!TAVILY_API_KEY) {
@@ -118,8 +214,11 @@ export default async function handler(req, res) {
 
       console.log('[AI Summary] Final URL to use:', finalUrl);
 
-      // Tavily Extract로 URL 콘텐츠 추출
-      {
+      // MSN이나 Google News에서 이미 콘텐츠를 추출했으면 일반 Tavily 추출 건너뛰기
+      const alreadyExtracted = contentToSummarize !== source;
+
+      // Tavily Extract로 URL 콘텐츠 추출 (아직 추출되지 않은 경우만)
+      if (!alreadyExtracted) {
         try {
           if (!TAVILY_API_KEY) {
             console.log('[AI Summary] Tavily API key not found');
