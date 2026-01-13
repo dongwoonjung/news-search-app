@@ -1,5 +1,6 @@
 import Parser from 'rss-parser';
 
+// Bing News RSS API - 실시간 뉴스 제공
 export default async function handler(req, res) {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Credentials', true);
