@@ -166,7 +166,7 @@ export const newsApi = {
 function getCategoryQuery(category) {
   const categoryQueries = {
     'geopolitics': 'geopolitics China Russia Ukraine Middle East Iran Israel Taiwan Trump tariff sanctions trade war',
-    'economy': 'economy market business Federal Reserve inflation finance banking',
+    'economy': 'economy market business Federal Reserve inflation finance banking GDP employment unemployment jobs interest rate Treasury bond yield recession growth',
     'automotive': 'electric vehicle EV Tesla Hyundai Kia BYD Toyota Ford GM battery auto industry',
     'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot'
   };
@@ -177,7 +177,7 @@ function getCategoryQuery(category) {
 function getKoreanCategoryQuery(category) {
   const koreanQueries = {
     'geopolitics': '국제 정치 중국 러시아 우크라이나 중동 이란 이스라엘 대만',
-    'economy': '경제 시장 금융 연준 인플레이션 은행',
+    'economy': '경제 시장 금융 연준 인플레이션 은행 GDP 고용 실업 금리 국채 채권 경기침체 성장',
     'automotive': '전기차 EV 테슬라 현대차 기아 자동차 배터리',
     'ai-tech': '인공지능 AI 챗GPT 자율주행 로봇 휴머노이드'
   };

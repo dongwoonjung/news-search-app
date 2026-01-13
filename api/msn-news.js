@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       'us': 'US news America Trump policy',
       'politics': 'politics government Trump Biden policy tariff sanctions',
       'technology': 'technology AI tech artificial intelligence',
-      'business': 'business finance economy market stock tariff trade',
+      'business': 'business finance economy market stock tariff trade GDP employment unemployment jobs interest rate Treasury bond yield recession growth',
       'automotive': 'electric vehicle EV Tesla Hyundai automotive',
       'science': 'science research discovery'
     };
