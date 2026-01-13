@@ -25,14 +25,14 @@ export default async function handler(req, res) {
       }
     });
 
-    // 카테고리별 Bing News 검색어 매핑
+    // 카테고리별 Bing News 검색어 매핑 (더 구체적인 키워드로 속보 포착)
     const categoryQueries = {
       'news': 'breaking news today',
-      'world': 'world news international',
-      'us': 'US news America',
-      'politics': 'politics government',
-      'technology': 'technology AI tech',
-      'business': 'business finance economy',
+      'world': 'world international China Russia Ukraine Iran Israel tariff sanctions Trump diplomacy conflict crisis',
+      'us': 'US news America Trump policy',
+      'politics': 'politics government Trump Biden policy tariff sanctions',
+      'technology': 'technology AI tech artificial intelligence',
+      'business': 'business finance economy market stock tariff trade',
       'automotive': 'electric vehicle EV Tesla Hyundai automotive',
       'science': 'science research discovery'
     };

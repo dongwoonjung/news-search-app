@@ -165,7 +165,7 @@ export const newsApi = {
 // 카테고리별 검색 쿼리 생성 (Google News용)
 function getCategoryQuery(category) {
   const categoryQueries = {
-    'geopolitics': 'geopolitics China Russia Ukraine Middle East Iran Israel Taiwan',
+    'geopolitics': 'geopolitics China Russia Ukraine Middle East Iran Israel Taiwan Trump tariff sanctions trade war',
     'economy': 'economy market business Federal Reserve inflation finance banking',
     'automotive': 'electric vehicle EV Tesla Hyundai Kia BYD Toyota Ford GM battery auto industry',
     'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot'
