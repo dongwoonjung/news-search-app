@@ -27,8 +27,8 @@ export const newsApi = {
 
       const targetCount = timeRange === 'day' ? 10 : 10;
 
-      // NewsAPI, Google News, Naver News를 병렬로 호출
-      const [newsApiResult, googleNewsResult, naverNewsResult] = await Promise.allSettled([
+      // NewsAPI, Google News, Naver News, MSN News를 병렬로 호출
+      const [newsApiResult, googleNewsResult, naverNewsResult, msnNewsResult] = await Promise.allSettled([
         // NewsAPI 호출
         fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`)
           .then(res => res.ok ? res.text() : Promise.reject(`NewsAPI Error: ${res.status}`))
@@ -57,6 +57,14 @@ export const newsApi = {
           .then(res => res.ok ? res.json() : Promise.reject(`Naver News Error: ${res.status}`))
           .catch(err => {
             console.warn('Naver News failed:', err);
+            return { success: false, articles: [] };
+          }),
+
+        // MSN News RSS 호출 (실시간 뉴스)
+        fetch(`${apiBaseUrl}/api/msn-news?category=${getMsnCategory(category)}&count=${targetCount}`)
+          .then(res => res.ok ? res.json() : Promise.reject(`MSN News Error: ${res.status}`))
+          .catch(err => {
+            console.warn('MSN News failed:', err);
             return { success: false, articles: [] };
           })
       ]);
@@ -99,10 +107,22 @@ export const newsApi = {
           }))
         : [];
 
-      console.log(`📰 NewsAPI: ${newsApiArticles.length}개, Google News: ${googleArticles.length}개, Naver News: ${naverArticles.length}개 기사 수집`);
+      const msnArticles = msnNewsResult.status === 'fulfilled' && msnNewsResult.value.success
+        ? msnNewsResult.value.articles.map(article => ({
+            title: article.title,
+            summary: article.summary,
+            date: article.date,
+            source: article.source || 'MSN News',
+            importance: 'medium',
+            url: article.url,
+            publishedAt: article.publishedAt
+          }))
+        : [];
 
-      // 세 소스의 기사 합치기 (중복 제거)
-      const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles];
+      console.log(`📰 NewsAPI: ${newsApiArticles.length}개, Google News: ${googleArticles.length}개, Naver News: ${naverArticles.length}개, MSN News: ${msnArticles.length}개 기사 수집`);
+
+      // 네 소스의 기사 합치기 (중복 제거)
+      const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles, ...msnArticles];
 
       // URL 기준으로 중복 제거
       const uniqueArticles = [];
@@ -162,6 +182,17 @@ function getKoreanCategoryQuery(category) {
     'ai-tech': '인공지능 AI 챗GPT 자율주행 로봇 휴머노이드'
   };
   return koreanQueries[category] || '기술';
+}
+
+// 카테고리별 MSN News RSS 카테고리 매핑
+function getMsnCategory(category) {
+  const msnCategories = {
+    'geopolitics': 'world',
+    'economy': 'business',
+    'automotive': 'automotive',
+    'ai-tech': 'technology'
+  };
+  return msnCategories[category] || 'news';
 }
 
 // 기사 중요도 판단 (간단한 휴리스틱)
