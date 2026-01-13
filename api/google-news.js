@@ -38,16 +38,16 @@ export default async function handler(req, res) {
     toDate.setDate(toDate.getDate() + 1);
 
     if (timeRange === 'day') {
-      fromDate.setDate(fromDate.getDate() - 2); // 최근 2일
+      fromDate.setDate(fromDate.getDate() - 3); // 최근 3일 (UTC 시차 대비 여유있게)
     } else if (timeRange === 'week') {
-      fromDate.setDate(fromDate.getDate() - 7); // 최근 7일
+      fromDate.setDate(fromDate.getDate() - 8); // 최근 8일 (UTC 시차 대비 여유있게)
     } else {
-      fromDate.setDate(fromDate.getDate() - 2); // 기본값 2일
+      fromDate.setDate(fromDate.getDate() - 3); // 기본값 3일
     }
 
     // Google News RSS URL with date range (when:)
-    // when:7d = 지난 7일, when:1d = 지난 1일
-    const whenParam = timeRange === 'week' ? 'when:7d' : 'when:2d';
+    // when:7d = 지난 7일, when:3d = 지난 3일 (UTC 시차 문제 대비 여유있게)
+    const whenParam = timeRange === 'week' ? 'when:7d' : 'when:3d';
     const searchQuery = `${query} ${whenParam}`;
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(searchQuery)}&hl=${language}&gl=US&ceid=US:en`;
 
@@ -56,6 +56,18 @@ export default async function handler(req, res) {
     const feed = await parser.parseURL(url);
 
     console.log(`✅ Google News RSS: ${feed.items.length} articles fetched`);
+
+    // 디버깅: 모든 기사의 날짜 출력
+    if (feed.items.length > 0) {
+      const dateDistribution = {};
+      feed.items.forEach(item => {
+        const pubDate = new Date(item.pubDate);
+        const dateStr = pubDate.toISOString().split('T')[0];
+        dateDistribution[dateStr] = (dateDistribution[dateStr] || 0) + 1;
+      });
+      console.log(`📊 Google News date distribution:`, JSON.stringify(dateDistribution));
+      console.log(`📅 fromDate: ${fromDate.toISOString()}, toDate: ${toDate.toISOString()}`);
+    }
 
     // 날짜 필터링 (추가 안전장치) - toDate를 사용하여 UTC 시차 문제 해결
     const filteredItems = feed.items.filter(item => {

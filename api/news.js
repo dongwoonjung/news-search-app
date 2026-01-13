@@ -36,10 +36,12 @@ export default async function handler(req, res) {
     // to 날짜를 내일로 설정하여 오늘 기사가 확실히 포함되도록 함 (UTC 시차 문제 해결)
     to.setDate(to.getDate() + 1);
 
+    // 참고: NewsAPI 무료 플랜은 기사 발행 후 24시간 딜레이가 있음
+    // 그래서 오늘 발행된 기사는 내일부터 검색 가능
     if (timeRange === 'day') {
-      from.setDate(from.getDate() - 1); // 어제부터
+      from.setDate(from.getDate() - 2); // 2일 전부터 (딜레이 고려)
     } else {
-      from.setDate(from.getDate() - 7); // 일주일 전부터
+      from.setDate(from.getDate() - 8); // 8일 전부터 (딜레이 고려)
     }
 
     console.log(`📅 API Request - timeRange: ${timeRange}, from: ${from.toISOString().split('T')[0]}, to: ${to.toISOString().split('T')[0]}`);
