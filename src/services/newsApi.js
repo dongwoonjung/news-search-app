@@ -107,22 +107,22 @@ export const newsApi = {
           }))
         : [];
 
-      const msnArticles = msnNewsResult.status === 'fulfilled' && msnNewsResult.value.success
+      const bingArticles = msnNewsResult.status === 'fulfilled' && msnNewsResult.value.success
         ? msnNewsResult.value.articles.map(article => ({
             title: article.title,
             summary: article.summary,
             date: article.date,
-            source: article.source || 'MSN News',
+            source: article.source || 'Bing News',
             importance: 'medium',
             url: article.url,
             publishedAt: article.publishedAt
           }))
         : [];
 
-      console.log(`📰 NewsAPI: ${newsApiArticles.length}개, Google News: ${googleArticles.length}개, Naver News: ${naverArticles.length}개, MSN News: ${msnArticles.length}개 기사 수집`);
+      console.log(`📰 NewsAPI: ${newsApiArticles.length}개, Google News: ${googleArticles.length}개, Naver News: ${naverArticles.length}개, Bing News: ${bingArticles.length}개 기사 수집`);
 
       // 네 소스의 기사 합치기 (중복 제거)
-      const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles, ...msnArticles];
+      const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles, ...bingArticles];
 
       // URL 기준으로 중복 제거
       const uniqueArticles = [];

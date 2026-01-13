@@ -17,30 +17,35 @@ export default async function handler(req, res) {
 
     const parser = new Parser({
       customFields: {
-        item: ['media:content', 'media:thumbnail']
+        item: [
+          ['News:Source', 'newsSource'],
+          ['News:Image', 'newsImage']
+        ]
       }
     });
 
-    // MSN News RSS 카테고리별 URL
-    // MSN은 지역별로 RSS를 제공함 (en-us = 미국 영어)
-    const categoryUrls = {
-      'news': 'https://rss.msn.com/en-us/',
-      'world': 'https://rss.msn.com/en-us/news/world',
-      'us': 'https://rss.msn.com/en-us/news/us',
-      'politics': 'https://rss.msn.com/en-us/news/politics',
-      'technology': 'https://rss.msn.com/en-us/news/technology',
-      'business': 'https://rss.msn.com/en-us/news/money',
-      'automotive': 'https://rss.msn.com/en-us/autos',
-      'science': 'https://rss.msn.com/en-us/news/science'
+    // 카테고리별 Bing News 검색어 매핑
+    const categoryQueries = {
+      'news': 'breaking news today',
+      'world': 'world news international',
+      'us': 'US news America',
+      'politics': 'politics government',
+      'technology': 'technology AI tech',
+      'business': 'business finance economy',
+      'automotive': 'electric vehicle EV Tesla Hyundai automotive',
+      'science': 'science research discovery'
     };
 
-    const url = categoryUrls[category] || categoryUrls['news'];
+    const query = categoryQueries[category] || categoryQueries['news'];
 
-    console.log(`🔍 MSN News RSS: category=${category}, url=${url}`);
+    // Bing News RSS URL (영어 뉴스)
+    const url = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss&mkt=en-US`;
+
+    console.log(`🔍 Bing News RSS: category=${category}, query=${query}`);
 
     const feed = await parser.parseURL(url);
 
-    console.log(`✅ MSN News RSS: ${feed.items.length} articles fetched`);
+    console.log(`✅ Bing News RSS: ${feed.items.length} articles fetched`);
 
     // 날짜 분포 확인
     if (feed.items.length > 0) {
@@ -50,7 +55,7 @@ export default async function handler(req, res) {
         const dateStr = pubDate.toISOString().split('T')[0];
         dateDistribution[dateStr] = (dateDistribution[dateStr] || 0) + 1;
       });
-      console.log(`📊 MSN News date distribution:`, JSON.stringify(dateDistribution));
+      console.log(`📊 Bing News date distribution:`, JSON.stringify(dateDistribution));
     }
 
     const articles = feed.items.slice(0, parseInt(count)).map(item => {
@@ -58,12 +63,12 @@ export default async function handler(req, res) {
 
       return {
         title: item.title,
-        summary: item.contentSnippet || item.content || '',
+        summary: item.contentSnippet || item.content || item.description || '',
         date: pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        source: 'MSN News',
+        source: item.newsSource || 'Bing News',
         url: item.link,
         publishedAt: pubDate.toISOString(),
-        image: item['media:content']?.['$']?.url || item['media:thumbnail']?.['$']?.url || null
+        image: item.newsImage || null
       };
     });
 
@@ -72,7 +77,7 @@ export default async function handler(req, res) {
       articles: articles
     });
   } catch (error) {
-    console.error('Error fetching MSN News:', error);
+    console.error('Error fetching Bing News:', error);
     res.status(500).json({
       success: false,
       error: error.message,
