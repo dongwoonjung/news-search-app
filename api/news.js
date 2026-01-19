@@ -33,15 +33,16 @@ export default async function handler(req, res) {
     const from = new Date(now);
     const to = new Date(now);
 
-    // to 날짜를 내일로 설정하여 오늘 기사가 확실히 포함되도록 함 (UTC 시차 문제 해결)
-    to.setDate(to.getDate() + 1);
-
     // 참고: NewsAPI 무료 플랜은 기사 발행 후 24시간 딜레이가 있음
     // 그래서 오늘 발행된 기사는 내일부터 검색 가능
     if (timeRange === 'day') {
-      from.setDate(from.getDate() - 2); // 2일 전부터 (딜레이 고려)
+      // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
+      from.setDate(from.getDate() - 2);
+      to.setDate(to.getDate() + 1);
     } else {
-      from.setDate(from.getDate() - 8); // 8일 전부터 (딜레이 고려)
+      // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+      from.setDate(from.getDate() - 8);
+      to.setDate(to.getDate() - 3);
     }
 
     console.log(`📅 API Request - timeRange: ${timeRange}, from: ${from.toISOString().split('T')[0]}, to: ${to.toISOString().split('T')[0]}`);
@@ -130,7 +131,34 @@ export default async function handler(req, res) {
         articlesBySource[sourceName].push(article);
       });
 
-      // 각 소스에서 균등하게 가져오기
+      // 중복 검사 함수: 제목의 유사도를 계산 (Jaccard similarity)
+      const calculateSimilarity = (title1, title2) => {
+        // 제목을 소문자로 변환하고 단어로 분리
+        const words1 = new Set(title1.toLowerCase().split(/\s+/).filter(word => word.length > 3));
+        const words2 = new Set(title2.toLowerCase().split(/\s+/).filter(word => word.length > 3));
+
+        if (words1.size === 0 || words2.size === 0) return 0;
+
+        // 교집합과 합집합 계산
+        const intersection = new Set([...words1].filter(word => words2.has(word)));
+        const union = new Set([...words1, ...words2]);
+
+        return intersection.size / union.size;
+      };
+
+      // 중복 기사인지 확인하는 함수 (제목 유사도 70% 이상이면 중복으로 간주)
+      const isDuplicate = (article, selectedArticles) => {
+        return selectedArticles.some(selected => {
+          const similarity = calculateSimilarity(article.title, selected.title);
+          if (similarity >= 0.7) {
+            console.log(`🔄 Duplicate detected: "${article.title}" vs "${selected.title}" (similarity: ${(similarity * 100).toFixed(1)}%)`);
+            return true;
+          }
+          return false;
+        });
+      };
+
+      // 각 소스에서 균등하게 가져오기 (중복 제거)
       const selectedArticles = [];
       const sources = Object.keys(articlesBySource);
       let sourceIndex = 0;
@@ -138,7 +166,14 @@ export default async function handler(req, res) {
       while (selectedArticles.length < targetCount && sources.length > 0) {
         const source = sources[sourceIndex % sources.length];
         if (articlesBySource[source] && articlesBySource[source].length > 0) {
-          selectedArticles.push(articlesBySource[source].shift());
+          const candidate = articlesBySource[source].shift();
+
+          // 중복 검사: 이미 선정된 기사들과 비교
+          if (!isDuplicate(candidate, selectedArticles)) {
+            selectedArticles.push(candidate);
+          } else {
+            console.log(`⏭️ Skipping duplicate article from ${source}`);
+          }
         } else {
           sources.splice(sourceIndex % sources.length, 1);
           continue;
