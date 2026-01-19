@@ -30,7 +30,10 @@ export const newsApi = {
       // NewsAPI, Google News, Naver News, MSN News를 병렬로 호출
       const [newsApiResult, googleNewsResult, naverNewsResult, msnNewsResult] = await Promise.allSettled([
         // NewsAPI 호출
-        fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`)
+        fetch(`${apiBaseUrl}/api/news?category=${category}&timeRange=${timeRange}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
           .then(res => res.ok ? res.text() : Promise.reject(`NewsAPI Error: ${res.status}`))
           .then(text => {
             try {
@@ -45,7 +48,10 @@ export const newsApi = {
           }),
 
         // Google News RSS 호출
-        fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(getCategoryQuery(category))}&language=en&timeRange=${timeRange}&count=${targetCount}`)
+        fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(getCategoryQuery(category))}&language=en&timeRange=${timeRange}&count=${targetCount}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
           .then(res => res.ok ? res.json() : Promise.reject(`Google News Error: ${res.status}`))
           .catch(err => {
             console.warn('Google News failed:', err);
@@ -53,7 +59,10 @@ export const newsApi = {
           }),
 
         // Naver News 호출 (한국어 뉴스)
-        fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(getKoreanCategoryQuery(category))}&display=${targetCount}`)
+        fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(getKoreanCategoryQuery(category))}&display=${targetCount}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
           .then(res => res.ok ? res.json() : Promise.reject(`Naver News Error: ${res.status}`))
           .catch(err => {
             console.warn('Naver News failed:', err);
@@ -61,7 +70,10 @@ export const newsApi = {
           }),
 
         // MSN News (Bing News RSS) 호출 - 실시간 뉴스
-        fetch(`${apiBaseUrl}/api/msn-news?category=${getMsnCategory(category)}&count=${targetCount}`)
+        fetch(`${apiBaseUrl}/api/msn-news?category=${getMsnCategory(category)}&count=${targetCount}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
           .then(res => res.ok ? res.json() : Promise.reject(`MSN News Error: ${res.status}`))
           .catch(err => {
             console.warn('MSN News failed:', err);
