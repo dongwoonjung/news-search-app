@@ -70,7 +70,7 @@ export const newsApi = {
           }),
 
         // MSN News (Bing News RSS) 호출 - 실시간 뉴스
-        fetch(`${apiBaseUrl}/api/msn-news?category=${getMsnCategory(category)}&count=${targetCount}`, {
+        fetch(`${apiBaseUrl}/api/msn-news?category=${getMsnCategory(category)}&count=${targetCount}&timeRange=${timeRange}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
         })

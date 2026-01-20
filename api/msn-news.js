@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { category = 'news', count = 20 } = req.query;
+    const { category = 'news', count = 20, timeRange = 'day' } = req.query;
 
     const parser = new Parser({
       customFields: {
@@ -48,6 +48,24 @@ export default async function handler(req, res) {
 
     console.log(`✅ Bing News RSS: ${feed.items.length} articles fetched`);
 
+    // 날짜 범위 계산
+    const now = new Date();
+    const toDate = new Date(now);
+    const fromDate = new Date(now);
+
+    if (timeRange === 'day') {
+      // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
+      fromDate.setDate(fromDate.getDate() - 2);
+      toDate.setDate(toDate.getDate() + 1);
+    } else if (timeRange === 'week') {
+      // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+      fromDate.setDate(fromDate.getDate() - 8);
+      toDate.setDate(toDate.getDate() - 3);
+    } else {
+      fromDate.setDate(fromDate.getDate() - 2);
+      toDate.setDate(toDate.getDate() + 1);
+    }
+
     // 날짜 분포 확인
     if (feed.items.length > 0) {
       const dateDistribution = {};
@@ -57,9 +75,18 @@ export default async function handler(req, res) {
         dateDistribution[dateStr] = (dateDistribution[dateStr] || 0) + 1;
       });
       console.log(`📊 Bing News date distribution:`, JSON.stringify(dateDistribution));
+      console.log(`📅 fromDate: ${fromDate.toISOString()}, toDate: ${toDate.toISOString()}`);
     }
 
-    const articles = feed.items.slice(0, parseInt(count)).map(item => {
+    // 날짜 필터링
+    const filteredItems = feed.items.filter(item => {
+      const pubDate = new Date(item.pubDate || item.isoDate);
+      return pubDate >= fromDate && pubDate <= toDate;
+    });
+
+    console.log(`📅 Filtered articles by date: ${filteredItems.length} (from ${feed.items.length})`);
+
+    const articles = filteredItems.slice(0, parseInt(count)).map(item => {
       const pubDate = new Date(item.pubDate || item.isoDate);
 
       return {

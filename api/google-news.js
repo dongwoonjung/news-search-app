@@ -34,15 +34,17 @@ export default async function handler(req, res) {
     const toDate = new Date(now);
     const fromDate = new Date(now);
 
-    // UTC 시차 문제 해결: toDate를 내일로 설정
-    toDate.setDate(toDate.getDate() + 1);
-
     if (timeRange === 'day') {
-      fromDate.setDate(fromDate.getDate() - 3); // 최근 3일 (UTC 시차 대비 여유있게)
+      // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
+      fromDate.setDate(fromDate.getDate() - 2);
+      toDate.setDate(toDate.getDate() + 1);
     } else if (timeRange === 'week') {
-      fromDate.setDate(fromDate.getDate() - 8); // 최근 8일 (UTC 시차 대비 여유있게)
+      // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+      fromDate.setDate(fromDate.getDate() - 8);
+      toDate.setDate(toDate.getDate() - 3);
     } else {
-      fromDate.setDate(fromDate.getDate() - 3); // 기본값 3일
+      fromDate.setDate(fromDate.getDate() - 2); // 기본값 2일
+      toDate.setDate(toDate.getDate() + 1);
     }
 
     // Google News RSS URL with date range (when:)
