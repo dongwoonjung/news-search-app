@@ -816,6 +816,13 @@ export default function GlobalNewsApp() {
                 <h1 className="text-3xl font-bold text-gray-800">글로벌 뉴스</h1>
                 <p className="text-gray-500 text-sm">실시간 NewsAPI 연동</p>
               </div>
+              <button
+                onClick={() => setViewMode('keywords')}
+                className="ml-4 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 flex items-center text-sm font-semibold"
+              >
+                <Key className="w-4 h-4 mr-1" />
+                키워드
+              </button>
             </div>
             <div className="flex gap-2 flex-wrap">
               <button
