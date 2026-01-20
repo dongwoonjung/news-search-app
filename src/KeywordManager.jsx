@@ -65,6 +65,7 @@ export default function KeywordManager({ onBack }) {
   };
 
   const approveKeyword = async (id) => {
+    console.log('Approving keyword:', id);
     try {
       const res = await fetch(`${apiBaseUrl}/api/trends`, {
         method: 'POST',
@@ -72,15 +73,20 @@ export default function KeywordManager({ onBack }) {
         body: JSON.stringify({ id, action: 'approve' })
       });
       const data = await res.json();
+      console.log('Approve response:', data);
       if (data.success) {
         loadKeywords();
+      } else {
+        alert('승인 실패: ' + (data.error || '알 수 없는 오류'));
       }
     } catch (error) {
       console.error('Failed to approve keyword:', error);
+      alert('승인 실패: ' + error.message);
     }
   };
 
   const rejectKeyword = async (id) => {
+    console.log('Rejecting keyword:', id);
     try {
       const res = await fetch(`${apiBaseUrl}/api/trends`, {
         method: 'POST',
@@ -88,16 +94,21 @@ export default function KeywordManager({ onBack }) {
         body: JSON.stringify({ id, action: 'reject' })
       });
       const data = await res.json();
+      console.log('Reject response:', data);
       if (data.success) {
         loadKeywords();
+      } else {
+        alert('거부 실패: ' + (data.error || '알 수 없는 오류'));
       }
     } catch (error) {
       console.error('Failed to reject keyword:', error);
+      alert('거부 실패: ' + error.message);
     }
   };
 
   const deleteKeyword = async (id) => {
     if (!window.confirm('이 키워드를 삭제하시겠습니까?')) return;
+    console.log('Deleting keyword:', id);
     try {
       const res = await fetch(`${apiBaseUrl}/api/trends`, {
         method: 'POST',
@@ -105,11 +116,15 @@ export default function KeywordManager({ onBack }) {
         body: JSON.stringify({ id, action: 'delete' })
       });
       const data = await res.json();
+      console.log('Delete response:', data);
       if (data.success) {
         loadKeywords();
+      } else {
+        alert('삭제 실패: ' + (data.error || '알 수 없는 오류'));
       }
     } catch (error) {
       console.error('Failed to delete keyword:', error);
+      alert('삭제 실패: ' + error.message);
     }
   };
 
@@ -282,6 +297,13 @@ export default function KeywordManager({ onBack }) {
                   title="거부"
                 >
                   <X className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => deleteKeyword(kw.id)}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  title="삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
