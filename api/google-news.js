@@ -13,12 +13,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, language = 'en', count = 20, timeRange = 'day' } = req.query;
+    const { query, language = 'en', count = 20, timeRange = 'day', category } = req.query;
 
-    if (!query) {
+    // Supabase에서 승인된 키워드 가져오기
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    let searchQuery = query;
+
+    // 카테고리가 있으면 DB에서 키워드 조회
+    if (category && !query) {
+      const { data: keywords } = await supabase
+        .from('search_keywords')
+        .select('keyword')
+        .eq('category', category)
+        .eq('status', 'approved');
+
+      if (keywords && keywords.length > 0) {
+        searchQuery = keywords.map(k => k.keyword).join(' OR ');
+        console.log(`📚 Google News using DB keywords for ${category}: ${keywords.length} keywords`);
+      }
+    }
+
+    if (!searchQuery) {
       return res.status(400).json({
         success: false,
-        error: 'Query parameter is required',
+        error: 'Query or category parameter is required',
         articles: []
       });
     }
@@ -50,10 +73,10 @@ export default async function handler(req, res) {
     // Google News RSS URL with date range (when:)
     // when:7d = 지난 7일, when:3d = 지난 3일 (UTC 시차 문제 대비 여유있게)
     const whenParam = timeRange === 'week' ? 'when:7d' : 'when:3d';
-    const searchQuery = `${query} ${whenParam}`;
-    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(searchQuery)}&hl=${language}&gl=US&ceid=US:en`;
+    const finalQuery = `${searchQuery} ${whenParam}`;
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(finalQuery)}&hl=${language}&gl=US&ceid=US:en`;
 
-    console.log(`🔍 Google News RSS Query: ${searchQuery}, timeRange: ${timeRange}`);
+    console.log(`🔍 Google News RSS Query: ${finalQuery}, timeRange: ${timeRange}`);
 
     const feed = await parser.parseURL(url);
 

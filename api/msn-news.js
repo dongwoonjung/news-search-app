@@ -16,6 +16,13 @@ export default async function handler(req, res) {
   try {
     const { category = 'news', count = 20, timeRange = 'day' } = req.query;
 
+    // Supabase에서 승인된 키워드 가져오기
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
     const parser = new Parser({
       customFields: {
         item: [
@@ -25,19 +32,45 @@ export default async function handler(req, res) {
       }
     });
 
-    // 카테고리별 Bing News 검색어 매핑 (더 구체적인 키워드로 속보 포착)
-    const categoryQueries = {
-      'news': 'breaking news today',
-      'world': 'world international China Russia Ukraine Iran Israel EU Europe Greenland Denmark tariff sanctions Trump diplomacy conflict crisis',
-      'us': 'US news America Trump policy',
-      'politics': 'politics government Trump Biden policy tariff sanctions',
-      'technology': 'technology AI tech artificial intelligence',
-      'business': 'business finance economy market stock tariff trade GDP employment unemployment jobs interest rate Treasury bond yield recession growth',
-      'automotive': 'electric vehicle EV Tesla Hyundai automotive',
-      'science': 'science research discovery'
+    // MSN 카테고리를 앱 카테고리로 매핑
+    const msnToAppCategory = {
+      'world': 'geopolitics',
+      'business': 'economy',
+      'automotive': 'automotive',
+      'technology': 'ai-tech'
     };
 
-    const query = categoryQueries[category] || categoryQueries['news'];
+    const appCategory = msnToAppCategory[category];
+    let query;
+
+    // DB에서 키워드 조회 시도
+    if (appCategory) {
+      const { data: keywords } = await supabase
+        .from('search_keywords')
+        .select('keyword')
+        .eq('category', appCategory)
+        .eq('status', 'approved');
+
+      if (keywords && keywords.length > 0) {
+        query = keywords.map(k => k.keyword).join(' ');
+        console.log(`📚 MSN News using DB keywords for ${appCategory}: ${keywords.length} keywords`);
+      }
+    }
+
+    // DB에 없으면 기본 키워드 사용
+    if (!query) {
+      const categoryQueries = {
+        'news': 'breaking news today',
+        'world': 'world international China Russia Ukraine Iran Israel EU Europe Greenland Denmark tariff sanctions Trump diplomacy conflict crisis',
+        'us': 'US news America Trump policy',
+        'politics': 'politics government Trump Biden policy tariff sanctions',
+        'technology': 'technology AI tech artificial intelligence',
+        'business': 'business finance economy market stock tariff trade GDP employment unemployment jobs interest rate Treasury bond yield recession growth',
+        'automotive': 'electric vehicle EV Tesla Hyundai automotive',
+        'science': 'science research discovery'
+      };
+      query = categoryQueries[category] || categoryQueries['news'];
+    }
 
     // Bing News RSS URL (영어 뉴스)
     const url = `https://www.bing.com/news/search?q=${encodeURIComponent(query)}&format=rss&mkt=en-US`;

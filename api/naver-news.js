@@ -11,12 +11,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, display = 10, timeRange = 'day' } = req.query;
+    const { query, display = 10, timeRange = 'day', category } = req.query;
 
-    if (!query) {
+    // Supabase에서 승인된 키워드 가져오기
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
+    let searchQuery = query;
+
+    // 카테고리가 있으면 DB에서 한국어 키워드 조회
+    if (category && !query) {
+      const { data: keywords } = await supabase
+        .from('search_keywords')
+        .select('keyword_ko')
+        .eq('category', category)
+        .eq('status', 'approved')
+        .not('keyword_ko', 'is', null);
+
+      if (keywords && keywords.length > 0) {
+        searchQuery = keywords.map(k => k.keyword_ko).join(' ');
+        console.log(`📚 Naver News using DB keywords for ${category}: ${keywords.length} keywords`);
+      }
+    }
+
+    if (!searchQuery) {
       return res.status(400).json({
         success: false,
-        error: 'Query parameter is required',
+        error: 'Query or category parameter is required',
         articles: []
       });
     }
@@ -32,7 +56,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(query)}&display=${display}&sort=date`;
+    const url = `https://openapi.naver.com/v1/search/news.json?query=${encodeURIComponent(searchQuery)}&display=${display}&sort=date`;
 
     const response = await fetch(url, {
       headers: {

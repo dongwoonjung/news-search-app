@@ -47,8 +47,8 @@ export const newsApi = {
             return { success: false, articles: [] };
           }),
 
-        // Google News RSS 호출
-        fetch(`${apiBaseUrl}/api/google-news?query=${encodeURIComponent(getCategoryQuery(category))}&language=en&timeRange=${timeRange}&count=${targetCount}`, {
+        // Google News RSS 호출 (DB 키워드 사용을 위해 category 전달)
+        fetch(`${apiBaseUrl}/api/google-news?category=${category}&language=en&timeRange=${timeRange}&count=${targetCount}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
         })
@@ -58,8 +58,8 @@ export const newsApi = {
             return { success: false, articles: [] };
           }),
 
-        // Naver News 호출 (한국어 뉴스)
-        fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(getKoreanCategoryQuery(category))}&display=${targetCount}&timeRange=${timeRange}`, {
+        // Naver News 호출 (DB 키워드 사용을 위해 category 전달)
+        fetch(`${apiBaseUrl}/api/naver-news?category=${category}&display=${targetCount}&timeRange=${timeRange}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
         })
@@ -69,7 +69,7 @@ export const newsApi = {
             return { success: false, articles: [] };
           }),
 
-        // MSN News (Bing News RSS) 호출 - 실시간 뉴스
+        // MSN News (Bing News RSS) 호출 (DB 키워드 사용을 위해 category 전달)
         fetch(`${apiBaseUrl}/api/msn-news?category=${getMsnCategory(category)}&count=${targetCount}&timeRange=${timeRange}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
