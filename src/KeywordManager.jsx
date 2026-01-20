@@ -7,6 +7,7 @@ export default function KeywordManager({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
+  const [activeCategory, setActiveCategory] = useState('all');
   const [newKeyword, setNewKeyword] = useState('');
   const [newKeywordKo, setNewKeywordKo] = useState('');
   const [newCategory, setNewCategory] = useState('geopolitics');
@@ -309,24 +310,60 @@ export default function KeywordManager({ onBack }) {
             </div>
           ))}
 
-          {activeTab === 'approved' && keywords.filter(k => k.status === 'approved').map(kw => (
-            <div key={kw.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center gap-3">
-                <span className="font-medium">{kw.keyword}</span>
-                {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
-                  <span className="text-gray-500">({kw.keyword_ko})</span>
-                )}
-                <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
+          {activeTab === 'approved' && (
+            <>
+              {/* 카테고리 서브탭 */}
+              <div className="flex gap-2 mb-4 flex-wrap">
+                <button
+                  onClick={() => setActiveCategory('all')}
+                  className={`px-3 py-1 rounded-full text-sm ${activeCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                >
+                  전체 ({keywords.filter(k => k.status === 'approved').length})
+                </button>
+                {categories.map(cat => {
+                  const count = keywords.filter(k => k.status === 'approved' && k.category === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={`px-3 py-1 rounded-full text-sm ${activeCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      {cat.name} ({count})
+                    </button>
+                  );
+                })}
               </div>
-              <button
-                onClick={() => deleteKeyword(kw.id)}
-                className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
-                title="삭제"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+
+              {/* 키워드 목록 */}
+              {keywords
+                .filter(k => k.status === 'approved')
+                .filter(k => activeCategory === 'all' || k.category === activeCategory)
+                .map(kw => (
+                  <div key={kw.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200 mb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{kw.keyword}</span>
+                      {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
+                        <span className="text-gray-500">({kw.keyword_ko})</span>
+                      )}
+                      {activeCategory === 'all' && (
+                        <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => deleteKeyword(kw.id)}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+
+              {keywords.filter(k => k.status === 'approved').filter(k => activeCategory === 'all' || k.category === activeCategory).length === 0 && (
+                <div className="text-center py-8 text-gray-500">승인된 키워드가 없습니다.</div>
+              )}
+            </>
+          )}
 
           {activeTab === 'all' && keywords.map(kw => (
             <div key={kw.id} className={`flex items-center justify-between p-3 rounded-lg border ${
