@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { query, display = 10 } = req.query;
+    const { query, display = 10, timeRange = 'day' } = req.query;
 
     if (!query) {
       return res.status(400).json({
@@ -44,7 +44,33 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (data.items) {
-      const articles = data.items.map(item => ({
+      // 날짜 범위 계산
+      const now = new Date();
+      const toDate = new Date(now);
+      const fromDate = new Date(now);
+
+      if (timeRange === 'day') {
+        // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
+        fromDate.setDate(fromDate.getDate() - 2);
+        toDate.setDate(toDate.getDate() + 1);
+      } else if (timeRange === 'week') {
+        // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+        fromDate.setDate(fromDate.getDate() - 8);
+        toDate.setDate(toDate.getDate() - 3);
+      } else {
+        fromDate.setDate(fromDate.getDate() - 2);
+        toDate.setDate(toDate.getDate() + 1);
+      }
+
+      // 날짜 필터링
+      const filteredItems = data.items.filter(item => {
+        const pubDate = new Date(item.pubDate);
+        return pubDate >= fromDate && pubDate <= toDate;
+      });
+
+      console.log(`📅 Naver News filtered: ${filteredItems.length} (from ${data.items.length}), timeRange: ${timeRange}`);
+
+      const articles = filteredItems.map(item => ({
         title: item.title.replace(/<[^>]*>/g, ''), // HTML 태그 제거
         summary: item.description.replace(/<[^>]*>/g, ''),
         date: new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),

@@ -59,7 +59,7 @@ export const newsApi = {
           }),
 
         // Naver News 호출 (한국어 뉴스)
-        fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(getKoreanCategoryQuery(category))}&display=${targetCount}`, {
+        fetch(`${apiBaseUrl}/api/naver-news?query=${encodeURIComponent(getKoreanCategoryQuery(category))}&display=${targetCount}&timeRange=${timeRange}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
         })
