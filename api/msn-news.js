@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     // 카테고리별 Bing News 검색어 매핑 (더 구체적인 키워드로 속보 포착)
     const categoryQueries = {
       'news': 'breaking news today',
-      'world': 'world international China Russia Ukraine Iran Israel tariff sanctions Trump diplomacy conflict crisis',
+      'world': 'world international China Russia Ukraine Iran Israel EU Europe Greenland Denmark tariff sanctions Trump diplomacy conflict crisis',
       'us': 'US news America Trump policy',
       'politics': 'politics government Trump Biden policy tariff sanctions',
       'technology': 'technology AI tech artificial intelligence',
