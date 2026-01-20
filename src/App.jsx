@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock, MessageCircle, Send, X, BookOpen } from 'lucide-react';
+import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock, MessageCircle, Send, X, BookOpen, Key } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import IssueAnalysis from './IssueAnalysis';
+import KeywordManager from './KeywordManager';
 import './App.css';
 
 export default function GlobalNewsApp() {
@@ -14,7 +15,7 @@ export default function GlobalNewsApp() {
   const [translations, setTranslations] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
-  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', or 'issue'
+  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', 'issue', or 'keywords'
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
@@ -791,6 +792,17 @@ export default function GlobalNewsApp() {
     />;
   }
 
+  // Keyword Manager page
+  if (viewMode === 'keywords') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-6xl mx-auto">
+          <KeywordManager onBack={() => setViewMode('general')} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-6xl mx-auto">
@@ -867,6 +879,13 @@ export default function GlobalNewsApp() {
                   </button>
                 </>
               )}
+              <button
+                onClick={() => setViewMode('keywords')}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center font-semibold shadow-md"
+              >
+                <Key className="w-5 h-5 mr-2" />
+                키워드 관리
+              </button>
             </div>
           </div>
 

@@ -13,19 +13,47 @@ export default async function handler(req, res) {
   try {
     const { category, timeRange, company } = req.query;
 
+    // Supabase에서 승인된 키워드 가져오기
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+
     // 회사별 검색어가 있으면 우선 사용
     let query;
     if (company) {
       query = company;
     } else {
-      // 카테고리별 검색어 매핑
-      const categoryQueries = {
-        'geopolitics': '(China OR Russia OR Ukraine OR "Middle East" OR Iran OR Israel OR Taiwan OR "South China Sea" OR NATO OR "North Korea" OR Syria OR Yemen OR Venezuela OR "Latin America" OR Trump OR EU OR "European Union" OR Europe OR Greenland OR Denmark) AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic OR tariff OR trade)',
-        'economy': 'economy OR market OR business OR stock OR "Federal Reserve" OR inflation OR finance OR banking OR GDP OR employment OR unemployment OR jobs OR "interest rate" OR "rate cut" OR "rate hike" OR Treasury OR bond OR yield OR recession OR growth',
-        'automotive': 'EV OR "electric vehicle" OR Tesla OR Hyundai OR Kia OR BYD OR Toyota OR Ford OR GM OR battery OR "auto industry" OR automaker OR "car sales" OR "autonomous driving" OR subsidy OR "carbon neutral"',
-        'ai-tech': 'AI OR "artificial intelligence" OR GPT OR "ChatGPT" OR "Claude AI" OR Gemini OR "Google Gemini" OR "self-driving" OR autonomous OR robotics OR "humanoid robot" OR humanoid OR Tesla OR Waymo OR "machine learning" OR automation OR robot'
-      };
-      query = categoryQueries[category] || 'technology';
+      // DB에서 승인된 키워드 조회
+      const { data: keywords } = await supabase
+        .from('search_keywords')
+        .select('keyword')
+        .eq('category', category)
+        .eq('status', 'approved');
+
+      if (keywords && keywords.length > 0) {
+        // DB 키워드 사용
+        const keywordList = keywords.map(k => `"${k.keyword}"`).join(' OR ');
+
+        // 지정학 카테고리는 특별한 쿼리 구조 사용
+        if (category === 'geopolitics') {
+          query = `(${keywordList}) AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic OR tariff OR trade)`;
+        } else {
+          query = keywordList;
+        }
+        console.log(`📚 Using DB keywords for ${category}: ${keywords.length} keywords`);
+      } else {
+        // 기본 키워드 사용 (DB에 없을 경우 폴백)
+        const categoryQueries = {
+          'geopolitics': '(China OR Russia OR Ukraine OR "Middle East" OR Iran OR Israel OR Taiwan OR "South China Sea" OR NATO OR "North Korea" OR Syria OR Yemen OR Venezuela OR "Latin America" OR Trump OR EU OR "European Union" OR Europe OR Greenland OR Denmark) AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic OR tariff OR trade)',
+          'economy': 'economy OR market OR business OR stock OR "Federal Reserve" OR inflation OR finance OR banking OR GDP OR employment OR unemployment OR jobs OR "interest rate" OR "rate cut" OR "rate hike" OR Treasury OR bond OR yield OR recession OR growth',
+          'automotive': 'EV OR "electric vehicle" OR Tesla OR Hyundai OR Kia OR BYD OR Toyota OR Ford OR GM OR battery OR "auto industry" OR automaker OR "car sales" OR "autonomous driving" OR subsidy OR "carbon neutral"',
+          'ai-tech': 'AI OR "artificial intelligence" OR GPT OR "ChatGPT" OR "Claude AI" OR Gemini OR "Google Gemini" OR "self-driving" OR autonomous OR robotics OR "humanoid robot" OR humanoid OR Tesla OR Waymo OR "machine learning" OR automation OR robot'
+        };
+        query = categoryQueries[category] || 'technology';
+        console.log(`⚠️ Using fallback keywords for ${category}`);
+      }
     }
 
     // 날짜 계산 (한국 시간 기준으로 처리)
