@@ -188,7 +188,7 @@ function getCategoryQuery(category) {
 // 카테고리별 한국어 검색 쿼리 생성 (Naver News용)
 function getKoreanCategoryQuery(category) {
   const koreanQueries = {
-    'geopolitics': '국제 정치 중국 러시아 우크라이나 중동 이란 이스라엘 대만',
+    'geopolitics': '트럼프 국제 정치 중국 러시아 우크라이나 중동 이란 이스라엘',
     'economy': '경제 시장 금융 연준 인플레이션 은행 GDP 고용 실업 금리 국채 채권 경기침체 성장',
     'automotive': '전기차 EV 테슬라 현대차 기아 자동차 배터리',
     'ai-tech': '인공지능 AI 챗GPT 자율주행 로봇 휴머노이드'
