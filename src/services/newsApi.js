@@ -136,26 +136,55 @@ export const newsApi = {
       // 네 소스의 기사 합치기 (중복 제거)
       const allArticles = [...newsApiArticles, ...googleArticles, ...naverArticles, ...msnArticles];
 
-      // URL 기준으로 중복 제거
-      const uniqueArticles = [];
+      // URL 기준으로 1차 중복 제거
+      const uniqueByUrl = [];
       const seenUrls = new Set();
 
       for (const article of allArticles) {
         if (!seenUrls.has(article.url)) {
           seenUrls.add(article.url);
-          uniqueArticles.push(article);
+          uniqueByUrl.push(article);
         }
       }
 
       // 날짜순 정렬 (최신순)
-      uniqueArticles.sort((a, b) => {
+      uniqueByUrl.sort((a, b) => {
         const dateA = new Date(a.publishedAt);
         const dateB = new Date(b.publishedAt);
         return dateB - dateA;
       });
 
-      // 목표 개수만큼 선택
-      const finalArticles = uniqueArticles.slice(0, targetCount);
+      console.log(`📰 URL 기준 중복 제거 후: ${uniqueByUrl.length}개`);
+
+      // 2차: 임베딩 기반 유사 기사 중복 제거
+      let finalArticles;
+      try {
+        const dedupeResponse = await fetch(`${apiBaseUrl}/api/dedupe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            articles: uniqueByUrl,
+            category: category
+          })
+        });
+
+        if (dedupeResponse.ok) {
+          const dedupeResult = await dedupeResponse.json();
+          if (dedupeResult.success) {
+            finalArticles = dedupeResult.articles.slice(0, targetCount);
+            console.log(`🧠 임베딩 기반 중복 제거 완료 (${dedupeResult.method}): ${dedupeResult.removed || 0}개 제거, ${finalArticles.length}개 유지`);
+          } else {
+            console.warn('Dedupe API 실패, URL 기반 결과 사용:', dedupeResult.error);
+            finalArticles = uniqueByUrl.slice(0, targetCount);
+          }
+        } else {
+          console.warn('Dedupe API 호출 실패, URL 기반 결과 사용');
+          finalArticles = uniqueByUrl.slice(0, targetCount);
+        }
+      } catch (dedupeError) {
+        console.warn('Dedupe 처리 중 오류, URL 기반 결과 사용:', dedupeError);
+        finalArticles = uniqueByUrl.slice(0, targetCount);
+      }
 
       console.log(`✅ 총 ${finalArticles.length}개의 기사를 반환합니다 (중복 제거 후)`);
 

@@ -263,55 +263,44 @@ export default function GlobalNewsApp() {
         });
       });
 
-      // 3. 공통 뉴스 섹션 생성 (내용 유사도 체크로 중복 제거)
-      const industryArticles = [];
+      // 3. 공통 뉴스 섹션 생성 (임베딩 기반 유사도 체크로 중복 제거)
+      const candidateIndustryArticles = [];
       const seenUrls = new Set();
 
-      // 내용 유사도 체크 함수 (제목과 요약 비교)
-      const isSimilarContent = (article1, article2) => {
-        // URL이 같으면 동일한 기사
-        if (article1.url === article2.url) return true;
-
-        // 제목 유사도 체크 (단어 기반)
-        const title1Words = article1.title.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
-        const title2Words = article2.title.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
-
-        const commonTitleWords = title1Words.filter(w => title2Words.includes(w));
-        const titleSimilarity = commonTitleWords.length / Math.max(title1Words.length, title2Words.length);
-
-        // 제목이 70% 이상 유사하면 중복으로 간주
-        if (titleSimilarity >= 0.7) return true;
-
-        // 요약 유사도 체크
-        if (article1.summary && article2.summary) {
-          const summary1Words = article1.summary.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
-          const summary2Words = article2.summary.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 3);
-
-          const commonSummaryWords = summary1Words.filter(w => summary2Words.includes(w));
-          const summarySimilarity = commonSummaryWords.length / Math.max(summary1Words.length, summary2Words.length);
-
-          // 요약이 60% 이상 유사하면 중복으로 간주
-          if (summarySimilarity >= 0.6) return true;
-        }
-
-        return false;
-      };
-
+      // 공통 뉴스 후보 수집 (URL 기준 중복 제거)
       Object.values(allCompanyArticles).forEach(articles => {
         articles.forEach(article => {
           if (commonArticles.has(article.url) && !seenUrls.has(article.url)) {
-            // 이미 추가된 기사들과 내용 유사도 체크
-            const isDuplicate = industryArticles.some(existingArticle =>
-              isSimilarContent(article, existingArticle)
-            );
-
-            if (!isDuplicate) {
-              industryArticles.push(article);
-              seenUrls.add(article.url);
-            }
+            candidateIndustryArticles.push(article);
+            seenUrls.add(article.url);
           }
         });
       });
+
+      // 임베딩 기반 중복 제거 API 호출
+      let industryArticles = candidateIndustryArticles;
+      if (candidateIndustryArticles.length > 0) {
+        try {
+          const dedupeResponse = await fetch(`${apiBaseUrl}/api/dedupe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              articles: candidateIndustryArticles,
+              category: 'automotive'
+            })
+          });
+
+          if (dedupeResponse.ok) {
+            const dedupeResult = await dedupeResponse.json();
+            if (dedupeResult.success) {
+              industryArticles = dedupeResult.articles;
+              console.log(`🧠 Industry 뉴스 임베딩 기반 중복 제거: ${dedupeResult.removed || 0}개 제거, ${industryArticles.length}개 유지`);
+            }
+          }
+        } catch (dedupeError) {
+          console.warn('Industry 뉴스 dedupe 실패, 원본 사용:', dedupeError);
+        }
+      }
 
       companiesData['industry'] = industryArticles.slice(0, 15);
 
