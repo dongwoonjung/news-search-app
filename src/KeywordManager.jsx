@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Check, X, Plus, Trash2, ArrowLeft, Zap, Lock, Eye, TrendingUp } from 'lucide-react';
+import { RefreshCw, Check, X, Plus, Trash2, ArrowLeft, Zap, Lock, Eye, TrendingUp, CheckSquare, Square } from 'lucide-react';
 
 export default function KeywordManager({ onBack }) {
   const [keywords, setKeywords] = useState([]);
   const [pendingKeywords, setPendingKeywords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [bulkProcessing, setBulkProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
   const [activeCategory, setActiveCategory] = useState('all');
   const [activeType, setActiveType] = useState('all');
   const [newKeyword, setNewKeyword] = useState('');
   const [newKeywordKo, setNewKeywordKo] = useState('');
   const [newCategory, setNewCategory] = useState('geopolitics');
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const apiBaseUrl = import.meta.env.DEV ? 'https://newsapp-sable-two.vercel.app' : '';
 
@@ -154,6 +156,73 @@ export default function KeywordManager({ onBack }) {
       }
     } catch (error) {
       console.error('Failed to add keyword:', error);
+    }
+  };
+
+  // 체크박스 선택 관련 함수
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === pendingKeywords.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingKeywords.map(k => k.id)));
+    }
+  };
+
+  // 일괄 승인
+  const bulkApprove = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    try {
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`${apiBaseUrl}/api/trends`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action: 'approve' })
+        })
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      loadKeywords();
+    } catch (error) {
+      console.error('Failed to bulk approve:', error);
+      alert('일괄 승인 중 오류가 발생했습니다.');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  // 일괄 거부
+  const bulkReject = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkProcessing(true);
+    try {
+      const promises = Array.from(selectedIds).map(id =>
+        fetch(`${apiBaseUrl}/api/trends`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action: 'reject' })
+        })
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      loadKeywords();
+    } catch (error) {
+      console.error('Failed to bulk reject:', error);
+      alert('일괄 거부 중 오류가 발생했습니다.');
+    } finally {
+      setBulkProcessing(false);
     }
   };
 
@@ -340,42 +409,100 @@ export default function KeywordManager({ onBack }) {
                   <span className="text-sm">"기사 분석" 버튼을 눌러 새 키워드를 추출하세요.</span>
                 </div>
               ) : (
-                pendingKeywords.map(kw => (
-                  <div key={kw.id} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{kw.keyword}</span>
-                      {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
-                        <span className="text-gray-500">({kw.keyword_ko})</span>
-                      )}
-                      <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
-                      {getEntityTypeBadge(kw.entity_type)}
-                      {getScoreBadge(kw.total_score)}
+                <>
+                  {/* 일괄 작업 버튼 */}
+                  <div className="flex items-center justify-between p-3 bg-gray-100 rounded-lg mb-2">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={toggleSelectAll}
+                        className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
+                      >
+                        {selectedIds.size === pendingKeywords.length ? (
+                          <CheckSquare className="w-5 h-5 text-blue-600" />
+                        ) : (
+                          <Square className="w-5 h-5" />
+                        )}
+                        전체 선택
+                      </button>
+                      <span className="text-sm text-gray-500">
+                        {selectedIds.size > 0 ? `${selectedIds.size}개 선택됨` : ''}
+                      </span>
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => approveKeyword(kw.id)}
-                        className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        title="승인"
+                        onClick={bulkApprove}
+                        disabled={selectedIds.size === 0 || bulkProcessing}
+                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                       >
                         <Check className="w-4 h-4" />
+                        일괄 승인
                       </button>
                       <button
-                        onClick={() => rejectKeyword(kw.id)}
-                        className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                        title="거부"
+                        onClick={bulkReject}
+                        disabled={selectedIds.size === 0 || bulkProcessing}
+                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
                       >
                         <X className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => deleteKeyword(kw.id)}
-                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                        일괄 거부
                       </button>
                     </div>
                   </div>
-                ))
+
+                  {/* 키워드 목록 */}
+                  {pendingKeywords.map(kw => (
+                    <div
+                      key={kw.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedIds.has(kw.id)
+                          ? 'bg-blue-50 border-blue-300'
+                          : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+                      }`}
+                      onClick={() => toggleSelect(kw.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0">
+                          {selectedIds.has(kw.id) ? (
+                            <CheckSquare className="w-5 h-5 text-blue-600" />
+                          ) : (
+                            <Square className="w-5 h-5 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{kw.keyword}</span>
+                          {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
+                            <span className="text-gray-500">({kw.keyword_ko})</span>
+                          )}
+                          <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
+                          {getEntityTypeBadge(kw.entity_type)}
+                          {getScoreBadge(kw.total_score)}
+                        </div>
+                      </div>
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => approveKeyword(kw.id)}
+                          className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                          title="승인"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => rejectKeyword(kw.id)}
+                          className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                          title="거부"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deleteKeyword(kw.id)}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                          title="삭제"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </>
           )}
