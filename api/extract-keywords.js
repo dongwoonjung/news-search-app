@@ -23,7 +23,7 @@ export default async function handler(req, res) {
 
     // 키워드 추출 실행
     if (action === 'extract') {
-      const categories = category ? [category] : ['geopolitics', 'economy', 'automotive', 'ai-tech'];
+      const categories = category ? [category] : ['geopolitics', 'economy', 'automotive', 'ai-tech', 'trade'];
       const results = {};
 
       for (const cat of categories) {
@@ -113,7 +113,8 @@ async function fetchRecentArticles(category) {
     'geopolitics': 'China Russia Ukraine Iran Israel Taiwan Trump NATO EU tariff sanctions diplomacy',
     'economy': 'Federal Reserve inflation GDP interest rate stock market recession unemployment Treasury',
     'automotive': 'Tesla Hyundai Kia EV electric vehicle battery BYD Ford GM Toyota recall',
-    'ai-tech': 'AI artificial intelligence ChatGPT OpenAI Nvidia semiconductor chip robot autonomous'
+    'ai-tech': 'AI artificial intelligence ChatGPT OpenAI Nvidia semiconductor chip robot autonomous',
+    'trade': 'FTA tariff trade agreement subsidy incentive export import WTO free trade protectionism anti-dumping'
   };
 
   const query = categoryQueries[category] || 'news';
@@ -302,7 +303,8 @@ function calculateDomainScore(keyword, entityType, category) {
     'geopolitics': ['China', 'Russia', 'Ukraine', 'Iran', 'Israel', 'Taiwan', 'US', 'EU', 'NATO', 'tariff', 'sanction', 'Trump', 'war', 'conflict', 'diplomacy'],
     'economy': ['Fed', 'inflation', 'GDP', 'recession', 'rate', 'Treasury', 'unemployment', 'stock', 'bond', 'yield', 'Powell', 'Yellen'],
     'automotive': ['Tesla', 'Hyundai', 'Kia', 'EV', 'battery', 'recall', 'autonomous', 'BYD', 'Ford', 'GM', 'Toyota', 'charging'],
-    'ai-tech': ['AI', 'Nvidia', 'OpenAI', 'chip', 'semiconductor', 'GPT', 'robot', 'autonomous', 'Musk', 'Altman', 'Google', 'Microsoft']
+    'ai-tech': ['AI', 'Nvidia', 'OpenAI', 'chip', 'semiconductor', 'GPT', 'robot', 'autonomous', 'Musk', 'Altman', 'Google', 'Microsoft'],
+    'trade': ['FTA', 'tariff', 'trade', 'agreement', 'subsidy', 'incentive', 'export', 'import', 'WTO', 'protectionism', 'anti-dumping', 'customs', 'duty', 'quota', 'embargo']
   };
 
   const relevantKeywords = domainKeywords[category] || [];

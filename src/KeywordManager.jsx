@@ -20,6 +20,7 @@ export default function KeywordManager({ onBack }) {
     { id: 'economy', name: '경제' },
     { id: 'automotive', name: '자동차' },
     { id: 'ai-tech', name: 'AI/테크' },
+    { id: 'trade', name: '무역' },
   ];
 
   const keywordTypes = [
