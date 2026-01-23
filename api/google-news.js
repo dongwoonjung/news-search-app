@@ -35,6 +35,17 @@ export default async function handler(req, res) {
       if (keywords && keywords.length > 0) {
         searchQuery = keywords.map(k => k.keyword).join(' OR ');
         console.log(`📚 Google News using DB keywords for ${category}: ${keywords.length} keywords`);
+      } else {
+        // DB에 키워드가 없으면 기본 키워드 사용
+        const fallbackQueries = {
+          'geopolitics': 'China Russia Ukraine Middle East Iran Israel Taiwan Trump EU Europe tariff sanctions',
+          'economy': 'economy market Federal Reserve inflation GDP employment interest rate Treasury bond recession',
+          'automotive': 'electric vehicle EV Tesla Hyundai Kia BYD Toyota Ford GM battery auto industry',
+          'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot',
+          'trade': 'FTA tariff trade agreement subsidy incentive export regulation import regulation trade policy WTO free trade protectionism anti-dumping'
+        };
+        searchQuery = fallbackQueries[category];
+        console.log(`⚠️ Google News using fallback keywords for ${category}`);
       }
     }
 
