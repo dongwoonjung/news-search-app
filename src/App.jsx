@@ -437,7 +437,7 @@ export default function GlobalNewsApp() {
       // 아카이브된 기사는 description, 일반 기사는 summary 사용
       const summaryText = item.summary || item.description || '';
 
-      const response = await fetch(`${apiBaseUrl}/api/translate`, {
+      const response = await fetch(`${apiBaseUrl}/api/utils?action=translate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -737,7 +737,7 @@ export default function GlobalNewsApp() {
         ).join('\n\n');
       }
 
-      const response = await fetch(`${apiBaseUrl}/api/chat`, {
+      const response = await fetch(`${apiBaseUrl}/api/utils?action=chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
