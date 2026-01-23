@@ -209,7 +209,8 @@ function getCategoryQuery(category) {
     'geopolitics': 'geopolitics China Russia Ukraine Middle East Iran Israel Taiwan Trump EU Europe Greenland Denmark tariff sanctions trade war',
     'economy': 'economy market business Federal Reserve inflation finance banking GDP employment unemployment jobs interest rate Treasury bond yield recession growth',
     'automotive': 'electric vehicle EV Tesla Hyundai Kia BYD Toyota Ford GM battery auto industry',
-    'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot'
+    'ai-tech': 'artificial intelligence AI ChatGPT self-driving autonomous robotics humanoid robot',
+    'trade': 'FTA tariff trade agreement subsidy incentive export regulation import regulation trade policy WTO free trade protectionism customs duty anti-dumping'
   };
   return categoryQueries[category] || 'technology';
 }
@@ -220,7 +221,8 @@ function getKoreanCategoryQuery(category) {
     'geopolitics': '트럼프 국제 정치 중국 러시아 우크라이나 중동 이란 이스라엘 EU 유럽 그린란드 덴마크',
     'economy': '경제 시장 금융 연준 인플레이션 은행 GDP 고용 실업 금리 국채 채권 경기침체 성장',
     'automotive': '전기차 EV 테슬라 현대차 기아 자동차 배터리',
-    'ai-tech': '인공지능 AI 챗GPT 자율주행 로봇 휴머노이드'
+    'ai-tech': '인공지능 AI 챗GPT 자율주행 로봇 휴머노이드',
+    'trade': 'FTA 관세 무역협정 보조금 인센티브 수출규제 수입규제 무역정책 자유무역 보호무역 반덤핑'
   };
   return koreanQueries[category] || '기술';
 }
@@ -231,7 +233,8 @@ function getMsnCategory(category) {
     'geopolitics': 'world',
     'economy': 'business',
     'automotive': 'automotive',
-    'ai-tech': 'technology'
+    'ai-tech': 'technology',
+    'trade': 'business'
   };
   return msnCategories[category] || 'news';
 }

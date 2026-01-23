@@ -33,6 +33,7 @@ export default function GlobalNewsApp() {
     { id: 'economy', name: '미국 경제', icon: TrendingUp },
     { id: 'automotive', name: '자동차', icon: Newspaper },
     { id: 'ai-tech', name: 'AI/자율주행', icon: TrendingUp },
+    { id: 'trade', name: '무역', icon: Globe },
   ];
 
   const autoCompanies = [
@@ -1194,6 +1195,16 @@ export default function GlobalNewsApp() {
                 >
                   🤖 AI/자율주행 ({archivedArticles.filter(a => a.category === 'ai-tech').length})
                 </button>
+                <button
+                  onClick={() => setActiveCategoryTab('trade')}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    activeCategoryTab === 'trade'
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  📦 무역 ({archivedArticles.filter(a => a.category === 'trade').length})
+                </button>
               </div>
 
               {archivedArticles.length === 0 ? (
@@ -1407,6 +1418,95 @@ export default function GlobalNewsApp() {
                                 const archiveItemKey = `archive-${article.articleKey}`;
                                 return (
                                   <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200 shadow-sm">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <h5 className="text-md font-bold text-gray-800 flex-1">
+                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                      </h5>
+                                      <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
+                                    </div>
+                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
+                                    <div className="flex items-center justify-between text-xs mb-3">
+                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
+                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
+                                        <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
+                                      </a>
+                                      <button type="button" onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)} className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
+                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      </button>
+                                      <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
+                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
+                                          console.log('  Title:', article.title);
+                                          console.log('  URL:', article.url);
+                                          setIssueArticleData({ url: article.url, title: article.title });
+                                          setViewMode('issue');
+                                        }}
+                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                                      >
+                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                        분석정리
+                                      </button>
+                                    </div>
+                                    {analysis[archiveItemKey] && (
+                                      <div className="mt-4 border-t pt-4">
+                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><span className="text-green-600">🚗</span>현대자동차 전략 분석 리포트</h4>
+                                        {analysis[archiveItemKey].summary && (
+                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
+                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
+                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].marketImpact && (
+                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
+                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
+                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  )}
+
+                  {/* 무역 카테고리 */}
+                  {(activeCategoryTab === 'all' || activeCategoryTab === 'trade') && archivedArticles.filter(a => a.category === 'trade').length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-200 pb-2">
+                        <span>📦</span>
+                        무역
+                        <span className="text-sm font-normal text-gray-500">({archivedArticles.filter(a => a.category === 'trade').length}개 기사)</span>
+                      </h3>
+                      {(() => {
+                        const categoryArticles = archivedArticles.filter(a => a.category === 'trade');
+                        const articlesByDate = {};
+                        categoryArticles.forEach(article => {
+                          if (!articlesByDate[article.date]) articlesByDate[article.date] = [];
+                          articlesByDate[article.date].push(article);
+                        });
+                        return Object.keys(articlesByDate).sort().reverse().map(date => (
+                          <div key={`trade-${date}`} className="mb-6">
+                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <span>📅</span>{date}
+                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                            </h4>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {articlesByDate[date].map((article, idx) => {
+                                const archiveItemKey = `archive-${article.articleKey}`;
+                                return (
+                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-4 border-2 border-teal-200 shadow-sm">
                                     <div className="flex items-start justify-between mb-2">
                                       <h5 className="text-md font-bold text-gray-800 flex-1">
                                         {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}

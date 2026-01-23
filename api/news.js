@@ -49,7 +49,8 @@ export default async function handler(req, res) {
           'geopolitics': '(China OR Russia OR Ukraine OR "Middle East" OR Iran OR Israel OR Taiwan OR "South China Sea" OR NATO OR "North Korea" OR Syria OR Yemen OR Venezuela OR "Latin America" OR Trump OR EU OR "European Union" OR Europe OR Greenland OR Denmark) AND (conflict OR war OR sanctions OR diplomacy OR tensions OR dispute OR crisis OR military OR geopolitical OR strategic OR tariff OR trade)',
           'economy': 'economy OR market OR business OR stock OR "Federal Reserve" OR inflation OR finance OR banking OR GDP OR employment OR unemployment OR jobs OR "interest rate" OR "rate cut" OR "rate hike" OR Treasury OR bond OR yield OR recession OR growth',
           'automotive': 'EV OR "electric vehicle" OR Tesla OR Hyundai OR Kia OR BYD OR Toyota OR Ford OR GM OR battery OR "auto industry" OR automaker OR "car sales" OR "autonomous driving" OR subsidy OR "carbon neutral"',
-          'ai-tech': 'AI OR "artificial intelligence" OR GPT OR "ChatGPT" OR "Claude AI" OR Gemini OR "Google Gemini" OR "self-driving" OR autonomous OR robotics OR "humanoid robot" OR humanoid OR Tesla OR Waymo OR "machine learning" OR automation OR robot'
+          'ai-tech': 'AI OR "artificial intelligence" OR GPT OR "ChatGPT" OR "Claude AI" OR Gemini OR "Google Gemini" OR "self-driving" OR autonomous OR robotics OR "humanoid robot" OR humanoid OR Tesla OR Waymo OR "machine learning" OR automation OR robot',
+          'trade': 'FTA OR tariff OR "trade agreement" OR "trade deal" OR subsidy OR incentive OR "export regulation" OR "import regulation" OR "trade policy" OR WTO OR "free trade" OR protectionism OR "customs duty" OR "anti-dumping" OR "trade war" OR "trade dispute" OR "trade barrier"'
         };
         query = categoryQueries[category] || 'technology';
         console.log(`⚠️ Using fallback keywords for ${category}`);

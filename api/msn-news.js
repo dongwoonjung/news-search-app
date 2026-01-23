@@ -37,7 +37,8 @@ export default async function handler(req, res) {
       'world': 'geopolitics',
       'business': 'economy',
       'automotive': 'automotive',
-      'technology': 'ai-tech'
+      'technology': 'ai-tech',
+      'trade': 'trade'
     };
 
     const appCategory = msnToAppCategory[category];
@@ -67,7 +68,8 @@ export default async function handler(req, res) {
         'technology': 'technology AI tech artificial intelligence',
         'business': 'business finance economy market stock tariff trade GDP employment unemployment jobs interest rate Treasury bond yield recession growth',
         'automotive': 'electric vehicle EV Tesla Hyundai automotive',
-        'science': 'science research discovery'
+        'science': 'science research discovery',
+        'trade': 'FTA tariff trade agreement subsidy incentive export regulation import regulation trade policy WTO free trade protectionism anti-dumping trade war trade barrier'
       };
       query = categoryQueries[category] || categoryQueries['news'];
     }
