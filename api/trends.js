@@ -116,6 +116,21 @@ export default async function handler(req, res) {
 
       // 수동 키워드 추가
       if (action === 'add') {
+        // 중복 체크
+        const { data: existing } = await supabase
+          .from('search_keywords')
+          .select('id, keyword, category')
+          .eq('keyword', keyword)
+          .eq('category', category)
+          .single();
+
+        if (existing) {
+          return res.status(400).json({
+            success: false,
+            error: `키워드 "${keyword}"는 이미 "${category}" 카테고리에 존재합니다.`
+          });
+        }
+
         const { data, error } = await supabase
           .from('search_keywords')
           .insert([{
