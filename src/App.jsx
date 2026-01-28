@@ -1710,6 +1710,17 @@ export default function GlobalNewsApp() {
                                       >
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setIssueArticleData({ url: article.url, title: article.title });
+                                          setViewMode('issue');
+                                        }}
+                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
+                                      >
+                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                        이슈분석정리
+                                      </button>
                                     </div>
 
                                     {analysis[archiveItemKey] && (
