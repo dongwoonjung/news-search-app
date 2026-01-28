@@ -983,6 +983,17 @@ export default function GlobalNewsApp() {
                   {analyzingId === idx ? '⏳ 분석 중...' : analysis[idx] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                 </button>
 
+                <button
+                  onClick={() => {
+                    setIssueArticleData({ url: item.url, title: item.title });
+                    setViewMode('issue');
+                  }}
+                  className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium mt-2"
+                >
+                  <BookOpen className="w-4 h-4 inline mr-1" />
+                  이슈분석정리
+                </button>
+
                 {analysis[idx] && (
                   <div className="mt-4 border-t pt-4">
                     <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
