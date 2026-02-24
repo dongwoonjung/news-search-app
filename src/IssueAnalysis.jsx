@@ -102,7 +102,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
   const loadFolders = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-folders`);
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`);
       const data = await response.json();
       if (data.success) {
         setFolders(data.folders);
@@ -114,7 +114,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
   const loadArticles = async (folderId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-articles?folderId=${folderId}`);
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles&folderId=${folderId}`);
       const data = await response.json();
       if (data.success) {
         setArticles(data.articles);
@@ -127,7 +127,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   // 폴더별 글 목록 로드
   const loadFolderArticles = async (folderId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-articles?folderId=${folderId}`);
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles&folderId=${folderId}`);
       const data = await response.json();
       if (data.success) {
         setFolderArticles(prev => ({
@@ -165,7 +165,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-folders`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: folderName, description: folderDescription })
@@ -200,7 +200,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-folders`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: editingFolder.id, name: folderName, description: folderDescription })
@@ -226,7 +226,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-folders?id=${folderId}`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders&id=${folderId}`, {
         method: 'DELETE'
       });
 
@@ -252,7 +252,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-articles`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -283,7 +283,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
   const handleDeleteArticle = async (articleId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-articles?id=${articleId}`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles&id=${articleId}`, {
         method: 'DELETE'
       });
 
@@ -320,7 +320,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-articles`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -357,7 +357,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-folders`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -453,7 +453,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issue-articles`, {
+      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
