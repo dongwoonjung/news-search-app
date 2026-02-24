@@ -15,7 +15,9 @@ export default function GlobalNewsApp() {
   const [translations, setTranslations] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
-  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', 'issue', or 'keywords'
+  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', 'issue', 'keywords', or 'reports'
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
@@ -85,6 +87,55 @@ export default function GlobalNewsApp() {
       }
     } catch (error) {
       console.error('Failed to load archived articles from Supabase:', error);
+    }
+  };
+
+  // Supabase에서 리포트 로드
+  const loadReports = async () => {
+    setReportsLoading(true);
+    try {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/reports`, {
+        cache: 'no-cache',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setReports(data.reports || []);
+          console.log('✅ Loaded reports:', data.reports?.length || 0);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load reports:', error);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  // 리포트 삭제
+  const deleteReport = async (reportId) => {
+    if (!window.confirm('이 리포트를 삭제하시겠습니까?')) return;
+
+    try {
+      const isDev = import.meta.env.DEV;
+      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+
+      const response = await fetch(`${apiBaseUrl}/api/reports?id=${reportId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        await loadReports();
+      } else {
+        alert('삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to delete report:', error);
+      alert('삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -793,6 +844,118 @@ export default function GlobalNewsApp() {
     );
   }
 
+  // Reports page
+  if (viewMode === 'reports') {
+    const categoryNames = {
+      'geopolitics': '지정학',
+      'economy': '미국 경제',
+      'automotive': '자동차',
+      'ai-tech': 'AI/자율주행',
+      'trade': '무역'
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                <span className="text-4xl">📄</span>
+                리포트
+                <span className="text-lg font-normal text-gray-500">총 {reports.length}개</span>
+              </h1>
+              <div className="flex gap-2">
+                <button
+                  onClick={loadReports}
+                  disabled={reportsLoading}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 flex items-center"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${reportsLoading ? 'animate-spin' : ''}`} />
+                  새로고침
+                </button>
+                <button
+                  onClick={() => setViewMode('general')}
+                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
+                >
+                  ← 뉴스로 돌아가기
+                </button>
+              </div>
+            </div>
+
+            <p className="text-gray-500 text-sm mb-6">
+              Claude Desktop에서 생성한 뉴스 요약 리포트입니다. Word 파일로 다운로드할 수 있습니다.
+            </p>
+
+            {reportsLoading ? (
+              <div className="text-center py-12">
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-600 mb-4" />
+                <p className="text-gray-500">리포트를 불러오는 중...</p>
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">저장된 리포트가 없습니다.</p>
+                <p className="text-gray-400 text-sm mt-2">Claude Desktop에서 "뉴스 요약해서 리포트로 저장해줘"라고 요청해보세요.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {reports.map((report) => (
+                  <div key={report.id} className="border rounded-xl p-4 hover:bg-gray-50 transition">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-800 text-lg mb-1">{report.title}</h3>
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          {report.category && (
+                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+                              {categoryNames[report.category] || report.category}
+                            </span>
+                          )}
+                          <span>
+                            {new Date(report.createdAt).toLocaleDateString('ko-KR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        {report.content && (
+                          <p className="text-gray-600 text-sm mt-2 line-clamp-3">
+                            {report.content.substring(0, 200)}...
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        {report.fileUrl && (
+                          <a
+                            href={report.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-green-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-600 flex items-center gap-1"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            다운로드
+                          </a>
+                        )}
+                        <button
+                          onClick={() => deleteReport(report.id)}
+                          className="text-red-500 hover:text-red-700 p-2"
+                          title="삭제"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-6xl mx-auto">
@@ -875,6 +1038,15 @@ export default function GlobalNewsApp() {
               >
                 <Key className="w-5 h-5 mr-2" />
                 키워드 관리
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('reports');
+                  loadReports();
+                }}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center font-semibold shadow-md"
+              >
+                📄 리포트
               </button>
             </div>
           </div>
