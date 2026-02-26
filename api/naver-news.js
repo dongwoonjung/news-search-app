@@ -85,16 +85,14 @@ export default async function handler(req, res) {
       const fromDate = new Date(now);
 
       if (timeRange === 'day') {
-        // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
-        fromDate.setDate(fromDate.getDate() - 2);
-        toDate.setDate(toDate.getDate() + 1);
+        // 24시간 전 ~ 현재 (정확히 24시간 윈도우)
+        fromDate.setHours(fromDate.getHours() - 24);
       } else if (timeRange === 'week') {
-        // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+        // 일주일 전: 8일 전 ~ 2일 전 (하루 전과 중복되지 않게)
         fromDate.setDate(fromDate.getDate() - 8);
-        toDate.setDate(toDate.getDate() - 3);
+        toDate.setDate(toDate.getDate() - 2);
       } else {
-        fromDate.setDate(fromDate.getDate() - 2);
-        toDate.setDate(toDate.getDate() + 1);
+        fromDate.setHours(fromDate.getHours() - 24); // 기본값 24시간
       }
 
       // 날짜 필터링

@@ -63,15 +63,14 @@ export default async function handler(req, res) {
     const to = new Date(now);
 
     // 참고: NewsAPI 무료 플랜은 기사 발행 후 24시간 딜레이가 있음
-    // 그래서 오늘 발행된 기사는 내일부터 검색 가능
+    // 그래서 24시간 이내 기사는 내일부터 검색 가능 (딜레이 보정: 48시간 전 ~ 현재)
     if (timeRange === 'day') {
-      // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
-      from.setDate(from.getDate() - 2);
-      to.setDate(to.getDate() + 1);
+      // 24시간 전 ~ 현재 (NewsAPI 딜레이 고려하여 실제로는 48시간 전부터 조회 후 클라이언트에서 24h 필터링)
+      from.setHours(from.getHours() - 48); // NewsAPI 딜레이 보정
     } else {
-      // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+      // 일주일 전: 8일 전 ~ 2일 전 (하루 전과 중복되지 않게)
       from.setDate(from.getDate() - 8);
-      to.setDate(to.getDate() - 3);
+      to.setDate(to.getDate() - 2);
     }
 
     console.log(`📅 API Request - timeRange: ${timeRange}, from: ${from.toISOString().split('T')[0]}, to: ${to.toISOString().split('T')[0]}`);

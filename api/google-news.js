@@ -69,21 +69,19 @@ export default async function handler(req, res) {
     const fromDate = new Date(now);
 
     if (timeRange === 'day') {
-      // 하루 전: 2일 전 ~ 내일 (오늘 기사 포함을 위해 내일까지)
-      fromDate.setDate(fromDate.getDate() - 2);
-      toDate.setDate(toDate.getDate() + 1);
+      // 24시간 전 ~ 현재 (정확히 24시간 윈도우)
+      fromDate.setHours(fromDate.getHours() - 24);
     } else if (timeRange === 'week') {
-      // 일주일 전: 8일 전 ~ 3일 전 (하루 전과 중복되지 않게)
+      // 일주일 전: 8일 전 ~ 2일 전 (하루 전과 중복되지 않게)
       fromDate.setDate(fromDate.getDate() - 8);
-      toDate.setDate(toDate.getDate() - 3);
+      toDate.setDate(toDate.getDate() - 2);
     } else {
-      fromDate.setDate(fromDate.getDate() - 2); // 기본값 2일
-      toDate.setDate(toDate.getDate() + 1);
+      fromDate.setHours(fromDate.getHours() - 24); // 기본값 24시간
     }
 
     // Google News RSS URL with date range (when:)
-    // when:7d = 지난 7일, when:3d = 지난 3일 (UTC 시차 문제 대비 여유있게)
-    const whenParam = timeRange === 'week' ? 'when:7d' : 'when:3d';
+    // when:7d = 지난 7일, when:1d = 지난 24시간
+    const whenParam = timeRange === 'week' ? 'when:7d' : 'when:1d';
     const finalQuery = `${searchQuery} ${whenParam}`;
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(finalQuery)}&hl=${language}&gl=US&ceid=US:en`;
 
