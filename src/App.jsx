@@ -12,7 +12,7 @@ export default function GlobalNewsApp() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [category, setCategory] = useState('geopolitics');
   const [timeRange, setTimeRange] = useState('day');
-  const [translations, setTranslations] = useState({});
+  const [summaries, setSummaries] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
   const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', 'issue', 'keywords', or 'reports'
@@ -174,7 +174,7 @@ export default function GlobalNewsApp() {
     setLoading(true);
     setError(null);
     setAnalysis({});
-    setTranslations({});
+    setSummaries({});
     setAnalyzingId(null);
 
     try {
@@ -387,7 +387,7 @@ export default function GlobalNewsApp() {
     setViewMode('general');
     // 새 뉴스 로드 시 기존 분석/번역 초기화
     setAnalysis({});
-    setTranslations({});
+    setSummaries({});
     setAnalyzingId(null);
 
     try {
@@ -476,55 +476,27 @@ export default function GlobalNewsApp() {
     }
   };
 
-  const translateNews = async (item, idx) => {
+  const summarizeNews = async (item, idx) => {
     try {
       const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
-
-      // 아카이브된 기사는 description, 일반 기사는 summary 사용
       const summaryText = item.summary || item.description || '';
 
-      const response = await fetch(`${apiBaseUrl}/api/utils?action=translate`, {
+      const response = await fetch(`${apiBaseUrl}/api/utils?action=summarize`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: item.title,
-          summary: summaryText
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: item.title, summary: summaryText })
       });
 
       const data = await response.json();
 
-      if (data.success && data.translation) {
-        setTranslations(prev => ({
-          ...prev,
-          [idx]: {
-            title: data.translation.title,
-            summary: data.translation.summary
-          }
-        }));
+      if (data.success && data.summary) {
+        setSummaries(prev => ({ ...prev, [idx]: data.summary }));
       } else {
-        console.error('Translation failed:', data.error);
-        // 실패 시 폴백
-        setTranslations(prev => ({
-          ...prev,
-          [idx]: {
-            title: `[번역 실패] ${item.title}`,
-            summary: `[번역 실패] ${summaryText}`
-          }
-        }));
+        setSummaries(prev => ({ ...prev, [idx]: '요약에 실패했습니다.' }));
       }
     } catch (error) {
-      console.error('Error translating news:', error);
-      // 에러 시 폴백
-      setTranslations(prev => ({
-        ...prev,
-        [idx]: {
-          title: `[오류] ${item.title}`,
-          summary: `[오류] ${summaryText}`
-        }
-      }));
+      console.error('Error summarizing news:', error);
+      setSummaries(prev => ({ ...prev, [idx]: '요약 중 오류가 발생했습니다.' }));
     }
   };
 
@@ -1125,7 +1097,7 @@ export default function GlobalNewsApp() {
                         className="w-5 h-5 mt-1 cursor-pointer accent-purple-600"
                       />
                       <h3 className="text-lg font-bold text-gray-800 flex-1">
-                        {translations[idx] ? translations[idx].title : item.title}
+                        {item.title}
                       </h3>
                     </div>
                     <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getColor(item.importance)}`}>
@@ -1133,7 +1105,7 @@ export default function GlobalNewsApp() {
                     </span>
                   </div>
                 <p className="text-gray-600 mb-3 text-sm">
-                  {translations[idx] ? translations[idx].summary : item.summary}
+                  {item.summary}
                 </p>
                 <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
                   <span>{item.source}</span>
@@ -1144,11 +1116,17 @@ export default function GlobalNewsApp() {
                   기사보기
                 </a>
                 <button
-                  onClick={() => translations[idx] ? setTranslations(prev => { const n = {...prev}; delete n[idx]; return n; }) : translateNews(item, idx)}
-                  className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${translations[idx] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
+                  onClick={() => summaries[idx] ? setSummaries(prev => { const n = {...prev}; delete n[idx]; return n; }) : summarizeNews(item, idx)}
+                  className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${summaries[idx] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
                 >
-                  {translations[idx] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                  {summaries[idx] ? '🔼 요약 숨기기' : '📝 내용요약'}
                 </button>
+                {summaries[idx] && (
+                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                    <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                    <p>{summaries[idx]}</p>
+                  </div>
+                )}
 
               </div>
               );
@@ -1272,11 +1250,11 @@ export default function GlobalNewsApp() {
                                   <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200 shadow-sm">
                                     <div className="flex items-start justify-between mb-2">
                                       <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                        {article.title}
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
                                     <div className="flex items-center justify-between text-xs mb-3">
                                       <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
                                       <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
@@ -1285,9 +1263,15 @@ export default function GlobalNewsApp() {
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
                                         <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
                                       </a>
-                                      <button type="button" onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)} className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
+                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                                       </button>
+                                      {summaries[archiveItemKey] && (
+                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                                          <p>{summaries[archiveItemKey]}</p>
+                                        </div>
+                                      )}
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
@@ -1361,11 +1345,11 @@ export default function GlobalNewsApp() {
                                   <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-sm">
                                     <div className="flex items-start justify-between mb-2">
                                       <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                        {article.title}
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
                                     <div className="flex items-center justify-between text-xs mb-3">
                                       <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
                                       <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
@@ -1374,9 +1358,15 @@ export default function GlobalNewsApp() {
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
                                         <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
                                       </a>
-                                      <button type="button" onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)} className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
+                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                                       </button>
+                                      {summaries[archiveItemKey] && (
+                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                                          <p>{summaries[archiveItemKey]}</p>
+                                        </div>
+                                      )}
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
@@ -1450,11 +1440,11 @@ export default function GlobalNewsApp() {
                                   <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200 shadow-sm">
                                     <div className="flex items-start justify-between mb-2">
                                       <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                        {article.title}
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
                                     <div className="flex items-center justify-between text-xs mb-3">
                                       <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
                                       <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
@@ -1463,9 +1453,15 @@ export default function GlobalNewsApp() {
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
                                         <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
                                       </a>
-                                      <button type="button" onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)} className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
+                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                                       </button>
+                                      {summaries[archiveItemKey] && (
+                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                                          <p>{summaries[archiveItemKey]}</p>
+                                        </div>
+                                      )}
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
@@ -1539,11 +1535,11 @@ export default function GlobalNewsApp() {
                                   <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-4 border-2 border-teal-200 shadow-sm">
                                     <div className="flex items-start justify-between mb-2">
                                       <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                        {article.title}
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
                                     <div className="flex items-center justify-between text-xs mb-3">
                                       <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
                                       <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
@@ -1552,9 +1548,15 @@ export default function GlobalNewsApp() {
                                       <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
                                         <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
                                       </a>
-                                      <button type="button" onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)} className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
-                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
+                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                                       </button>
+                                      {summaries[archiveItemKey] && (
+                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                                          <p>{summaries[archiveItemKey]}</p>
+                                        </div>
+                                      )}
                                       <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
                                         {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
                                       </button>
@@ -1696,7 +1698,7 @@ export default function GlobalNewsApp() {
                                   <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border-2 border-orange-200 shadow-sm">
                                     <div className="flex items-start justify-between mb-2">
                                       <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {translations[archiveItemKey] ? translations[archiveItemKey].title : article.title}
+                                        {article.title}
                                       </h5>
                                       <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
                                     </div>
@@ -1707,7 +1709,7 @@ export default function GlobalNewsApp() {
                                         </span>
                                       </div>
                                     )}
-                                    <p className="text-gray-600 text-sm mb-3">{translations[archiveItemKey] ? translations[archiveItemKey].summary : (article.summary || article.description || '요약 없음')}</p>
+                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
                                     <div className="flex items-center justify-between text-xs mb-3">
                                       <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
                                       <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
@@ -1726,11 +1728,17 @@ export default function GlobalNewsApp() {
 
                                       <button
                                         type="button"
-                                        onClick={() => translations[archiveItemKey] ? setTranslations(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : translateNews(article, archiveItemKey)}
-                                        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                                        onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)}
+                                        className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
                                       >
-                                        {translations[archiveItemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                                       </button>
+                                      {summaries[archiveItemKey] && (
+                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                                          <p>{summaries[archiveItemKey]}</p>
+                                        </div>
+                                      )}
 
                                       <button
                                         type="button"
@@ -1907,10 +1915,10 @@ export default function GlobalNewsApp() {
                           </button>
                         </div>
                         <h3 className="text-lg font-bold text-gray-800 mb-2 pr-12">
-                          {translations[itemKey] ? translations[itemKey].title : item.title}
+                          {item.title}
                         </h3>
                         <p className="text-gray-600 mb-3 text-sm">
-                          {translations[itemKey] ? translations[itemKey].summary : item.summary}
+                          {item.summary}
                         </p>
                         <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
                           <span>{item.source}</span>
@@ -1923,11 +1931,17 @@ export default function GlobalNewsApp() {
                         </a>
 
                         <button
-                          onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
-                          className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${translations[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
+                          onClick={() => summaries[itemKey] ? setSummaries(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : summarizeNews(item, itemKey)}
+                          className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${summaries[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
                         >
-                          {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                          {summaries[itemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                         </button>
+                        {summaries[itemKey] && (
+                          <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                            <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                            <p>{summaries[itemKey]}</p>
+                          </div>
+                        )}
 
                         <button
                           onClick={() => analyzeNews(item, itemKey)}
@@ -2008,10 +2022,10 @@ export default function GlobalNewsApp() {
                             </button>
                           </div>
                           <h3 className="text-lg font-bold text-gray-800 mb-2 pr-12">
-                            {translations[itemKey] ? translations[itemKey].title : item.title}
+                            {item.title}
                           </h3>
                           <p className="text-gray-600 mb-3 text-sm">
-                            {translations[itemKey] ? translations[itemKey].summary : item.summary}
+                            {item.summary}
                           </p>
                           <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
                             <span>{item.source}</span>
@@ -2024,11 +2038,17 @@ export default function GlobalNewsApp() {
                           </a>
 
                           <button
-                            onClick={() => translations[itemKey] ? setTranslations(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : translateNews(item, itemKey)}
-                            className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${translations[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
+                            onClick={() => summaries[itemKey] ? setSummaries(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : summarizeNews(item, itemKey)}
+                            className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${summaries[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
                           >
-                            {translations[itemKey] ? '📄 원문 보기' : '🌐 한글로 번역'}
+                            {summaries[itemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
                           </button>
+                          {summaries[itemKey] && (
+                            <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
+                              <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
+                              <p>{summaries[itemKey]}</p>
+                            </div>
+                          )}
 
                           <button
                             onClick={() => analyzeNews(item, itemKey)}

@@ -24,8 +24,10 @@ export default async function handler(req, res) {
     return handleTranslate(req, res);
   } else if (action === 'ai-summary') {
     return handleAiSummary(req, res);
+  } else if (action === 'summarize') {
+    return handleSummarize(req, res);
   } else {
-    return res.status(400).json({ error: 'Invalid action. Use ?action=chat, ?action=translate, or ?action=ai-summary' });
+    return res.status(400).json({ error: 'Invalid action. Use ?action=chat, ?action=translate, ?action=ai-summary, or ?action=summarize' });
   }
 }
 
@@ -479,5 +481,53 @@ async function handleTranslate(req, res) {
       success: false,
       error: error.message
     });
+  }
+}
+
+// ==================== SUMMARIZE ====================
+async function handleSummarize(req, res) {
+  try {
+    const { title, summary } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
+    }
+
+    const prompt = `다음 영어 뉴스 기사의 핵심 내용을 한국어로 3~5문장으로 간결하게 요약해주세요. 번역이 아닌 요약이며, 독자가 기사의 핵심을 빠르게 파악할 수 있도록 작성하세요.
+
+제목: ${title}
+내용: ${summary || '(내용 없음)'}
+
+요약문만 출력하고 다른 설명은 붙이지 마세요.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 512,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: 'Claude API error', details: err });
+    }
+
+    const data = await response.json();
+    return res.status(200).json({ success: true, summary: data.content[0].text.trim() });
+
+  } catch (error) {
+    console.error('Error in summarize endpoint:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
