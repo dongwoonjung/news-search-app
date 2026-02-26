@@ -22,8 +22,10 @@ export default async function handler(req, res) {
     return handleChat(req, res);
   } else if (action === 'translate') {
     return handleTranslate(req, res);
+  } else if (action === 'ai-summary') {
+    return handleAiSummary(req, res);
   } else {
-    return res.status(400).json({ error: 'Invalid action. Use ?action=chat or ?action=translate' });
+    return res.status(400).json({ error: 'Invalid action. Use ?action=chat, ?action=translate, or ?action=ai-summary' });
   }
 }
 
@@ -203,6 +205,134 @@ async function handleChat(req, res) {
       success: false,
       error: error.message
     });
+  }
+}
+
+// ==================== AI SUMMARY ====================
+async function handleAiSummary(req, res) {
+  try {
+    const { source } = req.body;
+
+    if (!source) {
+      return res.status(400).json({ error: 'Source content is required' });
+    }
+
+    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+
+    if (!OPENAI_API_KEY) {
+      return res.status(500).json({ error: 'OpenAI API key not configured', fallback: true });
+    }
+
+    const isUrl = source.trim().startsWith('http://') || source.trim().startsWith('https://');
+    let contentToSummarize = source;
+
+    if (isUrl) {
+      const urlLower = source.trim().toLowerCase();
+      if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
+        return res.status(400).json({ error: 'X(트위터) 링크는 직접 크롤링이 불가능합니다. 트윗 내용을 복사해서 직접 입력해주세요.' });
+      }
+
+      let finalUrl = source.trim();
+
+      if (finalUrl.includes('msn.com')) {
+        if (!TAVILY_API_KEY) return res.status(400).json({ error: 'MSN 링크에서 기사 내용을 가져오려면 Tavily API가 필요합니다.' });
+        try {
+          const msnResponse = await fetch(finalUrl, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0' } });
+          if (msnResponse.ok) {
+            const msnHtml = await msnResponse.text();
+            const originalUrlMatch = msnHtml.match(/property="og:url"\s+content="([^"]+)"/) ||
+              msnHtml.match(/content="([^"]+)"\s+property="og:url"/) ||
+              msnHtml.match(/<link[^>]+rel="canonical"[^>]+href="([^"]+)"/) ||
+              msnHtml.match(/data-original-url="([^"]+)"/);
+            if (originalUrlMatch?.[1] && !originalUrlMatch[1].includes('msn.com')) finalUrl = originalUrlMatch[1];
+          }
+          const extractResp = await fetch('https://api.tavily.com/extract', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: TAVILY_API_KEY, urls: [finalUrl] })
+          });
+          if (extractResp.ok) {
+            const data = await extractResp.json();
+            const extracted = data.results?.[0]?.raw_content || data.results?.[0]?.content;
+            if (extracted && !extracted.toLowerCase().includes('enable javascript') && extracted.length > 300) {
+              contentToSummarize = extracted.substring(0, 100000);
+            } else throw new Error('Invalid MSN content');
+          } else throw new Error('Tavily extract failed for MSN');
+        } catch {
+          return res.status(400).json({ error: 'MSN 링크에서 기사 내용을 가져올 수 없습니다. 원문 사이트 URL을 직접 입력해주세요.' });
+        }
+      } else if (finalUrl.includes('news.google.com')) {
+        if (!TAVILY_API_KEY) return res.status(400).json({ error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 원문 URL을 입력해주세요.' });
+        try {
+          const gnewsResp = await fetch('https://api.tavily.com/extract', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: TAVILY_API_KEY, urls: [finalUrl] })
+          });
+          if (gnewsResp.ok) {
+            const data = await gnewsResp.json();
+            const extracted = data.results?.[0]?.raw_content || data.results?.[0]?.content;
+            if (extracted && !extracted.toLowerCase().includes('javascript') && extracted.length > 500) {
+              contentToSummarize = extracted.substring(0, 100000);
+            } else return res.status(400).json({ error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 원문 URL을 입력해주세요.' });
+          } else return res.status(400).json({ error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 원문 URL을 입력해주세요.' });
+        } catch {
+          return res.status(400).json({ error: 'Google News 링크에서 기사 내용을 가져올 수 없습니다. 원문 URL을 입력해주세요.' });
+        }
+      } else {
+        try {
+          if (!TAVILY_API_KEY) throw new Error('No Tavily key');
+          const tavilyResp = await fetch('https://api.tavily.com/extract', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: TAVILY_API_KEY, urls: [finalUrl] })
+          });
+          if (!tavilyResp.ok) throw new Error('Tavily failed');
+          const tavilyData = await tavilyResp.json();
+          if (tavilyData.results?.[0]) {
+            contentToSummarize = (tavilyData.results[0].raw_content || tavilyData.results[0].content).substring(0, 100000);
+          } else throw new Error('No content');
+        } catch {
+          try {
+            const webResp = await fetch(finalUrl, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0' } });
+            const html = await webResp.text();
+            contentToSummarize = html
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+              .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+              .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+              .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 50000);
+          } catch {
+            return res.status(400).json({ error: '링크에서 내용을 가져올 수 없습니다. URL이 올바른지 확인하거나 직접 텍스트를 입력해주세요.' });
+          }
+        }
+      }
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: '당신은 전문 뉴스 분석가입니다. 주어진 기사의 전체 내용을 빠짐없이 분석하여 포괄적이고 상세하게 요약하세요. 5-8개 문단으로 상세하게 구조화하여 작성하고, 한국어로 답변하세요.' },
+          { role: 'user', content: `다음 뉴스 기사의 전체 내용을 상세하게 요약해주세요:\n\n${contentToSummarize}` }
+        ],
+        max_tokens: 2500,
+        temperature: 0.5
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      return res.status(response.status).json({ error: 'Failed to generate summary', details: errorData });
+    }
+
+    const data = await response.json();
+    return res.status(200).json({ success: true, summary: data.choices[0].message.content });
+
+  } catch (error) {
+    console.error('Error in AI summary:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
 

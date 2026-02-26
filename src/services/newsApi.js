@@ -19,11 +19,7 @@ export const newsApi = {
   // 카테고리별 뉴스 검색 (NewsAPI + Google News 통합)
   searchByCategory: async (category, timeRange = 'day') => {
     try {
-      // 개발 환경에서도 Vercel 배포된 API 사용 (NewsAPI는 localhost를 지원하지 않음)
-      const isDev = import.meta.env.DEV;
-
-      // 로컬 개발 시 배포된 Vercel URL 사용
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       const targetCount = timeRange === 'day' ? 10 : 10;
 

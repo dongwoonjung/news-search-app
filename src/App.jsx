@@ -18,6 +18,7 @@ export default function GlobalNewsApp() {
   const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', 'issue', 'keywords', or 'reports'
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
+  const [expandedReport, setExpandedReport] = useState(null);
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
   const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
@@ -63,8 +64,7 @@ export default function GlobalNewsApp() {
   // Supabase에서 아카이브된 기사 로드
   const loadArchivedArticles = async () => {
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       const response = await fetch(`${apiBaseUrl}/api/archives`, {
         cache: 'no-cache',
@@ -94,8 +94,7 @@ export default function GlobalNewsApp() {
   const loadReports = async () => {
     setReportsLoading(true);
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       const response = await fetch(`${apiBaseUrl}/api/reports`, {
         cache: 'no-cache',
@@ -121,8 +120,7 @@ export default function GlobalNewsApp() {
     if (!window.confirm('이 리포트를 삭제하시겠습니까?')) return;
 
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       const response = await fetch(`${apiBaseUrl}/api/reports?id=${reportId}`, {
         method: 'DELETE'
@@ -142,8 +140,7 @@ export default function GlobalNewsApp() {
   // 자동차 카테고리 기사의 companyId 자동 매핑 실행
   const autoMapCompanyIds = async () => {
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       console.log('🔄 Starting auto-mapping of company IDs...');
 
@@ -185,8 +182,7 @@ export default function GlobalNewsApp() {
       const allCompanyArticles = {};
 
       // 개발 환경에서도 배포된 Vercel URL 사용
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       // 1. 각 자동차 회사별로 뉴스 가져오기 (NewsAPI + Google News 통합)
       for (const company of autoCompanies) {
@@ -482,8 +478,7 @@ export default function GlobalNewsApp() {
 
   const translateNews = async (item, idx) => {
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       // 아카이브된 기사는 description, 일반 기사는 summary 사용
       const summaryText = item.summary || item.description || '';
@@ -691,8 +686,7 @@ export default function GlobalNewsApp() {
   // Supabase API에 아카이브 저장
   const saveToArchive = async (articlesToArchive) => {
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       const response = await fetch(`${apiBaseUrl}/api/archives`, {
         method: 'POST',
@@ -727,8 +721,7 @@ export default function GlobalNewsApp() {
 
   const removeFromArchive = async (articleKey) => {
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       const response = await fetch(`${apiBaseUrl}/api/archives?articleKey=${encodeURIComponent(articleKey)}`, {
         method: 'DELETE',
@@ -768,8 +761,7 @@ export default function GlobalNewsApp() {
     setChatLoading(true);
 
     try {
-      const isDev = import.meta.env.DEV;
-      const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
       // 현재 표시된 뉴스 기사들을 컨텍스트로 전달
       let context = '';
@@ -898,56 +890,67 @@ export default function GlobalNewsApp() {
               </div>
             ) : (
               <div className="space-y-4">
-                {reports.map((report) => (
-                  <div key={report.id} className="border rounded-xl p-4 hover:bg-gray-50 transition">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-800 text-lg mb-1">{report.title}</h3>
-                        <div className="flex items-center gap-3 text-sm text-gray-500">
-                          {report.category && (
-                            <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
-                              {categoryNames[report.category] || report.category}
+                {reports.map((report) => {
+                  const isExpanded = expandedReport === report.id;
+                  return (
+                    <div key={report.id} className="border rounded-xl p-4 bg-white transition">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-800 text-lg mb-1">{report.title}</h3>
+                          <div className="flex items-center gap-3 text-sm text-gray-500">
+                            {report.category && (
+                              <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+                                {categoryNames[report.category] || report.category}
+                              </span>
+                            )}
+                            <span>
+                              {new Date(report.createdAt).toLocaleDateString('ko-KR', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
                             </span>
-                          )}
-                          <span>
-                            {new Date(report.createdAt).toLocaleDateString('ko-KR', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
+                          </div>
                         </div>
-                        {report.content && (
-                          <p className="text-gray-600 text-sm mt-2 line-clamp-3">
-                            {report.content.substring(0, 200)}...
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        {report.fileUrl && (
+                        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                          <button
+                            onClick={() => setExpandedReport(isExpanded ? null : report.id)}
+                            className="bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-600"
+                          >
+                            {isExpanded ? '접기' : '전체 보기'}
+                          </button>
                           <a
-                            href={report.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-green-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-600 flex items-center gap-1"
+                            href={`https://newsapp-sable-two.vercel.app/api/reports?action=download&id=${report.id}`}
+                            download
+                            className="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600 flex items-center gap-1"
                           >
                             <ExternalLink className="w-4 h-4" />
-                            다운로드
+                            Word 다운로드
                           </a>
-                        )}
-                        <button
-                          onClick={() => deleteReport(report.id)}
-                          className="text-red-500 hover:text-red-700 p-2"
-                          title="삭제"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
+                          <button
+                            onClick={() => deleteReport(report.id)}
+                            className="text-red-500 hover:text-red-700 p-2"
+                            title="삭제"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
                       </div>
+                      {!isExpanded && report.content && (
+                        <p className="text-gray-600 text-sm mt-2 line-clamp-3">
+                          {report.content.substring(0, 200)}...
+                        </p>
+                      )}
+                      {isExpanded && report.content && (
+                        <pre className="text-gray-700 text-sm mt-4 whitespace-pre-wrap font-sans leading-relaxed border-t pt-4">
+                          {report.content}
+                        </pre>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1147,151 +1150,6 @@ export default function GlobalNewsApp() {
                   {translations[idx] ? '📄 원문 보기' : '🌐 한글로 번역'}
                 </button>
 
-                <button
-                  onClick={() => analyzeNews(item, idx)}
-                  disabled={analyzingId === idx}
-                  className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
-                >
-                  {analyzingId === idx ? '⏳ 분석 중...' : analysis[idx] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                </button>
-
-                {analysis[idx] && (
-                  <div className="mt-4 border-t pt-4">
-                    <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <span className="text-green-600">🚗</span>
-                      현대자동차 전략 분석 리포트
-                    </h4>
-
-                    {analysis[idx].summary && (
-                      <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                        <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                        <p className="text-gray-700">{analysis[idx].summary}</p>
-                      </div>
-                    )}
-
-                    {analysis[idx].marketImpact && (
-                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                        <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                        <p className="text-gray-700">{analysis[idx].marketImpact}</p>
-                      </div>
-                    )}
-
-                    {analysis[idx].opportunities && analysis[idx].opportunities.length > 0 && (
-                      <div className="mb-3">
-                        <h5 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1">
-                          📈 전략적 기회 요인
-                        </h5>
-                        <div className="space-y-2">
-                          {analysis[idx].opportunities.map((opp, i) => (
-                            <div key={`analysis-${idx}-opp-${i}`} className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex-1">
-                                  <span className="inline-block px-2 py-0.5 bg-green-600 text-white rounded text-xs font-semibold mb-1">
-                                    {opp.category}
-                                  </span>
-                                  <p className="font-semibold text-gray-800">{opp.point}</p>
-                                </div>
-                                <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-                                  opp.impact === 'high' ? 'bg-green-200 text-green-800' :
-                                  opp.impact === 'medium' ? 'bg-yellow-200 text-yellow-800' :
-                                  'bg-blue-200 text-blue-800'
-                                }`}>
-                                  영향도: {opp.impact === 'high' ? '높음' : opp.impact === 'medium' ? '중간' : '낮음'}
-                                </span>
-                              </div>
-                              {opp.details && opp.details.length > 0 && (
-                                <div className="mb-2">
-                                  <p className="text-xs font-semibold text-gray-600 mb-1">세부 내용:</p>
-                                  <ul className="text-xs text-gray-700 space-y-0.5 ml-3">
-                                    {opp.details.map((detail, j) => (
-                                      <li key={j} className="list-disc">{detail}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              <div className="flex items-center justify-between text-xs text-gray-600 mt-2 pt-2 border-t border-green-200">
-                                <span>⏱️ {opp.timeframe}</span>
-                                <span className="text-green-700 font-medium">💡 {opp.expectedBenefit}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis[idx].risks && analysis[idx].risks.length > 0 && (
-                      <div className="mb-3">
-                        <h5 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
-                          ⚠️ 주요 리스크 요인
-                        </h5>
-                        <div className="space-y-2">
-                          {analysis[idx].risks.map((risk, i) => (
-                            <div key={`analysis-${idx}-risk-${i}`} className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div className="flex-1">
-                                  <span className="inline-block px-2 py-0.5 bg-red-600 text-white rounded text-xs font-semibold mb-1">
-                                    {risk.category}
-                                  </span>
-                                  <p className="font-semibold text-gray-800">{risk.point}</p>
-                                </div>
-                                <span className={`px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-                                  risk.severity === 'high' ? 'bg-red-200 text-red-800' :
-                                  risk.severity === 'medium' ? 'bg-orange-200 text-orange-800' :
-                                  'bg-yellow-200 text-yellow-800'
-                                }`}>
-                                  심각도: {risk.severity === 'high' ? '높음' : risk.severity === 'medium' ? '중간' : '낮음'}
-                                </span>
-                              </div>
-                              {risk.details && risk.details.length > 0 && (
-                                <div className="mb-2">
-                                  <p className="text-xs font-semibold text-gray-600 mb-1">세부 내용:</p>
-                                  <ul className="text-xs text-gray-700 space-y-0.5 ml-3">
-                                    {risk.details.map((detail, j) => (
-                                      <li key={j} className="list-disc">{detail}</li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              <div className="bg-red-100 rounded p-2 mt-2">
-                                <p className="text-xs font-semibold text-red-800 mb-1">🛡️ 대응 방안:</p>
-                                <p className="text-xs text-gray-700">{risk.mitigationPlan}</p>
-                              </div>
-                              <div className="text-xs text-gray-600 mt-2">
-                                <span>⏱️ 대응 시점: {risk.timeframe}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {analysis[idx].strategicImplications && analysis[idx].strategicImplications.length > 0 && (
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3 text-sm">
-                        <p className="font-semibold text-purple-800 mb-2 flex items-center gap-1">
-                          🎯 전략적 시사점
-                        </p>
-                        <ul className="space-y-1 ml-3">
-                          {analysis[idx].strategicImplications.map((impl, i) => (
-                            <li key={i} className="text-gray-700 text-xs list-disc">{impl}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {analysis[idx].actionItems && analysis[idx].actionItems.length > 0 && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
-                        <p className="font-semibold text-amber-800 mb-2 flex items-center gap-1">
-                          ✅ 실행 과제
-                        </p>
-                        <ul className="space-y-1 ml-3">
-                          {analysis[idx].actionItems.map((action, i) => (
-                            <li key={i} className="text-gray-700 text-xs list-disc">{action}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
               );
             })}

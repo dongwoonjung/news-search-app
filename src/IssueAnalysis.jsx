@@ -493,7 +493,7 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
 
     setIsGeneratingSummary(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/ai-summary`, {
+      const response = await fetch(`${apiBaseUrl}/api/utils?action=ai-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

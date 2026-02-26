@@ -25,6 +25,67 @@ export default async function handler(req, res) {
   );
 
   try {
+    // GET ?action=download&id=xxx - Word 파일 다운로드
+    if (req.method === 'GET' && req.query.action === 'download') {
+      const { id } = req.query;
+      if (!id) return res.status(400).json({ success: false, error: 'Report ID is required' });
+
+      const { data: report, error } = await supabase
+        .from('reports')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error || !report) return res.status(404).json({ success: false, error: 'Report not found' });
+
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+
+      const now = new Date(report.created_at);
+      const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace('.', '');
+      const filename = `news_briefing_${dateStr}.docx`;
+
+      const lines = report.content.split('\n');
+      const children = [
+        new Paragraph({
+          text: report.title,
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: `생성일: ${now.toLocaleDateString('ko-KR')} ${now.toLocaleTimeString('ko-KR')}`, italics: true, size: 20 })],
+          alignment: AlignmentType.RIGHT,
+          spacing: { after: 400 },
+        }),
+        new Paragraph({ text: '─'.repeat(50), spacing: { after: 400 } }),
+      ];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) { children.push(new Paragraph({ text: '', spacing: { after: 100 } })); continue; }
+        if (trimmed.startsWith('# ')) {
+          children.push(new Paragraph({ text: trimmed.slice(2), heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }));
+        } else if (trimmed.startsWith('## ')) {
+          children.push(new Paragraph({ text: trimmed.slice(3), heading: HeadingLevel.HEADING_2, spacing: { after: 200 } }));
+        } else if (trimmed.startsWith('### ')) {
+          children.push(new Paragraph({ text: trimmed.slice(4), heading: HeadingLevel.HEADING_3, spacing: { after: 150 } }));
+        } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+          children.push(new Paragraph({ text: trimmed.slice(2).replace(/\*\*/g, ''), bullet: { level: 0 }, spacing: { after: 100 } }));
+        } else {
+          const parts = trimmed.split(/\*\*([^*]+)\*\*/g);
+          const runs = parts.map((part, i) => new TextRun({ text: part, bold: i % 2 === 1 }));
+          children.push(new Paragraph({ children: runs, spacing: { after: 150 } }));
+        }
+      }
+
+      const doc = new Document({ sections: [{ properties: {}, children }] });
+      const buffer = await Packer.toBuffer(doc);
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      return res.status(200).send(buffer);
+    }
+
     // GET - 리포트 목록 조회
     if (req.method === 'GET') {
       const { data, error } = await supabase
