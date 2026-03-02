@@ -65,11 +65,12 @@ async function fetchCompanyNews(company) {
   }
 }
 
-function formatArticles(articles, limit = 8) {
+function formatArticles(articles, limit = 6) {
   return articles.slice(0, limit).map((a, i) => {
     const source = a.source?.name || a.sourceName || '';
-    const desc = (a.description || a.summary || '').slice(0, 120);
-    return `${i + 1}. [${a.title}]${source ? ` (${source})` : ''}${desc ? ` — ${desc}` : ''}`;
+    const desc = (a.description || a.summary || '').slice(0, 80);
+    const url = a.url || '';
+    return `${i + 1}. [${a.title}]${source ? ` (${source})` : ''}${desc ? ` — ${desc}` : ''}${url ? `\n   URL: ${url}` : ''}`;
   }).join('\n');
 }
 
@@ -89,7 +90,11 @@ ${companyContext}
 
 ## 1. 무역 주요 뉴스
 [수집된 무역 뉴스 중 중요한 것 5~7개를 ① ② ③ 형식으로 작성]
-[각 항목: 3~4문장 분석 + 출처 표기 + 해당시 ▶ 현대차 시사점]
+[각 항목 형식 — 아래 구조를 반드시 준수:
+  3~4문장 기사 분석. (출처명) [원문링크](URL)
+
+  -> 현대차는 [시사점. 현대차와 무관하면 생략]
+]
 
 [섹션 말미 필수 표]
 무역 리스크 요약
@@ -99,7 +104,11 @@ ${companyContext}
 
 ## 2. 지정학 주요 뉴스
 [수집된 지정학 뉴스 중 중요한 것 5~7개를 ① ② ③ 형식으로 작성]
-[각 항목: 3~4문장 분석 + 출처 표기 + 해당시 ▶ 현대차 시사점]
+[각 항목 형식 — 아래 구조를 반드시 준수:
+  3~4문장 기사 분석. (출처명) [원문링크](URL)
+
+  -> 현대차는 [시사점. 현대차와 무관하면 생략]
+]
 
 [섹션 말미 필수 표]
 지정학 리스크 요약
@@ -111,7 +120,7 @@ ${companyContext}
 
 ### 3-1. 산업 전반 트렌드
 [전기차, 하이브리드, 배터리, 정책, 가격 경쟁 등 업계 트렌드 4~5개를 ① ② ③ 형식으로 작성]
-[각 항목 끝에 출처 표기]
+[각 항목: 3~4문장 분석. (출처명) [원문링크](URL)]
 
 ### 3-2. OEM별 핵심 뉴스
 [수집된 회사별 뉴스를 아래 형식의 마크다운 표로 정리. 뉴스가 있는 회사만 포함]
@@ -178,7 +187,7 @@ async function handleFetch(res) {
       const articles = newsData[cat];
       if (articles.length === 0) continue;
       newsContext += `\n\n## [${CATEGORY_NAMES[cat]}] (${articles.length}개 기사)\n`;
-      newsContext += formatArticles(articles, 8);
+      newsContext += formatArticles(articles, 6);
     }
 
     let companyContext = '\n\n## [자동차 OEM 회사별 동향]\n';
@@ -186,7 +195,7 @@ async function handleFetch(res) {
       const articles = companyNews[company.id];
       if (articles.length === 0) continue;
       companyContext += `\n### ${company.name}\n`;
-      companyContext += formatArticles(articles, 4);
+      companyContext += formatArticles(articles, 3);
     }
 
     console.log('💾 뉴스 캐시 저장 중...');
@@ -240,20 +249,26 @@ async function handleGenerate(res) {
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 5000,
+      max_tokens: 4500,
       system: `당신은 현대자동차 비즈니스 리스크 관리팀 전담 글로벌 시장 인텔리전스 애널리스트입니다. 수집된 뉴스를 현대차·기아 비즈니스 관점에서 분석해 경영진이 즉시 활용할 수 있는 브리핑을 작성합니다.
 
 [필수 형식 규칙 — 반드시 준수]
-① 출처 표기: 각 뉴스 항목 서술 끝에 반드시 (출처명) 형식으로 명시. 복수 출처는 (출처1 / 출처2) 형식
-② 현대차 시사점: 현대차·기아에 직접 영향이 있는 이슈 아래 반드시 "▶ 현대차 시사점:" 항목 추가
-③ 리스크 요약 표: 무역 섹션과 지정학 섹션 말미에 각각 마크다운 표 필수 작성
+① 각 뉴스 항목의 구조는 다음 순서를 반드시 지킬 것:
+   [기사 분석 3~4문장] (출처명) [원문링크](URL)
+   (빈 줄)
+   -> 현대차는 [시사점 1~2문장]
+   ※ 출처와 원문링크는 기사 분석 바로 뒤, 현대차 시사점보다 반드시 먼저 표기
+   ※ 현대차와 무관한 이슈는 시사점 줄 생략 가능
+② 출처 표기: (출처명) 형식. 복수 출처는 (출처1 / 출처2)
+③ 원문링크: URL이 제공된 경우 출처 바로 뒤에 [원문링크](URL) 형식으로 반드시 삽입. URL이 없으면 생략
+④ 현대차 시사점: "-> 현대차는"으로 시작하는 완전한 문장 1~2개. 반드시 빈 줄로 기사 본문과 분리
+⑤ 리스크 요약 표: 무역·지정학 섹션 말미에 필수
    - 형식: | 이슈 | 리스크 수준 | 영향 분야 |
    - 리스크 수준: 🔴 높음 / 🟠 중간 / 🟡 주시
-④ OEM 뉴스 표: 3-2 섹션에서 회사별로 마크다운 표 필수 작성
-   - 형식: | 이슈 | 내용 |
-⑤ 항목 번호: ① ② ③ ④ ⑤ 형식 사용
-⑥ 수치·날짜·기업명·인물명 반드시 포함
-⑦ 단순 사실 나열 금지 — "왜 중요한가", "무엇을 의미하는가" 위주로 서술`,
+⑥ OEM 뉴스 표: 3-2 섹션에서 회사별 마크다운 표 필수. 형식: | 이슈 | 내용 |
+⑦ 항목 번호: ① ② ③ ④ ⑤ 형식 사용
+⑧ 수치·날짜·기업명·인물명 반드시 포함
+⑨ 단순 사실 나열 금지 — "왜 중요한가", "무엇을 의미하는가" 위주로 서술`,
       messages: [{
         role: 'user',
         content: buildPrompt(today, newsContext, companyContext),
