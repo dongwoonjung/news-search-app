@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Globe, TrendingUp, RefreshCw, Calendar, ExternalLink, Clock, MessageCircle, Send, X, BookOpen, Key } from 'lucide-react';
+import { RefreshCw, ExternalLink, MessageCircle, Send, X } from 'lucide-react';
 import { newsApi, analyzeForHyundai } from './services/newsApi';
 import IssueAnalysis from './IssueAnalysis';
 import KeywordManager from './KeywordManager';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import './App.css';
 
 export default function GlobalNewsApp() {
@@ -15,50 +17,85 @@ export default function GlobalNewsApp() {
   const [summaries, setSummaries] = useState({});
   const [analysis, setAnalysis] = useState({});
   const [analyzingId, setAnalyzingId] = useState(null);
-  const [viewMode, setViewMode] = useState('general'); // 'general', 'automotive', 'archive', 'issue', 'keywords', or 'reports'
+  const [viewMode, setViewMode] = useState('home'); // 'home', 'general', 'automotive', 'archive', 'issue', 'keywords', 'reports', 'custom-reports'
   const [reports, setReports] = useState([]);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [expandedReport, setExpandedReport] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [generateStatus, setGenerateStatus] = useState('');
+  const [customReports, setCustomReports] = useState([]);
+  const [customReportsLoading, setCustomReportsLoading] = useState(false);
+  const [expandedCustomReport, setExpandedCustomReport] = useState(null);
+  const [generatingCustomReport, setGeneratingCustomReport] = useState(false);
+  const [customGenerateStatus, setCustomGenerateStatus] = useState('');
   const [autoNewsData, setAutoNewsData] = useState({});
   const [selectedArticles, setSelectedArticles] = useState(new Set());
-  const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 선택된 기사의 전체 데이터 저장
+  const [selectedArticlesData, setSelectedArticlesData] = useState({}); // 아카이브용 선택 기사
+  const [reportSelectedArticles, setReportSelectedArticles] = useState(new Set());
+  const [reportSelectedArticlesData, setReportSelectedArticlesData] = useState({}); // 리포트용 선택 기사
   const [archivedArticles, setArchivedArticles] = useState([]);
   const [activeCategoryTab, setActiveCategoryTab] = useState('all'); // 아카이브 카테고리 탭
   const [activeCompanyTab, setActiveCompanyTab] = useState('all');
+  const [activeGroupTab, setActiveGroupTab] = useState(null); // 'us' | 'europe' | 'china'
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [issueArticleData, setIssueArticleData] = useState(null); // 이슈 분석에 전달할 기사 데이터
+  const [translations, setTranslations] = useState({}); // 한국어 번역 캐시 { idx: { title, summary } }
 
   const categories = [
-    { id: 'geopolitics', name: '지정학', icon: Globe },
-    { id: 'economy', name: '미국 경제', icon: TrendingUp },
-    { id: 'automotive', name: '자동차', icon: Newspaper },
-    { id: 'ai-tech', name: 'AI/자율주행', icon: TrendingUp },
-    { id: 'trade', name: '무역', icon: Globe },
+    { id: 'geopolitics', name: '지정학', emoji: '🌍' },
+    { id: 'economy', name: '미국경제', emoji: '📈' },
+    { id: 'automotive-general', name: '자동차', emoji: '🚗' },
+    { id: 'ai-tech', name: 'AI/자율주행', emoji: '🤖' },
+    { id: 'trade', name: '무역', emoji: '🔄' },
+    { id: 'competitor', name: '경쟁사', emoji: '🏁' },
+  ];
+
+  const handleCategoryClick = (cat) => {
+    if (cat.id === 'competitor') {
+      setViewMode('automotive');
+      setAutoNewsData({});
+      setActiveGroupTab(null);
+      setActiveCompanyTab('all');
+    } else {
+      const apiCatId = cat.id === 'automotive-general' ? 'automotive' : cat.id;
+      setCategory(apiCatId);
+      setViewMode('general');
+      loadNews(apiCatId, timeRange);
+    }
+  };
+
+  const handleTimeRange = (range) => {
+    setTimeRange(range);
+    if (viewMode === 'general') loadNews(category, range);
+    else if (viewMode === 'automotive' && activeGroupTab) loadAutomotiveNews(activeGroupTab, range);
+  };
+
+  const autoCompanyGroups = [
+    { id: 'us',     label: '🇺🇸 미국' },
+    { id: 'europe', label: '🇪🇺 유럽/일본' },
+    { id: 'china',  label: '🇨🇳 중국 OEM' },
   ];
 
   const autoCompanies = [
-    { id: 'hyundai', name: '현대자동차', keywords: '"Hyundai Motor" OR "Hyundai Motors" OR "Hyundai EV"', koreanKeywords: '현대자동차 전기차 아이오닉' },
-    { id: 'kia', name: '기아', keywords: '"Kia Motors" OR "Kia Corp" OR "Kia Corporation" OR "Kia EV"', koreanKeywords: '기아 전기차 EV6' },
-    { id: 'toyota', name: '도요타', keywords: '"Toyota Motor" OR "Toyota" OR "Toyota EV" OR "Toyota hybrid"', koreanKeywords: '도요타 전기차 하이브리드' },
-    { id: 'tesla', name: '테슬라', keywords: 'Tesla OR "Elon Musk" OR Cybertruck OR "Tesla Model"', koreanKeywords: '테슬라 일론머스크 사이버트럭' },
-    { id: 'ford', name: '포드', keywords: '"Ford Motor" OR "Ford F-150" OR "Ford EV" OR "Ford electric"', koreanKeywords: '포드 전기차 F-150' },
-    { id: 'gm', name: 'GM', keywords: '"General Motors" OR "GM" OR Cadillac OR "Chevrolet electric"', koreanKeywords: 'GM 제너럴모터스 캐딜락 전기차' },
-    { id: 'bmw', name: 'BMW', keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"', koreanKeywords: 'BMW 전기차 iX' },
-    { id: 'mercedes', name: '벤츠', keywords: '"Mercedes-Benz" OR Mercedes OR "Mercedes EQ" OR "Mercedes electric"', koreanKeywords: '벤츠 메르세데스 전기차 EQ' },
-    { id: 'stellantis', name: '스텔란티스', keywords: 'Stellantis OR Jeep OR Peugeot OR Fiat OR Chrysler', koreanKeywords: '스텔란티스 지프 피아트 크라이슬러' },
-    { id: 'chinese-oem', name: '중국 OEM', keywords: 'BYD OR NIO OR XPeng OR "Li Auto" OR Geely OR Chery OR "Chinese EV" OR "China electric vehicle"', koreanKeywords: 'BYD 니오 샤오펑 리오토 지리 체리 중국전기차' },
+    { id: 'tesla',    group: 'us',     name: '테슬라',    keywords: 'Tesla OR "Elon Musk" OR Cybertruck OR "Tesla Model"', koreanKeywords: '테슬라 일론머스크 사이버트럭' },
+    { id: 'ford',     group: 'us',     name: '포드',      keywords: '"Ford Motor" OR "Ford F-150" OR "Ford EV" OR "Ford electric"', koreanKeywords: '포드 전기차 F-150' },
+    { id: 'gm',       group: 'us',     name: 'GM',        keywords: '"General Motors" OR "GM" OR Cadillac OR "Chevrolet electric"', koreanKeywords: 'GM 제너럴모터스 캐딜락 전기차' },
+    { id: 'toyota',   group: 'europe', name: '도요타',    keywords: '"Toyota Motor" OR "Toyota" OR "Toyota EV" OR "Toyota hybrid"', koreanKeywords: '도요타 전기차 하이브리드' },
+    { id: 'bmw',      group: 'europe', name: 'BMW',       keywords: 'BMW OR "BMW electric" OR "BMW EV" OR "BMW iX"', koreanKeywords: 'BMW 전기차 iX' },
+    { id: 'mercedes', group: 'europe', name: '벤츠',      keywords: '"Mercedes-Benz" OR Mercedes OR "Mercedes EQ" OR "Mercedes electric"', koreanKeywords: '벤츠 메르세데스 전기차 EQ' },
+    { id: 'vw',       group: 'europe', name: '폭스바겐',  keywords: 'Volkswagen OR "VW" OR "ID.4" OR "ID.3" OR "VW electric"', koreanKeywords: '폭스바겐 VW 전기차 ID4' },
+    { id: 'byd',      group: 'china',  name: 'BYD',       keywords: 'BYD OR "BYD Han" OR "BYD Seal" OR "BYD Atto" OR "BYD electric"', koreanKeywords: 'BYD 비야디 전기차' },
+    { id: 'nio',      group: 'china',  name: 'NIO',       keywords: 'NIO OR "NIO electric" OR "NIO ET" OR "NIO ES"', koreanKeywords: 'NIO 니오 전기차' },
+    { id: 'xpeng',    group: 'china',  name: '샤오펑',    keywords: 'XPeng OR XPEV OR "Xpeng G9" OR "Xpeng P7" OR "Xpeng Mona"', koreanKeywords: '샤오펑 전기차 XPEV' },
+    { id: 'geely',    group: 'china',  name: '지리',      keywords: 'Geely OR "Geely Auto" OR Zeekr OR "Geely electric"', koreanKeywords: '지리자동차 Geely 지커 전기차' },
   ];
 
-  // 초기 마운트 시 뉴스 및 아카이브 로드
+  // 초기 마운트 시 아카이브 로드 (뉴스는 카테고리 클릭 시 로드)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadNews('geopolitics', 'day');
-      loadArchivedArticles(); // Vercel KV에서 아카이브된 기사 로드
-    }, 0);
-    return () => clearTimeout(timer);
+    loadArchivedArticles();
   }, []);
 
   // Supabase에서 아카이브된 기사 로드
@@ -77,6 +114,26 @@ export default function GlobalNewsApp() {
           setArchivedArticles(data.archives);
           console.log('✅ Loaded archived articles from Supabase:', data.archives.length);
 
+          // 아카이브 기사 자동 번역 + 요약
+          const apiBase = 'https://newsapp-sable-two.vercel.app';
+          data.archives.forEach(article => {
+            const key = `archive-${article.articleKey}`;
+            const titleText = article.title || '';
+            const bodyText = article.summary || article.description || '';
+            if (!titleText) return;
+            fetch(`${apiBase}/api/utils?action=translate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: titleText, summary: bodyText }),
+            })
+              .then(r => r.json())
+              .then(d => {
+                if (d.success && d.translation) setTranslations(prev => ({ ...prev, [key]: d.translation }));
+              })
+              .catch(() => {});
+            summarizeNews(article, key);
+          });
+
           // 자동차 카테고리 기사의 companyId 확인
           const automotiveArticles = data.archives.filter(a => a.category === 'automotive');
           console.log('🚗 Automotive articles:', automotiveArticles.length);
@@ -90,13 +147,58 @@ export default function GlobalNewsApp() {
     }
   };
 
+  // 리포트 자동 생성 (fetch → generate fire-and-forget)
+  // generate는 Claude 호출로 45~55초 소요 → Vercel 10초 HTTP 제한 초과
+  // fetch만 await하고, generate는 응답 없이 쏘고 70초 후 목록 자동 갱신
+  const generateReport = async () => {
+    setGeneratingReport(true);
+    const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
+    try {
+      setGenerateStatus('뉴스 수집 중...');
+      const fetchRes = await fetch(`${apiBaseUrl}/api/daily-report?action=fetch`);
+      const fetchData = await fetchRes.json();
+      if (!fetchData.success) throw new Error(fetchData.error || '뉴스 수집 실패');
+
+      setGenerateStatus(`AI 리포트 작성 중... (${fetchData.articlesCollected}개 기사 · 약 60초 소요)`);
+
+      // generate는 fire-and-forget (타임아웃 무시)
+      fetch(`${apiBaseUrl}/api/daily-report?action=generate`).catch(() => {});
+
+      // 20초마다 새 리포트 생겼는지 폴링 (최대 3회 = 60초)
+      let attempts = 0;
+      const prevCount = reports.length;
+      const poll = setInterval(async () => {
+        attempts++;
+        await loadReports();
+        setReports(prev => {
+          if (prev.length > prevCount) {
+            clearInterval(poll);
+            setGenerateStatus('✅ 리포트 생성 완료!');
+            setGeneratingReport(false);
+            setTimeout(() => setGenerateStatus(''), 4000);
+          } else if (attempts >= 4) {
+            clearInterval(poll);
+            setGenerateStatus('생성 완료 후 새로고침 버튼을 눌러주세요.');
+            setGeneratingReport(false);
+          }
+          return prev;
+        });
+      }, 20000);
+
+    } catch (error) {
+      setGenerateStatus(`오류: ${error.message}`);
+      setGeneratingReport(false);
+      setTimeout(() => setGenerateStatus(''), 15000);
+    }
+  };
+
   // Supabase에서 리포트 로드
   const loadReports = async () => {
     setReportsLoading(true);
     try {
       const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
-      const response = await fetch(`${apiBaseUrl}/api/reports`, {
+      const response = await fetch(`${apiBaseUrl}/api/reports?category=daily`, {
         cache: 'no-cache',
         headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
       });
@@ -112,6 +214,70 @@ export default function GlobalNewsApp() {
       console.error('Failed to load reports:', error);
     } finally {
       setReportsLoading(false);
+    }
+  };
+
+  // 종합요약 리포트 목록 로드
+  const loadCustomReports = async () => {
+    setCustomReportsLoading(true);
+    try {
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
+      const response = await fetch(`${apiBaseUrl}/api/reports?category=custom`, {
+        cache: 'no-cache',
+        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCustomReports(data.reports || []);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load custom reports:', error);
+    } finally {
+      setCustomReportsLoading(false);
+    }
+  };
+
+  // 선택 기사로 종합요약 리포트 생성
+  const generateCustomReport = async () => {
+    if (reportSelectedArticles.size === 0) return;
+    setGeneratingCustomReport(true);
+    setCustomGenerateStatus(`기사 ${reportSelectedArticles.size}개 분석 중...`);
+    try {
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
+      const articles = Object.values(reportSelectedArticlesData).map(d => ({
+        title: d.article.title || '',
+        url: d.article.url || '',
+        source: d.article.source?.name || d.article.source || '',
+        description: d.article.description || d.article.summary || '',
+        category: d.category || d.categoryOrCompany || '',
+      }));
+
+      const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })
+        .replace(/\. /g, '-').replace('.', '');
+      const title = `${today} 선택 기사 종합요약 (${articles.length}건)`;
+
+      const response = await fetch(`${apiBaseUrl}/api/reports?action=generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ articles, title }),
+      });
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || '리포트 생성 실패');
+
+      setCustomGenerateStatus('✅ 생성 완료!');
+      setReportSelectedArticles(new Set());
+      setReportSelectedArticlesData({});
+      await loadCustomReports();
+      setExpandedCustomReport(data.report.id);
+      setTimeout(() => setCustomGenerateStatus(''), 3000);
+    } catch (error) {
+      setCustomGenerateStatus(`오류: ${error.message}`);
+      setTimeout(() => setCustomGenerateStatus(''), 8000);
+    } finally {
+      setGeneratingCustomReport(false);
     }
   };
 
@@ -169,23 +335,25 @@ export default function GlobalNewsApp() {
     }
   };
 
-  const loadAutomotiveNews = async (range = timeRange) => {
-    console.log(`🔍 loadAutomotiveNews called with range: ${range}`);
+  const loadAutomotiveNews = async (group, range = timeRange) => {
+    const groupCompanies = autoCompanies.filter(c => c.group === group);
     setLoading(true);
     setError(null);
+    setAutoNewsData({});
     setAnalysis({});
-    setSummaries({});
+    setSummaries(prev => Object.fromEntries(Object.entries(prev).filter(([k]) => k.startsWith('archive-'))));
+    setTranslations(prev => Object.fromEntries(Object.entries(prev).filter(([k]) => k.startsWith('archive-'))));
     setAnalyzingId(null);
+    setActiveCompanyTab('all');
 
     try {
       const companiesData = {};
       const allCompanyArticles = {};
 
-      // 개발 환경에서도 배포된 Vercel URL 사용
       const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
 
-      // 1. 각 자동차 회사별로 뉴스 가져오기 (NewsAPI + Google News 통합)
-      for (const company of autoCompanies) {
+      // 그룹 내 회사별 뉴스 수집
+      for (const company of groupCompanies) {
         try {
           console.log(`📡 Fetching ${company.name} from NewsAPI, Google News & Naver News`);
 
@@ -287,86 +455,22 @@ export default function GlobalNewsApp() {
         }
       }
 
-      // 2. 중복 기사 찾기 및 공통 뉴스 분류
-      const urlCount = {};
-      const titleCount = {};
-      const commonArticles = new Set();
+      // 2. 회사 간 중복 제거 후 회사별 저장 (URL + 제목 앞 30자 기준)
+      const globalSeenUrls = new Set();
+      const globalSeenTitles = new Set();
 
-      // URL과 제목으로 중복 카운트
-      Object.values(allCompanyArticles).forEach(articles => {
-        articles.forEach(article => {
-          urlCount[article.url] = (urlCount[article.url] || 0) + 1;
-          const normalizedTitle = article.title.toLowerCase().trim();
-          titleCount[normalizedTitle] = (titleCount[normalizedTitle] || 0) + 1;
-        });
-      });
-
-      // 2개 이상의 회사에 나타나는 기사는 공통 뉴스로 분류
-      Object.values(allCompanyArticles).forEach(articles => {
-        articles.forEach(article => {
-          const normalizedTitle = article.title.toLowerCase().trim();
-          if (urlCount[article.url] >= 2 || titleCount[normalizedTitle] >= 2) {
-            commonArticles.add(article.url);
-          }
-        });
-      });
-
-      // 3. 공통 뉴스 섹션 생성 (임베딩 기반 유사도 체크로 중복 제거)
-      const candidateIndustryArticles = [];
-      const seenUrls = new Set();
-
-      // 공통 뉴스 후보 수집 (URL 기준 중복 제거)
-      Object.values(allCompanyArticles).forEach(articles => {
-        articles.forEach(article => {
-          if (commonArticles.has(article.url) && !seenUrls.has(article.url)) {
-            candidateIndustryArticles.push(article);
-            seenUrls.add(article.url);
-          }
-        });
-      });
-
-      // 임베딩 기반 중복 제거 API 호출
-      let industryArticles = candidateIndustryArticles;
-      if (candidateIndustryArticles.length > 0) {
-        try {
-          const dedupeResponse = await fetch(`${apiBaseUrl}/api/dedupe`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              articles: candidateIndustryArticles,
-              category: 'automotive'
-            })
-          });
-
-          if (dedupeResponse.ok) {
-            const dedupeResult = await dedupeResponse.json();
-            if (dedupeResult.success) {
-              industryArticles = dedupeResult.articles;
-              console.log(`🧠 Industry 뉴스 임베딩 기반 중복 제거: ${dedupeResult.removed || 0}개 제거, ${industryArticles.length}개 유지`);
-            }
-          }
-        } catch (dedupeError) {
-          console.warn('Industry 뉴스 dedupe 실패, 원본 사용:', dedupeError);
-        }
-      }
-
-      companiesData['industry'] = industryArticles.slice(0, 15);
-
-      // 4. 각 회사별 고유 뉴스만 필터링 (중복 제거)
       Object.keys(allCompanyArticles).forEach(companyId => {
         const uniqueArticles = [];
-        const companySeenUrls = new Set();
-
         allCompanyArticles[companyId].forEach(article => {
-          // 공통 뉴스가 아니고, 해당 회사에서 처음 보는 URL인 경우만 추가
-          if (!commonArticles.has(article.url) && !companySeenUrls.has(article.url)) {
+          const titleKey = article.title?.trim().slice(0, 30).toLowerCase() || '';
+          if (!globalSeenUrls.has(article.url) && !globalSeenTitles.has(titleKey)) {
+            globalSeenUrls.add(article.url);
+            if (titleKey) globalSeenTitles.add(titleKey);
             uniqueArticles.push(article);
-            companySeenUrls.add(article.url);
           }
         });
-
         if (uniqueArticles.length > 0) {
-          companiesData[companyId] = uniqueArticles.slice(0, 5);
+          companiesData[companyId] = uniqueArticles.slice(0, 4);
         }
       });
 
@@ -374,6 +478,41 @@ export default function GlobalNewsApp() {
       setViewMode('automotive');
       setLastUpdated(new Date());
       setLoading(false);
+
+      // 번역 + 요약 자동 실행 (3개씩 배치 처리 - 레이트 리밋 방지)
+      setTranslations({});
+      const allAutoItems = [];
+      Object.entries(companiesData).forEach(([companyId, articles]) => {
+        articles.forEach((item, idx) => {
+          allAutoItems.push({ item, itemKey: `${companyId}-${idx}` });
+        });
+      });
+
+      const BATCH_SIZE = 2;
+      const processBatch = async (startIdx) => {
+        if (startIdx >= allAutoItems.length) return;
+        const batch = allAutoItems.slice(startIdx, startIdx + BATCH_SIZE);
+        batch.forEach(({ item, itemKey }) => {
+          const summaryText = item.summary || '';
+          if (item.title && summaryText) {
+            fetch(`${apiBaseUrl}/api/utils?action=translate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title: item.title, summary: summaryText }),
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data.success && data.translation) {
+                  setTranslations(prev => ({ ...prev, [itemKey]: data.translation }));
+                }
+              })
+              .catch(() => {});
+          }
+        });
+        await Promise.all(batch.map(({ item, itemKey }) => summarizeNews(item, itemKey)));
+        processBatch(startIdx + BATCH_SIZE);
+      };
+      processBatch(0);
     } catch (error) {
       console.error('Error loading automotive news:', error);
       setError(error.message);
@@ -381,13 +520,35 @@ export default function GlobalNewsApp() {
     }
   };
 
+  const translateArticles = (articles) => {
+    const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
+    setTranslations({});
+    articles.forEach((item, idx) => {
+      const titleText  = item.title || '';
+      const bodyText   = item.summary || item.description || '';
+      if (!titleText) return;
+      fetch(`${apiBaseUrl}/api/utils?action=translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: titleText, summary: bodyText }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.translation) {
+            setTranslations(prev => ({ ...prev, [idx]: data.translation }));
+          }
+        })
+        .catch(() => {}); // 실패 시 영어 원문 표시
+    });
+  };
+
   const loadNews = async (cat, range) => {
     setLoading(true);
     setError(null);
     setViewMode('general');
-    // 새 뉴스 로드 시 기존 분석/번역 초기화
     setAnalysis({});
-    setSummaries({});
+    setSummaries(prev => Object.fromEntries(Object.entries(prev).filter(([k]) => k.startsWith('archive-'))));
+    setTranslations(prev => Object.fromEntries(Object.entries(prev).filter(([k]) => k.startsWith('archive-'))));
     setAnalyzingId(null);
 
     try {
@@ -396,6 +557,16 @@ export default function GlobalNewsApp() {
       if (result.success) {
         setNews(result.articles);
         setLastUpdated(new Date());
+        translateArticles(result.articles);
+        const processGeneralBatch = async (startIdx) => {
+          if (startIdx >= result.articles.length) return;
+          await Promise.all(
+            result.articles.slice(startIdx, startIdx + 2)
+              .map((item, idx) => summarizeNews(item, startIdx + idx))
+          );
+          processGeneralBatch(startIdx + 2);
+        };
+        processGeneralBatch(0);
       } else {
         setError(result.error || '뉴스를 불러오는데 실패했습니다.');
       }
@@ -407,11 +578,6 @@ export default function GlobalNewsApp() {
     }
   };
 
-  const getColor = (imp) => {
-    if (imp === 'high') return 'bg-red-100 text-red-800';
-    if (imp === 'medium') return 'bg-yellow-100 text-yellow-800';
-    return 'bg-blue-100 text-blue-800';
-  };
 
   const analyzeNews = async (item, idx) => {
     // 이미 분석 결과가 있으면 토글 (숨기기)
@@ -432,10 +598,11 @@ export default function GlobalNewsApp() {
     try {
       console.log('🔍 Calling Claude API for analysis...');
 
-      // 아카이브된 기사는 description, 일반 기사는 summary 사용
-      const summaryText = item.summary || item.description || '';
+      // 미리 생성된 상세 요약 우선 사용, 없으면 원문 description/summary
+      const summaryText = summaries[idx] || item.summary || item.description || '';
 
-      const response = await fetch('/api/analyze', {
+      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
+      const response = await fetch(`${apiBaseUrl}/api/utils?action=analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -443,7 +610,7 @@ export default function GlobalNewsApp() {
         body: JSON.stringify({
           title: item.title,
           summary: summaryText,
-          source: item.source,
+          source: typeof item.source === 'string' ? item.source : item.source?.name || '',
           date: item.date
         })
       });
@@ -477,26 +644,41 @@ export default function GlobalNewsApp() {
   };
 
   const summarizeNews = async (item, idx) => {
-    try {
-      const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
-      const summaryText = item.summary || item.description || '';
+    const apiBaseUrl = 'https://newsapp-sable-two.vercel.app';
+    const summaryText = item.summary || item.description || '';
 
-      const response = await fetch(`${apiBaseUrl}/api/utils?action=summarize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: item.title, summary: summaryText })
-      });
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/utils?action=summarize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: item.title, summary: summaryText })
+        });
 
-      const data = await response.json();
+        if (!response.ok) {
+          if ((response.status === 529 || response.status === 429 || response.status >= 500) && attempt < 3) {
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+            continue;
+          }
+          setSummaries(prev => ({ ...prev, [idx]: '요약에 실패했습니다.' }));
+          return;
+        }
 
-      if (data.success && data.summary) {
-        setSummaries(prev => ({ ...prev, [idx]: data.summary }));
-      } else {
-        setSummaries(prev => ({ ...prev, [idx]: '요약에 실패했습니다.' }));
+        const data = await response.json();
+        if (data.success && data.summary) {
+          setSummaries(prev => ({ ...prev, [idx]: data.summary }));
+        } else {
+          setSummaries(prev => ({ ...prev, [idx]: '요약에 실패했습니다.' }));
+        }
+        return;
+      } catch (error) {
+        if (attempt === 3) {
+          console.error('Error summarizing news:', error);
+          setSummaries(prev => ({ ...prev, [idx]: '요약 중 오류가 발생했습니다.' }));
+        } else {
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+        }
       }
-    } catch (error) {
-      console.error('Error summarizing news:', error);
-      setSummaries(prev => ({ ...prev, [idx]: '요약 중 오류가 발생했습니다.' }));
     }
   };
 
@@ -569,6 +751,34 @@ export default function GlobalNewsApp() {
           article: article,
           category: category,
           viewMode: 'general'
+        };
+      }
+      return newData;
+    });
+  };
+
+  // 리포트용 기사 선택 토글 (아카이브와 독립)
+  const toggleReportSelection = (articleKey, articleData, categoryOrCompany) => {
+    const isCurrentlySelected = reportSelectedArticles.has(articleKey);
+
+    setReportSelectedArticles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(articleKey)) {
+        newSet.delete(articleKey);
+      } else {
+        newSet.add(articleKey);
+      }
+      return newSet;
+    });
+
+    setReportSelectedArticlesData(prev => {
+      const newData = { ...prev };
+      if (isCurrentlySelected) {
+        delete newData[articleKey];
+      } else {
+        newData[articleKey] = {
+          article: articleData,
+          categoryOrCompany: categoryOrCompany,
         };
       }
       return newData;
@@ -808,264 +1018,141 @@ export default function GlobalNewsApp() {
     );
   }
 
-  // Reports page
-  if (viewMode === 'reports') {
-    const categoryNames = {
-      'geopolitics': '지정학',
-      'economy': '미국 경제',
-      'automotive': '자동차',
-      'ai-tech': 'AI/자율주행',
-      'trade': '무역'
-    };
-
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <span className="text-4xl">📄</span>
-                리포트
-                <span className="text-lg font-normal text-gray-500">총 {reports.length}개</span>
-              </h1>
-              <div className="flex gap-2">
-                <button
-                  onClick={loadReports}
-                  disabled={reportsLoading}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 flex items-center"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${reportsLoading ? 'animate-spin' : ''}`} />
-                  새로고침
-                </button>
-                <button
-                  onClick={() => setViewMode('general')}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
-                >
-                  ← 뉴스로 돌아가기
-                </button>
-              </div>
-            </div>
-
-            <p className="text-gray-500 text-sm mb-6">
-              Claude Desktop에서 생성한 뉴스 요약 리포트입니다. Word 파일로 다운로드할 수 있습니다.
-            </p>
-
-            {reportsLoading ? (
-              <div className="text-center py-12">
-                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-600 mb-4" />
-                <p className="text-gray-500">리포트를 불러오는 중...</p>
-              </div>
-            ) : reports.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">저장된 리포트가 없습니다.</p>
-                <p className="text-gray-400 text-sm mt-2">Claude Desktop에서 "뉴스 요약해서 리포트로 저장해줘"라고 요청해보세요.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {reports.map((report) => {
-                  const isExpanded = expandedReport === report.id;
-                  return (
-                    <div key={report.id} className="border rounded-xl p-4 bg-white transition">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-800 text-lg mb-1">{report.title}</h3>
-                          <div className="flex items-center gap-3 text-sm text-gray-500">
-                            {report.category && (
-                              <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
-                                {categoryNames[report.category] || report.category}
-                              </span>
-                            )}
-                            <span>
-                              {new Date(report.createdAt).toLocaleDateString('ko-KR', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                          <button
-                            onClick={() => setExpandedReport(isExpanded ? null : report.id)}
-                            className="bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-600"
-                          >
-                            {isExpanded ? '접기' : '전체 보기'}
-                          </button>
-                          <a
-                            href={`https://newsapp-sable-two.vercel.app/api/reports?action=download&id=${report.id}`}
-                            download
-                            className="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600 flex items-center gap-1"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            Word 다운로드
-                          </a>
-                          <button
-                            onClick={() => deleteReport(report.id)}
-                            className="text-red-500 hover:text-red-700 p-2"
-                            title="삭제"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </div>
-                      {!isExpanded && report.content && (
-                        <p className="text-gray-600 text-sm mt-2 line-clamp-3">
-                          {report.content.substring(0, 200)}...
-                        </p>
-                      )}
-                      {isExpanded && report.content && (
-                        <pre className="text-gray-700 text-sm mt-4 whitespace-pre-wrap font-sans leading-relaxed border-t pt-4">
-                          {report.content}
-                        </pre>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const categoryNames = {
+    'geopolitics': '지정학',
+    'economy': '미국 경제',
+    'automotive': '자동차',
+    'ai-tech': 'AI/자율주행',
+    'trade': '무역',
+    'daily': '데일리',
+    'custom': '종합요약',
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-indigo-600 p-3 rounded-xl">
-                <Newspaper className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-800">글로벌 뉴스</h1>
-                <p className="text-gray-500 text-sm">실시간 NewsAPI 연동</p>
-              </div>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => loadNews(category, timeRange)}
-                disabled={loading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 flex items-center"
-              >
-                <RefreshCw className={`w-5 h-5 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                새로고침
-              </button>
-              <button
-                onClick={() => loadAutomotiveNews(timeRange)}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
-              >
-                🚗 경쟁사 분석
-              </button>
-              <button
-                onClick={() => setViewMode('issue')}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center font-semibold shadow-md"
-              >
-                <BookOpen className="w-5 h-5 mr-2" />
-                이슈별 분석정리
-              </button>
-              {(viewMode === 'general' || viewMode === 'automotive') && (
-                <>
-                  <button
-                    onClick={viewArchive}
-                    className="px-4 py-2 bg-violet-700 text-white rounded-lg hover:bg-violet-800 flex items-center font-semibold shadow-md"
-                  >
-                    📂 아카이브 보기 ({archivedArticles.length})
-                  </button>
-                  <button
-                    onClick={archiveSelectedArticles}
-                    disabled={selectedArticles.size === 0}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
-                  >
-                    📚 선택 아카이브 ({selectedArticles.size})
-                  </button>
-                </>
-              )}
-              {viewMode === 'archive' && (
-                <>
-                  <button
-                    onClick={() => setViewMode('general')}
-                    className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 flex items-center font-semibold shadow-md"
-                  >
-                    ← 뉴스로 돌아가기
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('모든 아카이브를 삭제하시겠습니까?')) {
-                        setArchivedArticles([]);
-                        alert('모든 아카이브가 삭제되었습니다.');
-                      }
-                    }}
-                    disabled={archivedArticles.length === 0}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 flex items-center font-semibold shadow-md"
-                  >
-                    🗑️ 전체 삭제
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setViewMode('keywords')}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 flex items-center font-semibold shadow-md"
-              >
-                <Key className="w-5 h-5 mr-2" />
-                키워드 관리
-              </button>
-              <button
-                onClick={() => {
-                  setViewMode('reports');
-                  loadReports();
-                }}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center font-semibold shadow-md"
-              >
-                📄 리포트
-              </button>
-            </div>
-          </div>
+    <div className="app-shell">
 
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <Clock className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-600 font-medium">수집 기간:</span>
-            <button
-              onClick={() => { setTimeRange('day'); loadNews(category, 'day'); }}
-              className={`px-3 py-1.5 rounded-lg text-sm ${timeRange === 'day' ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}
-            >
-              하루 전 (5개)
-            </button>
-            <button
-              onClick={() => { setTimeRange('week'); loadNews(category, 'week'); }}
-              className={`px-3 py-1.5 rounded-lg text-sm ${timeRange === 'week' ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}
-            >
-              일주일 전 (10개)
-            </button>
+      {/* ── 헤더 ── */}
+      <header className="app-header">
+        <div className="header-brand">
+          <span className="brand-emoji">📊</span>
+          <div>
+            <h1 className="brand-title">BRM 뉴스 인텔리전스</h1>
+            <p className="brand-sub">
+              {new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+            </p>
           </div>
+        </div>
+        {lastUpdated && (
+          <span className="header-updated">업데이트: {lastUpdated.toLocaleTimeString('ko-KR')}</span>
+        )}
+      </header>
 
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => {
-              const Icon = cat.icon;
+      {/* ── 대시보드 네비게이션 ── */}
+      <nav className="dashboard-nav">
+
+        {/* Group 1: 뉴스 수집 */}
+        <div className="nav-group">
+          <span className="nav-group-label">뉴스 수집</span>
+          <div className="nav-group-buttons">
+            {categories.map(cat => {
+              const isActive =
+                (viewMode === 'general' && category === (cat.id === 'automotive-general' ? 'automotive' : cat.id)) ||
+                (viewMode === 'automotive' && cat.id === 'competitor');
               return (
                 <button
                   key={cat.id}
-                  onClick={() => { setCategory(cat.id); loadNews(cat.id, timeRange); }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg ${category === cat.id ? 'bg-indigo-600 text-white' : 'bg-gray-100'}`}
+                  className={`nav-btn cat-btn cat-${cat.id}${isActive ? ' active' : ''}`}
+                  onClick={() => handleCategoryClick(cat)}
                 >
-                  <Icon className="w-4 h-4" />
+                  <span className="cat-emoji">{cat.emoji}</span>
                   {cat.name}
                 </button>
               );
             })}
           </div>
-
-          {lastUpdated && (
-            <div className="flex items-center gap-2 text-sm text-gray-500 mt-4">
-              <Calendar className="w-4 h-4" />
-              업데이트: {lastUpdated.toLocaleTimeString('ko-KR')}
-            </div>
-          )}
         </div>
+
+        {/* Group 2: 아카이브 */}
+        <div className="nav-group">
+          <span className="nav-group-label">아카이브</span>
+          <div className="nav-group-buttons">
+            <button
+              className={`nav-btn archive-btn${viewMode === 'archive' ? ' active' : ''}`}
+              onClick={viewArchive}
+            >
+              📂 아카이브 보기
+              {archivedArticles.length > 0 && (
+                <span className="nav-badge">{archivedArticles.length}</span>
+              )}
+            </button>
+            <button
+              className="nav-btn archive-save-btn"
+              onClick={archiveSelectedArticles}
+              disabled={selectedArticles.size === 0}
+            >
+              📚 선택 아카이브
+              {selectedArticles.size > 0 && (
+                <span className="nav-badge">{selectedArticles.size}</span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Group 3: 키워드 / 종합요약리포트 / 데일리 리포트 */}
+        <div className="nav-group-row">
+          <button
+            className={`nav-btn keyword-btn${viewMode === 'keywords' ? ' active' : ''}`}
+            onClick={() => setViewMode('keywords')}
+          >
+            🔑 키워드 관리
+          </button>
+          <button
+            className={`nav-btn custom-report-btn${viewMode === 'custom-reports' ? ' active' : ''}`}
+            onClick={() => { setViewMode('custom-reports'); loadCustomReports(); }}
+          >
+            📋 종합요약리포트
+            {reportSelectedArticles.size > 0 && (
+              <span className="nav-badge">{reportSelectedArticles.size}</span>
+            )}
+          </button>
+          <button
+            className={`nav-btn report-btn${viewMode === 'reports' ? ' active' : ''}`}
+            onClick={() => { setViewMode('reports'); loadReports(); }}
+          >
+            📄 데일리 리포트
+          </button>
+        </div>
+      </nav>
+
+      {/* ── 시간 필터 (뉴스 뷰에서만) ── */}
+      {(viewMode === 'general' || viewMode === 'automotive') && (
+        <div className="time-filter-bar">
+          <span className="time-filter-label">수집 기간</span>
+          <button
+            className={`time-btn${timeRange === 'day' ? ' active' : ''}`}
+            onClick={() => handleTimeRange('day')}
+          >
+            하루 전
+          </button>
+          <button
+            className={`time-btn${timeRange === 'week' ? ' active' : ''}`}
+            onClick={() => handleTimeRange('week')}
+          >
+            일주일 전
+          </button>
+          <button
+            onClick={() => viewMode === 'general' ? loadNews(category, timeRange) : loadAutomotiveNews(timeRange)}
+            disabled={loading}
+            className="refresh-btn"
+          >
+            <RefreshCw className={`w-4 h-4${loading ? ' animate-spin' : ''}`} />
+            새로고침
+          </button>
+        </div>
+      )}
+
+      {/* ── 컨텐츠 영역 ── */}
+      <div className="content-area">
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
@@ -1074,61 +1161,61 @@ export default function GlobalNewsApp() {
           </div>
         )}
 
+        {viewMode === 'home' && !loading && (
+          <div className="home-placeholder">
+            <span className="home-placeholder-icon">📰</span>
+            <p>위 카테고리를 선택하면 뉴스가 표시됩니다</p>
+          </div>
+        )}
+
         {loading && (
-          <div className="flex flex-col items-center py-12 bg-white rounded-xl shadow-lg">
-            <div className="text-6xl mb-4 animate-pulse">⏳</div>
-            <p className="text-gray-600">뉴스를 불러오는 중...</p>
+          <div className="loading-box">
+            <div className="loading-spinner">⏳</div>
+            <p>뉴스를 불러오는 중...</p>
           </div>
         )}
 
         {!loading && !error && news.length > 0 && viewMode === 'general' && (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="news-grid">
             {news.map((item, idx) => {
-              const articleKey = `${category}-${idx}`;
-              const isSelected = selectedArticles.has(articleKey);
+              const tr = translations[idx];
+              const displayTitle = tr?.title || item.title || '';
+              const detailedSummary = summaries[idx];
               return (
-                <div key={`news-${idx}`} className={`bg-white rounded-xl shadow-lg p-6 transition-all ${isSelected ? 'ring-2 ring-purple-500 bg-purple-50' : ''}`}>
-                  <div className="flex items-start justify-between mb-3 gap-2">
-                    <div className="flex items-start gap-2 flex-1">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleGeneralArticleSelection(idx, item)}
-                        className="w-5 h-5 mt-1 cursor-pointer accent-purple-600"
-                      />
-                      <h3 className="text-lg font-bold text-gray-800 flex-1">
-                        {item.title}
-                      </h3>
-                    </div>
-                    <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${getColor(item.importance)}`}>
-                      {item.importance === 'high' ? '긴급' : item.importance === 'medium' ? '중요' : '일반'}
-                    </span>
+                <div key={`news-${idx}`} className={`news-card${selectedArticles.has(`${category}-${idx}`) ? ' news-card-selected' : ''}${reportSelectedArticles.has(`${category}-${idx}`) ? ' news-card-report-selected' : ''}`}>
+                  <label className="news-card-check" title="리포트용 선택">
+                    <input
+                      type="checkbox"
+                      checked={reportSelectedArticles.has(`${category}-${idx}`)}
+                      onChange={() => toggleReportSelection(`${category}-${idx}`, item, category)}
+                    />
+                  </label>
+                  <h3 className="news-card-title">
+                    {displayTitle}
+                    {!tr && <span className="translating-badge">번역중</span>}
+                  </h3>
+                  {detailedSummary
+                    ? <p className="news-card-summary">{detailedSummary}</p>
+                    : <p className="news-card-summary translating-text">요약 생성 중...</p>
+                  }
+                  <div className="news-card-footer">
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="news-card-source"
+                    >
+                      {item.source || 'Source'} <ExternalLink className="w-3 h-3 inline" />
+                    </a>
+                    <span className="news-card-date">{item.date}</span>
                   </div>
-                <p className="text-gray-600 mb-3 text-sm">
-                  {item.summary}
-                </p>
-                <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
-                  <span>{item.source}</span>
-                  <span>{item.date}</span>
+                  <button
+                    className={`news-card-archive-btn${selectedArticles.has(`${category}-${idx}`) ? ' selected' : ''}`}
+                    onClick={() => toggleGeneralArticleSelection(idx, item)}
+                  >
+                    {selectedArticles.has(`${category}-${idx}`) ? '✓ 선택됨' : '+ 아카이브'}
+                  </button>
                 </div>
-                <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
-                  <ExternalLink className="w-4 h-4 inline mr-1" />
-                  기사보기
-                </a>
-                <button
-                  onClick={() => summaries[idx] ? setSummaries(prev => { const n = {...prev}; delete n[idx]; return n; }) : summarizeNews(item, idx)}
-                  className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${summaries[idx] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
-                >
-                  {summaries[idx] ? '🔼 요약 숨기기' : '📝 내용요약'}
-                </button>
-                {summaries[idx] && (
-                  <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                    <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                    <p>{summaries[idx]}</p>
-                  </div>
-                )}
-
-              </div>
               );
             })}
           </div>
@@ -1143,74 +1230,32 @@ export default function GlobalNewsApp() {
 
         {/* 아카이브 뷰 */}
         {viewMode === 'archive' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <span className="text-4xl">📂</span>
+          <div className="view-section">
+            <div className="view-panel">
+              <h2 className="section-title">
+                <span>📂</span>
                 아카이브된 기사
-                <span className="text-lg font-normal text-gray-500">총 {archivedArticles.length}개</span>
+                <span className="section-count">총 {archivedArticles.length}개</span>
               </h2>
 
               {/* 카테고리별 탭 */}
-              <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
-                <button
-                  onClick={() => setActiveCategoryTab('all')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCategoryTab === 'all'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+              <div className="tab-bar">
+                <button onClick={() => setActiveCategoryTab('all')} className={`tab-btn${activeCategoryTab === 'all' ? ' active' : ''}`}>
                   전체 ({archivedArticles.length})
                 </button>
-                <button
-                  onClick={() => setActiveCategoryTab('geopolitics')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCategoryTab === 'geopolitics'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                <button onClick={() => setActiveCategoryTab('geopolitics')} className={`tab-btn${activeCategoryTab === 'geopolitics' ? ' active' : ''}`}>
                   🌍 지정학 ({archivedArticles.filter(a => a.category === 'geopolitics').length})
                 </button>
-                <button
-                  onClick={() => setActiveCategoryTab('economy')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCategoryTab === 'economy'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                <button onClick={() => setActiveCategoryTab('economy')} className={`tab-btn${activeCategoryTab === 'economy' ? ' active' : ''}`}>
                   💰 미국경제 ({archivedArticles.filter(a => a.category === 'economy').length})
                 </button>
-                <button
-                  onClick={() => setActiveCategoryTab('automotive')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCategoryTab === 'automotive'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                <button onClick={() => setActiveCategoryTab('automotive')} className={`tab-btn${activeCategoryTab === 'automotive' ? ' active' : ''}`}>
                   🚗 자동차 ({archivedArticles.filter(a => a.category === 'automotive').length})
                 </button>
-                <button
-                  onClick={() => setActiveCategoryTab('ai-tech')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCategoryTab === 'ai-tech'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                <button onClick={() => setActiveCategoryTab('ai-tech')} className={`tab-btn${activeCategoryTab === 'ai-tech' ? ' active' : ''}`}>
                   🤖 AI/자율주행 ({archivedArticles.filter(a => a.category === 'ai-tech').length})
                 </button>
-                <button
-                  onClick={() => setActiveCategoryTab('trade')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCategoryTab === 'trade'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
+                <button onClick={() => setActiveCategoryTab('trade')} className={`tab-btn${activeCategoryTab === 'trade' ? ' active' : ''}`}>
                   📦 무역 ({archivedArticles.filter(a => a.category === 'trade').length})
                 </button>
               </div>
@@ -1225,10 +1270,10 @@ export default function GlobalNewsApp() {
                   {/* 지정학 카테고리 */}
                   {(activeCategoryTab === 'all' || activeCategoryTab === 'geopolitics') && archivedArticles.filter(a => a.category === 'geopolitics').length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-blue-200 pb-2">
+                      <h3 className="category-header">
                         <span>🌍</span>
                         지정학
-                        <span className="text-sm font-normal text-gray-500">({archivedArticles.filter(a => a.category === 'geopolitics').length}개 기사)</span>
+                        <span className="section-count">({archivedArticles.filter(a => a.category === 'geopolitics').length}개 기사)</span>
                       </h3>
                       {(() => {
                         const categoryArticles = archivedArticles.filter(a => a.category === 'geopolitics');
@@ -1238,71 +1283,87 @@ export default function GlobalNewsApp() {
                           articlesByDate[article.date].push(article);
                         });
                         return Object.keys(articlesByDate).sort().reverse().map(date => (
-                          <div key={`geopolitics-${date}`} className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <div key={`geopolitics-${date}`} className="mb-4">
+                            <h4 className="date-header">
                               <span>📅</span>{date}
-                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                              <span className="section-count">({articlesByDate[date].length}개)</span>
                             </h4>
                             <div className="grid gap-3 md:grid-cols-2">
                               {articlesByDate[date].map((article, idx) => {
                                 const archiveItemKey = `archive-${article.articleKey}`;
                                 return (
-                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border-2 border-blue-200 shadow-sm">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {article.title}
-                                      </h5>
-                                      <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
+                                  <div key={`${article.articleKey}-${idx}`} className="news-card">
+                                    <div className="news-card-title">
+                                      {translations[archiveItemKey]?.title || article.title}
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
-                                    <div className="flex items-center justify-between text-xs mb-3">
-                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
-                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
-                                        <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
+                                    <p className="news-card-summary">
+                                      {summaries[archiveItemKey] || '요약 생성 중...'}
+                                    </p>
+                                    <div className="news-card-footer">
+                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="news-card-source">
+                                        {article.source?.name || article.source}
+                                        <ExternalLink className="w-3 h-3" />
                                       </a>
-                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
-                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
+                                      <span className="news-card-date">
+                                        {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    </div>
+                                    <div className="archive-actions">
+                                      <button onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="archive-action-btn">
+                                        {analyzingId === archiveItemKey ? '분석 중...' : '현대차 관점 분석'}
                                       </button>
-                                      {summaries[archiveItemKey] && (
-                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                                          <p>{summaries[archiveItemKey]}</p>
-                                        </div>
-                                      )}
-                                      <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
-                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
-                                          console.log('  Title:', article.title);
-                                          console.log('  URL:', article.url);
-                                          setIssueArticleData({ url: article.url, title: article.title });
-                                          setViewMode('issue');
-                                        }}
-                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
-                                      >
-                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                      <button onClick={() => { setIssueArticleData({ url: article.url, title: article.title }); setViewMode('issue'); }} className="archive-action-btn">
                                         분석정리
                                       </button>
+                                      <button onClick={() => removeFromArchive(article.articleKey)} className="archive-action-delete" title="삭제">×</button>
                                     </div>
                                     {analysis[archiveItemKey] && (
-                                      <div className="mt-4 border-t pt-4">
-                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><span className="text-green-600">🚗</span>현대자동차 전략 분석 리포트</h4>
-                                        {analysis[archiveItemKey].summary && (
-                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                      <div className="analysis-box">
+                                        {analysis[archiveItemKey].시사점 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">📌 시사점</p>
+                                            <p className="analysis-text">{analysis[archiveItemKey].시사점}</p>
                                           </div>
                                         )}
-                                        {analysis[archiveItemKey].marketImpact && (
-                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                        {analysis[archiveItemKey].리스크요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">⚠️ 리스크 요인</p>
+                                            {analysis[archiveItemKey].리스크요인.map((r, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge risk-${r.심각도}`}>{r.심각도}</span>
+                                                <strong>{r.제목}</strong>
+                                                <p>{r.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].기회요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">✅ 기회 요인</p>
+                                            {analysis[archiveItemKey].기회요인.map((o, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge opp-${o.중요도}`}>{o.중요도}</span>
+                                                <strong>{o.제목}</strong>
+                                                <p>{o.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].전략제언?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">💡 전략 제언</p>
+                                            {analysis[archiveItemKey].전략제언.map((s, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className="analysis-badge">{s.우선순위}</span>
+                                                <strong>{s.제목}</strong>
+                                                <p>{s.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].종합평가 && (
+                                          <div className="analysis-summary">
+                                            <strong>종합평가:</strong> {analysis[archiveItemKey].종합평가}
                                           </div>
                                         )}
                                       </div>
@@ -1320,10 +1381,10 @@ export default function GlobalNewsApp() {
                   {/* 미국경제 카테고리 */}
                   {(activeCategoryTab === 'all' || activeCategoryTab === 'economy') && archivedArticles.filter(a => a.category === 'economy').length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-green-200 pb-2">
+                      <h3 className="category-header">
                         <span>💰</span>
                         미국경제
-                        <span className="text-sm font-normal text-gray-500">({archivedArticles.filter(a => a.category === 'economy').length}개 기사)</span>
+                        <span className="section-count">({archivedArticles.filter(a => a.category === 'economy').length}개 기사)</span>
                       </h3>
                       {(() => {
                         const categoryArticles = archivedArticles.filter(a => a.category === 'economy');
@@ -1333,71 +1394,87 @@ export default function GlobalNewsApp() {
                           articlesByDate[article.date].push(article);
                         });
                         return Object.keys(articlesByDate).sort().reverse().map(date => (
-                          <div key={`economy-${date}`} className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <div key={`economy-${date}`} className="mb-4">
+                            <h4 className="date-header">
                               <span>📅</span>{date}
-                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                              <span className="section-count">({articlesByDate[date].length}개)</span>
                             </h4>
                             <div className="grid gap-3 md:grid-cols-2">
                               {articlesByDate[date].map((article, idx) => {
                                 const archiveItemKey = `archive-${article.articleKey}`;
                                 return (
-                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border-2 border-green-200 shadow-sm">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {article.title}
-                                      </h5>
-                                      <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
+                                  <div key={`${article.articleKey}-${idx}`} className="news-card">
+                                    <div className="news-card-title">
+                                      {translations[archiveItemKey]?.title || article.title}
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
-                                    <div className="flex items-center justify-between text-xs mb-3">
-                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
-                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
-                                        <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
+                                    <p className="news-card-summary">
+                                      {summaries[archiveItemKey] || '요약 생성 중...'}
+                                    </p>
+                                    <div className="news-card-footer">
+                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="news-card-source">
+                                        {article.source?.name || article.source}
+                                        <ExternalLink className="w-3 h-3" />
                                       </a>
-                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
-                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
+                                      <span className="news-card-date">
+                                        {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    </div>
+                                    <div className="archive-actions">
+                                      <button onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="archive-action-btn">
+                                        {analyzingId === archiveItemKey ? '분석 중...' : '현대차 관점 분석'}
                                       </button>
-                                      {summaries[archiveItemKey] && (
-                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                                          <p>{summaries[archiveItemKey]}</p>
-                                        </div>
-                                      )}
-                                      <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
-                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
-                                          console.log('  Title:', article.title);
-                                          console.log('  URL:', article.url);
-                                          setIssueArticleData({ url: article.url, title: article.title });
-                                          setViewMode('issue');
-                                        }}
-                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
-                                      >
-                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                      <button onClick={() => { setIssueArticleData({ url: article.url, title: article.title }); setViewMode('issue'); }} className="archive-action-btn">
                                         분석정리
                                       </button>
+                                      <button onClick={() => removeFromArchive(article.articleKey)} className="archive-action-delete" title="삭제">×</button>
                                     </div>
                                     {analysis[archiveItemKey] && (
-                                      <div className="mt-4 border-t pt-4">
-                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><span className="text-green-600">🚗</span>현대자동차 전략 분석 리포트</h4>
-                                        {analysis[archiveItemKey].summary && (
-                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                      <div className="analysis-box">
+                                        {analysis[archiveItemKey].시사점 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">📌 시사점</p>
+                                            <p className="analysis-text">{analysis[archiveItemKey].시사점}</p>
                                           </div>
                                         )}
-                                        {analysis[archiveItemKey].marketImpact && (
-                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                        {analysis[archiveItemKey].리스크요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">⚠️ 리스크 요인</p>
+                                            {analysis[archiveItemKey].리스크요인.map((r, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge risk-${r.심각도}`}>{r.심각도}</span>
+                                                <strong>{r.제목}</strong>
+                                                <p>{r.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].기회요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">✅ 기회 요인</p>
+                                            {analysis[archiveItemKey].기회요인.map((o, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge opp-${o.중요도}`}>{o.중요도}</span>
+                                                <strong>{o.제목}</strong>
+                                                <p>{o.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].전략제언?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">💡 전략 제언</p>
+                                            {analysis[archiveItemKey].전략제언.map((s, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className="analysis-badge">{s.우선순위}</span>
+                                                <strong>{s.제목}</strong>
+                                                <p>{s.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].종합평가 && (
+                                          <div className="analysis-summary">
+                                            <strong>종합평가:</strong> {analysis[archiveItemKey].종합평가}
                                           </div>
                                         )}
                                       </div>
@@ -1415,10 +1492,10 @@ export default function GlobalNewsApp() {
                   {/* AI/자율주행 카테고리 */}
                   {(activeCategoryTab === 'all' || activeCategoryTab === 'ai-tech') && archivedArticles.filter(a => a.category === 'ai-tech').length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-purple-200 pb-2">
+                      <h3 className="category-header">
                         <span>🤖</span>
                         AI/자율주행
-                        <span className="text-sm font-normal text-gray-500">({archivedArticles.filter(a => a.category === 'ai-tech').length}개 기사)</span>
+                        <span className="section-count">({archivedArticles.filter(a => a.category === 'ai-tech').length}개 기사)</span>
                       </h3>
                       {(() => {
                         const categoryArticles = archivedArticles.filter(a => a.category === 'ai-tech');
@@ -1428,71 +1505,87 @@ export default function GlobalNewsApp() {
                           articlesByDate[article.date].push(article);
                         });
                         return Object.keys(articlesByDate).sort().reverse().map(date => (
-                          <div key={`ai-tech-${date}`} className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <div key={`ai-tech-${date}`} className="mb-4">
+                            <h4 className="date-header">
                               <span>📅</span>{date}
-                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                              <span className="section-count">({articlesByDate[date].length}개)</span>
                             </h4>
                             <div className="grid gap-3 md:grid-cols-2">
                               {articlesByDate[date].map((article, idx) => {
                                 const archiveItemKey = `archive-${article.articleKey}`;
                                 return (
-                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border-2 border-purple-200 shadow-sm">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {article.title}
-                                      </h5>
-                                      <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
+                                  <div key={`${article.articleKey}-${idx}`} className="news-card">
+                                    <div className="news-card-title">
+                                      {translations[archiveItemKey]?.title || article.title}
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
-                                    <div className="flex items-center justify-between text-xs mb-3">
-                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
-                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
-                                        <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
+                                    <p className="news-card-summary">
+                                      {summaries[archiveItemKey] || '요약 생성 중...'}
+                                    </p>
+                                    <div className="news-card-footer">
+                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="news-card-source">
+                                        {article.source?.name || article.source}
+                                        <ExternalLink className="w-3 h-3" />
                                       </a>
-                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
-                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
+                                      <span className="news-card-date">
+                                        {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    </div>
+                                    <div className="archive-actions">
+                                      <button onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="archive-action-btn">
+                                        {analyzingId === archiveItemKey ? '분석 중...' : '현대차 관점 분석'}
                                       </button>
-                                      {summaries[archiveItemKey] && (
-                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                                          <p>{summaries[archiveItemKey]}</p>
-                                        </div>
-                                      )}
-                                      <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
-                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
-                                          console.log('  Title:', article.title);
-                                          console.log('  URL:', article.url);
-                                          setIssueArticleData({ url: article.url, title: article.title });
-                                          setViewMode('issue');
-                                        }}
-                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
-                                      >
-                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                      <button onClick={() => { setIssueArticleData({ url: article.url, title: article.title }); setViewMode('issue'); }} className="archive-action-btn">
                                         분석정리
                                       </button>
+                                      <button onClick={() => removeFromArchive(article.articleKey)} className="archive-action-delete" title="삭제">×</button>
                                     </div>
                                     {analysis[archiveItemKey] && (
-                                      <div className="mt-4 border-t pt-4">
-                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><span className="text-green-600">🚗</span>현대자동차 전략 분석 리포트</h4>
-                                        {analysis[archiveItemKey].summary && (
-                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                      <div className="analysis-box">
+                                        {analysis[archiveItemKey].시사점 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">📌 시사점</p>
+                                            <p className="analysis-text">{analysis[archiveItemKey].시사점}</p>
                                           </div>
                                         )}
-                                        {analysis[archiveItemKey].marketImpact && (
-                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                        {analysis[archiveItemKey].리스크요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">⚠️ 리스크 요인</p>
+                                            {analysis[archiveItemKey].리스크요인.map((r, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge risk-${r.심각도}`}>{r.심각도}</span>
+                                                <strong>{r.제목}</strong>
+                                                <p>{r.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].기회요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">✅ 기회 요인</p>
+                                            {analysis[archiveItemKey].기회요인.map((o, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge opp-${o.중요도}`}>{o.중요도}</span>
+                                                <strong>{o.제목}</strong>
+                                                <p>{o.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].전략제언?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">💡 전략 제언</p>
+                                            {analysis[archiveItemKey].전략제언.map((s, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className="analysis-badge">{s.우선순위}</span>
+                                                <strong>{s.제목}</strong>
+                                                <p>{s.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].종합평가 && (
+                                          <div className="analysis-summary">
+                                            <strong>종합평가:</strong> {analysis[archiveItemKey].종합평가}
                                           </div>
                                         )}
                                       </div>
@@ -1510,10 +1603,10 @@ export default function GlobalNewsApp() {
                   {/* 무역 카테고리 */}
                   {(activeCategoryTab === 'all' || activeCategoryTab === 'trade') && archivedArticles.filter(a => a.category === 'trade').length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-200 pb-2">
+                      <h3 className="category-header">
                         <span>📦</span>
                         무역
-                        <span className="text-sm font-normal text-gray-500">({archivedArticles.filter(a => a.category === 'trade').length}개 기사)</span>
+                        <span className="section-count">({archivedArticles.filter(a => a.category === 'trade').length}개 기사)</span>
                       </h3>
                       {(() => {
                         const categoryArticles = archivedArticles.filter(a => a.category === 'trade');
@@ -1523,71 +1616,87 @@ export default function GlobalNewsApp() {
                           articlesByDate[article.date].push(article);
                         });
                         return Object.keys(articlesByDate).sort().reverse().map(date => (
-                          <div key={`trade-${date}`} className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <div key={`trade-${date}`} className="mb-4">
+                            <h4 className="date-header">
                               <span>📅</span>{date}
-                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                              <span className="section-count">({articlesByDate[date].length}개)</span>
                             </h4>
                             <div className="grid gap-3 md:grid-cols-2">
                               {articlesByDate[date].map((article, idx) => {
                                 const archiveItemKey = `archive-${article.articleKey}`;
                                 return (
-                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl p-4 border-2 border-teal-200 shadow-sm">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {article.title}
-                                      </h5>
-                                      <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
+                                  <div key={`${article.articleKey}-${idx}`} className="news-card">
+                                    <div className="news-card-title">
+                                      {translations[archiveItemKey]?.title || article.title}
                                     </div>
-                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
-                                    <div className="flex items-center justify-between text-xs mb-3">
-                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
-                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors">
-                                        <ExternalLink className="w-4 h-4 inline mr-1" />기사 원문 보기
+                                    <p className="news-card-summary">
+                                      {summaries[archiveItemKey] || '요약 생성 중...'}
+                                    </p>
+                                    <div className="news-card-footer">
+                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="news-card-source">
+                                        {article.source?.name || article.source}
+                                        <ExternalLink className="w-3 h-3" />
                                       </a>
-                                      <button type="button" onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)} className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}>
-                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
+                                      <span className="news-card-date">
+                                        {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                    </div>
+                                    <div className="archive-actions">
+                                      <button onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="archive-action-btn">
+                                        {analyzingId === archiveItemKey ? '분석 중...' : '현대차 관점 분석'}
                                       </button>
-                                      {summaries[archiveItemKey] && (
-                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                                          <p>{summaries[archiveItemKey]}</p>
-                                        </div>
-                                      )}
-                                      <button type="button" onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors">
-                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          console.log('🔄 [분석정리] Navigating to Issue Analysis with article:');
-                                          console.log('  Title:', article.title);
-                                          console.log('  URL:', article.url);
-                                          setIssueArticleData({ url: article.url, title: article.title });
-                                          setViewMode('issue');
-                                        }}
-                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
-                                      >
-                                        <BookOpen className="w-4 h-4 inline mr-1" />
+                                      <button onClick={() => { setIssueArticleData({ url: article.url, title: article.title }); setViewMode('issue'); }} className="archive-action-btn">
                                         분석정리
                                       </button>
+                                      <button onClick={() => removeFromArchive(article.articleKey)} className="archive-action-delete" title="삭제">×</button>
                                     </div>
                                     {analysis[archiveItemKey] && (
-                                      <div className="mt-4 border-t pt-4">
-                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><span className="text-green-600">🚗</span>현대자동차 전략 분석 리포트</h4>
-                                        {analysis[archiveItemKey].summary && (
-                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                      <div className="analysis-box">
+                                        {analysis[archiveItemKey].시사점 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">📌 시사점</p>
+                                            <p className="analysis-text">{analysis[archiveItemKey].시사점}</p>
                                           </div>
                                         )}
-                                        {analysis[archiveItemKey].marketImpact && (
-                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                        {analysis[archiveItemKey].리스크요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">⚠️ 리스크 요인</p>
+                                            {analysis[archiveItemKey].리스크요인.map((r, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge risk-${r.심각도}`}>{r.심각도}</span>
+                                                <strong>{r.제목}</strong>
+                                                <p>{r.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].기회요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">✅ 기회 요인</p>
+                                            {analysis[archiveItemKey].기회요인.map((o, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge opp-${o.중요도}`}>{o.중요도}</span>
+                                                <strong>{o.제목}</strong>
+                                                <p>{o.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].전략제언?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">💡 전략 제언</p>
+                                            {analysis[archiveItemKey].전략제언.map((s, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className="analysis-badge">{s.우선순위}</span>
+                                                <strong>{s.제목}</strong>
+                                                <p>{s.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].종합평가 && (
+                                          <div className="analysis-summary">
+                                            <strong>종합평가:</strong> {analysis[archiveItemKey].종합평가}
                                           </div>
                                         )}
                                       </div>
@@ -1605,52 +1714,30 @@ export default function GlobalNewsApp() {
                   {/* 자동차 카테고리 - 회사별 하위 탭 */}
                   {(activeCategoryTab === 'all' || activeCategoryTab === 'automotive') && archivedArticles.filter(a => a.category === 'automotive').length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-orange-200 pb-2">
+                      <h3 className="category-header">
                         <span>🚗</span>
                         자동차
-                        <span className="text-sm font-normal text-gray-500">({archivedArticles.filter(a => a.category === 'automotive').length}개 기사)</span>
+                        <span className="section-count">({archivedArticles.filter(a => a.category === 'automotive').length}개 기사)</span>
                       </h3>
 
                       {/* 회사별 하위 탭 (자동차 탭에서만) */}
                       {activeCategoryTab === 'automotive' && (
-                        <div className="mb-6 pb-4 space-y-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => setActiveCompanyTab('all')}
-                              className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                                activeCompanyTab === 'all'
-                                  ? 'bg-orange-500 text-white shadow-md'
-                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}
-                            >
+                        <div className="mb-4 space-y-3">
+                          <div className="tab-bar" style={{marginBottom: 0}}>
+                            <button onClick={() => setActiveCompanyTab('all')} className={`tab-btn${activeCompanyTab === 'all' ? ' active' : ''}`}>
                               전체
                             </button>
                             {autoCompanies.map(company => {
                               const count = archivedArticles.filter(a => a.category === 'automotive' && a.companyId === company.id).length;
                               if (count === 0) return null;
                               return (
-                                <button
-                                  key={company.id}
-                                  onClick={() => setActiveCompanyTab(company.id)}
-                                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                                    activeCompanyTab === company.id
-                                      ? 'bg-orange-500 text-white shadow-md'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                  }`}
-                                >
+                                <button key={company.id} onClick={() => setActiveCompanyTab(company.id)} className={`tab-btn${activeCompanyTab === company.id ? ' active' : ''}`}>
                                   {company.name} ({count})
                                 </button>
                               );
                             })}
                             {archivedArticles.filter(a => a.category === 'automotive' && a.companyId === 'industry').length > 0 && (
-                              <button
-                                onClick={() => setActiveCompanyTab('industry')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                                  activeCompanyTab === 'industry'
-                                    ? 'bg-orange-500 text-white shadow-md'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
-                              >
+                              <button onClick={() => setActiveCompanyTab('industry')} className={`tab-btn${activeCompanyTab === 'industry' ? ' active' : ''}`}>
                                 산업 공통 ({archivedArticles.filter(a => a.category === 'automotive' && a.companyId === 'industry').length})
                               </button>
                             )}
@@ -1686,99 +1773,87 @@ export default function GlobalNewsApp() {
                         });
 
                         return Object.keys(articlesByDate).sort().reverse().map(date => (
-                          <div key={`automotive-${date}`} className="mb-6">
-                            <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                          <div key={`automotive-${date}`} className="mb-4">
+                            <h4 className="date-header">
                               <span>📅</span>{date}
-                              <span className="text-sm font-normal text-gray-500">({articlesByDate[date].length}개)</span>
+                              <span className="section-count">({articlesByDate[date].length}개)</span>
                             </h4>
                             <div className="grid gap-3 md:grid-cols-2">
                               {articlesByDate[date].map((article, idx) => {
                                 const archiveItemKey = `archive-${article.articleKey}`;
                                 return (
-                                  <div key={`${article.articleKey}-${idx}`} className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border-2 border-orange-200 shadow-sm">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h5 className="text-md font-bold text-gray-800 flex-1">
-                                        {article.title}
-                                      </h5>
-                                      <button onClick={() => removeFromArchive(article.articleKey)} className="ml-2 text-red-500 hover:text-red-700 text-xl" title="삭제">×</button>
+                                  <div key={`${article.articleKey}-${idx}`} className="news-card">
+                                    <div className="news-card-title">
+                                      {translations[archiveItemKey]?.title || article.title}
                                     </div>
-                                    {article.company && (
-                                      <div className="mb-2">
-                                        <span className="inline-block px-2 py-0.5 bg-orange-100 text-orange-800 rounded text-xs font-semibold">
-                                          {article.company}
-                                        </span>
-                                      </div>
-                                    )}
-                                    <p className="text-gray-600 text-sm mb-3">{article.summary || article.description || '요약 없음'}</p>
-                                    <div className="flex items-center justify-between text-xs mb-3">
-                                      <span className="text-gray-600">📰 {article.source?.name || article.source}</span>
-                                      <span className="text-indigo-600 font-semibold">📅 {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</span>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <a
-                                        href={article.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block w-full px-4 py-3 bg-indigo-600 text-white text-center rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
-                                      >
-                                        <ExternalLink className="w-4 h-4 inline mr-1" />
-                                        기사 원문 보기
+                                    <p className="news-card-summary">
+                                      {summaries[archiveItemKey] || '요약 생성 중...'}
+                                    </p>
+                                    <div className="news-card-footer">
+                                      <a href={article.url} target="_blank" rel="noopener noreferrer" className="news-card-source">
+                                        {article.source?.name || article.source}
+                                        <ExternalLink className="w-3 h-3" />
                                       </a>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => summaries[archiveItemKey] ? setSummaries(prev => { const n = {...prev}; delete n[archiveItemKey]; return n; }) : summarizeNews(article, archiveItemKey)}
-                                        className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-colors ${summaries[archiveItemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
-                                      >
-                                        {summaries[archiveItemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
-                                      </button>
-                                      {summaries[archiveItemKey] && (
-                                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                                          <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                                          <p>{summaries[archiveItemKey]}</p>
-                                        </div>
-                                      )}
-
-                                      <button
-                                        type="button"
-                                        onClick={() => analyzeNews(article, archiveItemKey)}
-                                        disabled={analyzingId === archiveItemKey}
-                                        className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium transition-colors"
-                                      >
-                                        {analyzingId === archiveItemKey ? '⏳ 분석 중...' : analysis[archiveItemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setIssueArticleData({ url: article.url, title: article.title });
-                                          setViewMode('issue');
-                                        }}
-                                        className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium transition-colors"
-                                      >
-                                        <BookOpen className="w-4 h-4 inline mr-1" />
-                                        이슈분석정리
-                                      </button>
+                                      <span className="news-card-date">
+                                        {article.date || new Date(article.publishedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                                      </span>
                                     </div>
-
+                                    <div className="archive-actions">
+                                      <button onClick={() => analyzeNews(article, archiveItemKey)} disabled={analyzingId === archiveItemKey} className="archive-action-btn">
+                                        {analyzingId === archiveItemKey ? '분석 중...' : '현대차 관점 분석'}
+                                      </button>
+                                      <button onClick={() => { setIssueArticleData({ url: article.url, title: article.title }); setViewMode('issue'); }} className="archive-action-btn">
+                                        분석정리
+                                      </button>
+                                      <button onClick={() => removeFromArchive(article.articleKey)} className="archive-action-delete" title="삭제">×</button>
+                                    </div>
                                     {analysis[archiveItemKey] && (
-                                      <div className="mt-4 border-t pt-4">
-                                        <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                          <span className="text-green-600">🚗</span>
-                                          현대자동차 전략 분석 리포트
-                                        </h4>
-
-                                        {analysis[archiveItemKey].summary && (
-                                          <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].summary}</p>
+                                      <div className="analysis-box">
+                                        {analysis[archiveItemKey].시사점 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">📌 시사점</p>
+                                            <p className="analysis-text">{analysis[archiveItemKey].시사점}</p>
                                           </div>
                                         )}
-
-                                        {analysis[archiveItemKey].marketImpact && (
-                                          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                            <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                            <p className="text-gray-700">{analysis[archiveItemKey].marketImpact}</p>
+                                        {analysis[archiveItemKey].리스크요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">⚠️ 리스크 요인</p>
+                                            {analysis[archiveItemKey].리스크요인.map((r, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge risk-${r.심각도}`}>{r.심각도}</span>
+                                                <strong>{r.제목}</strong>
+                                                <p>{r.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].기회요인?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">✅ 기회 요인</p>
+                                            {analysis[archiveItemKey].기회요인.map((o, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className={`analysis-badge opp-${o.중요도}`}>{o.중요도}</span>
+                                                <strong>{o.제목}</strong>
+                                                <p>{o.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].전략제언?.length > 0 && (
+                                          <div className="analysis-section">
+                                            <p className="analysis-label">💡 전략 제언</p>
+                                            {analysis[archiveItemKey].전략제언.map((s, i) => (
+                                              <div key={i} className="analysis-item">
+                                                <span className="analysis-badge">{s.우선순위}</span>
+                                                <strong>{s.제목}</strong>
+                                                <p>{s.내용}</p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {analysis[archiveItemKey].종합평가 && (
+                                          <div className="analysis-summary">
+                                            <strong>종합평가:</strong> {analysis[archiveItemKey].종합평가}
                                           </div>
                                         )}
                                       </div>
@@ -1799,283 +1874,152 @@ export default function GlobalNewsApp() {
         )}
 
         {/* 자동차 회사별 뉴스 뷰 */}
-        {!loading && !error && viewMode === 'automotive' && Object.keys(autoNewsData).length > 0 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h2 className="text-3xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <span className="text-4xl">🚗</span>
+        {!loading && !error && viewMode === 'automotive' && (
+          <div className="view-section">
+            <div className="view-panel">
+              <h2 className="section-title">
+                <span>🏁</span>
                 경쟁사 분석
               </h2>
 
-              {/* 회사별 탭 */}
-              <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 pb-4">
-                <button
-                  onClick={() => setActiveCompanyTab('all')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    activeCompanyTab === 'all'
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  전체
-                </button>
-                {autoCompanies.map(company => {
-                  const count = (autoNewsData[company.id] || []).length;
-                  if (count === 0) return null;
-                  return (
-                    <button
-                      key={company.id}
-                      onClick={() => setActiveCompanyTab(company.id)}
-                      className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                        activeCompanyTab === company.id
-                          ? 'bg-indigo-600 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {company.name} ({count})
-                    </button>
-                  );
-                })}
-                {autoNewsData['industry'] && autoNewsData['industry'].length > 0 && (
+              {/* 그룹 탭 */}
+              <div className="tab-bar">
+                {autoCompanyGroups.map(group => (
                   <button
-                    onClick={() => setActiveCompanyTab('industry')}
-                    className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                      activeCompanyTab === 'industry'
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    key={group.id}
+                    className={`tab-btn${activeGroupTab === group.id ? ' active' : ''}`}
+                    onClick={() => { setActiveGroupTab(group.id); loadAutomotiveNews(group.id, timeRange); }}
                   >
-                    산업 공통 ({autoNewsData['industry'].length})
+                    {group.label}
                   </button>
-                )}
+                ))}
               </div>
 
-              {/* 수집 기간 선택 */}
-              <div className="flex items-center gap-2 mb-4 flex-wrap">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-sm text-gray-600 font-medium">수집 기간:</span>
-                <button
-                  onClick={() => { setTimeRange('day'); loadAutomotiveNews('day'); }}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                    timeRange === 'day'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  최근 2일
-                </button>
-                <button
-                  onClick={() => { setTimeRange('week'); loadAutomotiveNews('week'); }}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                    timeRange === 'week'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  일주일 전
-                </button>
-              </div>
-            </div>
+              {/* 그룹 미선택 안내 */}
+              {!activeGroupTab && (
+                <p style={{ color: 'var(--text-muted)', padding: '0.75rem 0', fontSize: '0.9rem' }}>
+                  위 그룹을 선택하면 해당 회사들의 뉴스를 불러옵니다.
+                </p>
+              )}
 
-            {/* 자동차 산업 공통 뉴스 섹션 */}
-            {(activeCompanyTab === 'all' || activeCompanyTab === 'industry') && autoNewsData['industry'] && autoNewsData['industry'].length > 0 && (
-              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl shadow-xl p-6 border-2 border-indigo-200">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <span className="text-3xl">🏭</span>
-                  자동차 산업 주요 뉴스
-                  <span className="text-sm font-normal text-gray-500 ml-2">(업계 공통)</span>
-                </h2>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  {autoNewsData['industry'].map((item, idx) => {
-                    const itemKey = `industry-${idx}`;
-                    const isSelected = selectedArticles.has(itemKey);
+              {/* 회사별 탭 (데이터 로드 후) */}
+              {activeGroupTab && Object.keys(autoNewsData).length > 0 && (
+                <div className="tab-bar" style={{ marginTop: '0.5rem' }}>
+                  <button onClick={() => setActiveCompanyTab('all')} className={`tab-btn${activeCompanyTab === 'all' ? ' active' : ''}`}>
+                    전체
+                  </button>
+                  {autoCompanies.filter(c => c.group === activeGroupTab).map(company => {
+                    const count = (autoNewsData[company.id] || []).length;
+                    if (count === 0) return null;
                     return (
-                      <div key={itemKey} className="bg-white rounded-xl p-4 border border-indigo-200 shadow-sm relative">
-                        <div className="absolute top-2 right-2 z-[100]">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleArticleSelection(itemKey, item, 'industry');
-                            }}
-                            className={`w-8 h-8 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
-                              isSelected
-                                ? 'bg-white border-red-500'
-                                : 'bg-white border-gray-400 hover:border-red-400'
-                            }`}
-                          >
-                            {isSelected ? (
-                              <svg className="w-6 h-6 text-red-600 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
-                              </svg>
-                            ) : (
-                              <div className="w-4 h-4 bg-gray-200 rounded-sm"></div>
-                            )}
-                          </button>
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-2 pr-12">
-                          {item.title}
-                        </h3>
-                        <p className="text-gray-600 mb-3 text-sm">
-                          {item.summary}
-                        </p>
-                        <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
-                          <span>{item.source}</span>
-                          <span>{item.date}</span>
-                        </div>
-
-                        <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
-                          <ExternalLink className="w-4 h-4 inline mr-1" />
-                          기사보기
-                        </a>
-
-                        <button
-                          onClick={() => summaries[itemKey] ? setSummaries(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : summarizeNews(item, itemKey)}
-                          className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${summaries[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
-                        >
-                          {summaries[itemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
-                        </button>
-                        {summaries[itemKey] && (
-                          <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                            <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                            <p>{summaries[itemKey]}</p>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => analyzeNews(item, itemKey)}
-                          disabled={analyzingId === itemKey}
-                          className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
-                        >
-                          {analyzingId === itemKey ? '⏳ 분석 중...' : analysis[itemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                        </button>
-
-                        {analysis[itemKey] && (
-                          <div className="mt-4 border-t pt-4">
-                            <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                              <span className="text-green-600">🚗</span>
-                              현대자동차 전략 분석 리포트
-                            </h4>
-
-                            {analysis[itemKey].summary && (
-                              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                <p className="text-gray-700">{analysis[itemKey].summary}</p>
-                              </div>
-                            )}
-
-                            {analysis[itemKey].marketImpact && (
-                              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                <p className="text-gray-700">{analysis[itemKey].marketImpact}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <button key={company.id} onClick={() => setActiveCompanyTab(company.id)} className={`tab-btn${activeCompanyTab === company.id ? ' active' : ''}`}>
+                        {company.name} ({count})
+                      </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             {autoCompanies.filter(company =>
-              activeCompanyTab === 'all' || activeCompanyTab === company.id
+              company.group === activeGroupTab &&
+              (activeCompanyTab === 'all' || activeCompanyTab === company.id)
             ).map(company => {
               const companyNews = autoNewsData[company.id] || [];
               if (companyNews.length === 0) return null;
 
               return (
-                <div key={company.id} className="bg-white rounded-2xl shadow-xl p-6">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="text-3xl">🚗</span>
+                <div key={company.id} className="view-panel">
+                  <h2 className="section-title">
+                    <span>🚗</span>
                     {company.name} 뉴스
                   </h2>
 
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="news-grid">
                     {companyNews.map((item, idx) => {
                       const itemKey = `${company.id}-${idx}`;
                       const isSelected = selectedArticles.has(itemKey);
+                      const tr = translations[itemKey];
                       return (
-                        <div key={itemKey} className="bg-gray-50 rounded-xl p-4 border border-gray-200 relative">
-                          <div className="absolute top-2 right-2 z-[100]">
+                        <div key={itemKey} className={`news-card${isSelected ? ' news-card-selected' : ''}${reportSelectedArticles.has(itemKey) ? ' news-card-report-selected' : ''}`}>
+                          <label className="news-card-check" title="리포트용 선택">
+                            <input
+                              type="checkbox"
+                              checked={reportSelectedArticles.has(itemKey)}
+                              onChange={() => toggleReportSelection(itemKey, item, company.id)}
+                            />
+                          </label>
+                          <div className="news-card-title">
+                            {tr?.title || item.title}
+                            {!tr && <span className="translating-badge">번역중</span>}
+                          </div>
+                          <p className={`news-card-summary${summaries[itemKey] ? '' : ' translating-text'}`}>
+                            {summaries[itemKey] || '요약 생성 중...'}
+                          </p>
+                          <div className="news-card-footer">
+                            <a href={item.url} target="_blank" rel="noopener noreferrer" className="news-card-source">
+                              {item.source} <ExternalLink className="w-3 h-3" />
+                            </a>
+                            <span className="news-card-date">{item.date}</span>
+                          </div>
+                          <div className="archive-actions">
                             <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleArticleSelection(itemKey, item, company.id);
-                              }}
-                              className={`w-8 h-8 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all shadow-lg hover:scale-125 ${
-                                isSelected
-                                  ? 'bg-white border-red-500'
-                                  : 'bg-white border-gray-400 hover:border-red-400'
-                              }`}
+                              className={`news-card-archive-btn${isSelected ? ' selected' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); toggleArticleSelection(itemKey, item, company.id); }}
                             >
-                              {isSelected ? (
-                                <svg className="w-6 h-6 text-red-600 font-bold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" />
-                                </svg>
-                              ) : (
-                                <div className="w-4 h-4 bg-gray-200 rounded-sm"></div>
-                              )}
+                              {isSelected ? '✓ 선택됨' : '+ 아카이브'}
+                            </button>
+                            <button onClick={() => analyzeNews(item, itemKey)} disabled={analyzingId === itemKey} className="archive-action-btn">
+                              {analyzingId === itemKey ? '분석 중...' : '현대차 관점 분석'}
                             </button>
                           </div>
-                          <h3 className="text-lg font-bold text-gray-800 mb-2 pr-12">
-                            {item.title}
-                          </h3>
-                          <p className="text-gray-600 mb-3 text-sm">
-                            {item.summary}
-                          </p>
-                          <div className="flex items-center justify-between text-xs mb-3 text-gray-500">
-                            <span>{item.source}</span>
-                            <span>{item.date}</span>
-                          </div>
-
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="block w-full px-3 py-2 bg-gray-100 text-center rounded-lg hover:bg-gray-200 mb-2 text-sm">
-                            <ExternalLink className="w-4 h-4 inline mr-1" />
-                            기사보기
-                          </a>
-
-                          <button
-                            onClick={() => summaries[itemKey] ? setSummaries(prev => { const n = {...prev}; delete n[itemKey]; return n; }) : summarizeNews(item, itemKey)}
-                            className={`w-full px-3 py-2 rounded-lg text-sm mb-2 font-medium ${summaries[itemKey] ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-sky-600 text-white hover:bg-sky-700'}`}
-                          >
-                            {summaries[itemKey] ? '🔼 요약 숨기기' : '📝 내용요약'}
-                          </button>
-                          {summaries[itemKey] && (
-                            <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-                              <p className="font-semibold text-blue-800 mb-1">📝 내용요약</p>
-                              <p>{summaries[itemKey]}</p>
-                            </div>
-                          )}
-
-                          <button
-                            onClick={() => analyzeNews(item, itemKey)}
-                            disabled={analyzingId === itemKey}
-                            className="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 text-sm font-medium"
-                          >
-                            {analyzingId === itemKey ? '⏳ 분석 중...' : analysis[itemKey] ? '👁️ 분석 숨기기' : '📊 현대차 관점 분석'}
-                          </button>
-
                           {analysis[itemKey] && (
-                            <div className="mt-4 border-t pt-4">
-                              <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                <span className="text-green-600">🚗</span>
-                                현대자동차 전략 분석 리포트
-                              </h4>
-
-                              {analysis[itemKey].summary && (
-                                <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-3 text-sm">
-                                  <p className="font-semibold text-blue-800 mb-1">📊 종합 요약</p>
-                                  <p className="text-gray-700">{analysis[itemKey].summary}</p>
+                            <div className="analysis-box">
+                              {analysis[itemKey].시사점 && (
+                                <div className="analysis-section">
+                                  <p className="analysis-label">📌 시사점</p>
+                                  <p className="analysis-text">{analysis[itemKey].시사점}</p>
                                 </div>
                               )}
-
-                              {analysis[itemKey].marketImpact && (
-                                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3 text-sm">
-                                  <p className="font-semibold text-indigo-800 mb-1">🎯 시장 영향 평가</p>
-                                  <p className="text-gray-700">{analysis[itemKey].marketImpact}</p>
+                              {analysis[itemKey].리스크요인?.length > 0 && (
+                                <div className="analysis-section">
+                                  <p className="analysis-label">⚠️ 리스크 요인</p>
+                                  {analysis[itemKey].리스크요인.map((r, i) => (
+                                    <div key={i} className="analysis-item">
+                                      <span className={`analysis-badge risk-${r.심각도}`}>{r.심각도}</span>
+                                      <strong>{r.제목}</strong>
+                                      <p>{r.내용}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {analysis[itemKey].기회요인?.length > 0 && (
+                                <div className="analysis-section">
+                                  <p className="analysis-label">✅ 기회 요인</p>
+                                  {analysis[itemKey].기회요인.map((o, i) => (
+                                    <div key={i} className="analysis-item">
+                                      <span className={`analysis-badge opp-${o.중요도}`}>{o.중요도}</span>
+                                      <strong>{o.제목}</strong>
+                                      <p>{o.내용}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {analysis[itemKey].전략제언?.length > 0 && (
+                                <div className="analysis-section">
+                                  <p className="analysis-label">💡 전략 제언</p>
+                                  {analysis[itemKey].전략제언.map((s, i) => (
+                                    <div key={i} className="analysis-item">
+                                      <span className="analysis-badge">{s.우선순위}</span>
+                                      <strong>{s.제목}</strong>
+                                      <p>{s.내용}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {analysis[itemKey].종합평가 && (
+                                <div className="analysis-summary">
+                                  <strong>종합평가:</strong> {analysis[itemKey].종합평가}
                                 </div>
                               )}
                             </div>
@@ -2087,6 +2031,269 @@ export default function GlobalNewsApp() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 리포트 뷰 */}
+        {viewMode === 'reports' && (
+          <div className="view-section">
+            <div className="view-panel">
+              <div className="reports-header">
+                <h2 className="section-title">
+                  <span>📄</span>
+                  데일리 리포트
+                  <span className="section-count">총 {reports.length}개</span>
+                </h2>
+                <div className="reports-actions">
+                  <button
+                    onClick={generateReport}
+                    disabled={generatingReport || reportsLoading}
+                    className="tab-btn active"
+                  >
+                    <RefreshCw className={`w-4 h-4${generatingReport ? ' animate-spin' : ''}`} />
+                    리포트 생성
+                  </button>
+                  <button
+                    onClick={loadReports}
+                    disabled={reportsLoading || generatingReport}
+                    className="tab-btn"
+                  >
+                    <RefreshCw className={`w-4 h-4${reportsLoading ? ' animate-spin' : ''}`} />
+                    새로고침
+                  </button>
+                  {generateStatus && (
+                    <span className="reports-status">{generateStatus}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {reportsLoading ? (
+              <div className="view-panel" style={{textAlign: 'center', padding: '3rem'}}>
+                <RefreshCw className="w-8 h-8 animate-spin" style={{margin: '0 auto 1rem', color: 'var(--accent)'}} />
+                <p style={{color: 'var(--text-secondary)'}}>리포트를 불러오는 중...</p>
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="view-panel" style={{textAlign: 'center', padding: '3rem'}}>
+                <p style={{color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '0.5rem'}}>저장된 리포트가 없습니다.</p>
+                <p style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>리포트 생성 버튼을 눌러 오늘의 뉴스를 요약하세요.</p>
+              </div>
+            ) : (
+              reports.map((report) => {
+                const isExpanded = expandedReport === report.id;
+                return (
+                  <div key={report.id} className="report-card">
+                    <div className="report-card-header">
+                      <div className="report-card-info">
+                        <div className="report-card-title">{report.title}</div>
+                        <div className="report-card-meta">
+                          {report.category && (
+                            <span className="report-cat-badge">
+                              {categoryNames[report.category] || report.category}
+                            </span>
+                          )}
+                          <span>
+                            {new Date(report.createdAt).toLocaleDateString('ko-KR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="report-card-actions">
+                        <button
+                          onClick={() => setExpandedReport(isExpanded ? null : report.id)}
+                          className="tab-btn"
+                        >
+                          {isExpanded ? '접기' : '전체 보기'}
+                        </button>
+                        <a
+                          href={`https://newsapp-sable-two.vercel.app/api/reports?action=download&id=${report.id}`}
+                          download
+                          className="tab-btn active"
+                          style={{textDecoration: 'none'}}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Word
+                        </a>
+                        <button
+                          onClick={() => deleteReport(report.id)}
+                          className="tab-btn"
+                          style={{color: '#ef4444', borderColor: '#fca5a5'}}
+                          title="삭제"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {!isExpanded && report.content && (
+                      <p className="report-preview">{report.content}</p>
+                    )}
+                    {isExpanded && report.content && (
+                      <div className="report-content">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            a: ({href, children}) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                            ),
+                            p: ({children}) => {
+                              const text = React.Children.toArray(children)
+                                .map(c => typeof c === 'string' ? c : '')
+                                .join('');
+                              if (text.startsWith('->')) {
+                                return <p className="hyundai-insight">{children}</p>;
+                              }
+                              return <p>{children}</p>;
+                            }
+                          }}
+                        >
+                          {report.content
+                            // 이모지+레벨 뒤 내용을 분리 (단, | 바로 앞은 테이블 셀이므로 제외)
+                            .replace(/(🟠|🔴|🟡|🟢)\s+(\S+)\s+(?!\|)/g, '$1 $2\n\n')
+                            // 🔗 URL → 클릭 가능한 링크로 변환
+                            .replace(/🔗\s*(https?:\/\/\S+)/g, '\n\n[🔗 기사 원문]($1)')
+                            // -> 앞에 빈 줄 보장 (이전 줄과 붙어있을 경우)
+                            .replace(/([^\n])\n(->)/g, '$1\n\n$2')
+                          }
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* 종합요약리포트 뷰 */}
+        {viewMode === 'custom-reports' && (
+          <div className="view-section">
+            <div className="view-panel">
+              <div className="reports-header">
+                <h2 className="section-title">
+                  <span>📋</span>
+                  종합요약리포트
+                  <span className="section-count">총 {customReports.length}개</span>
+                </h2>
+                <div className="reports-actions">
+                  <button
+                    onClick={generateCustomReport}
+                    disabled={generatingCustomReport || reportSelectedArticles.size === 0}
+                    className="tab-btn active"
+                    style={reportSelectedArticles.size === 0 ? {opacity: 0.45} : {}}
+                  >
+                    <RefreshCw className={`w-4 h-4${generatingCustomReport ? ' animate-spin' : ''}`} />
+                    {reportSelectedArticles.size > 0
+                      ? `선택 기사 ${reportSelectedArticles.size}개로 리포트 생성`
+                      : '기사를 선택해주세요'}
+                  </button>
+                  <button
+                    onClick={loadCustomReports}
+                    disabled={customReportsLoading || generatingCustomReport}
+                    className="tab-btn"
+                  >
+                    <RefreshCw className={`w-4 h-4${customReportsLoading ? ' animate-spin' : ''}`} />
+                    새로고침
+                  </button>
+                  {customGenerateStatus && (
+                    <span className="reports-status">{customGenerateStatus}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {customReportsLoading ? (
+              <div className="view-panel" style={{textAlign: 'center', padding: '3rem'}}>
+                <RefreshCw className="w-8 h-8 animate-spin" style={{margin: '0 auto 1rem', color: 'var(--accent)'}} />
+                <p style={{color: 'var(--text-secondary)'}}>리포트를 불러오는 중...</p>
+              </div>
+            ) : customReports.length === 0 ? (
+              <div className="view-panel" style={{textAlign: 'center', padding: '3rem'}}>
+                <p style={{color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '0.5rem'}}>생성된 종합요약리포트가 없습니다.</p>
+                <p style={{color: 'var(--text-muted)', fontSize: '0.85rem'}}>뉴스 카드를 선택한 뒤 위 버튼을 눌러 리포트를 생성하세요.</p>
+              </div>
+            ) : (
+              customReports.map((report) => {
+                const isExpanded = expandedCustomReport === report.id;
+                return (
+                  <div key={report.id} className="report-card">
+                    <div className="report-card-header">
+                      <div className="report-card-info">
+                        <div className="report-card-title">{report.title}</div>
+                        <div className="report-card-meta">
+                          <span className="report-cat-badge" style={{background: '#ede9fe', color: '#6d28d9'}}>종합요약</span>
+                          <span>
+                            {new Date(report.createdAt).toLocaleDateString('ko-KR', {
+                              year: 'numeric', month: 'long', day: 'numeric',
+                              hour: '2-digit', minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="report-card-actions">
+                        <button
+                          onClick={() => setExpandedCustomReport(isExpanded ? null : report.id)}
+                          className="tab-btn"
+                        >
+                          {isExpanded ? '접기' : '전체 보기'}
+                        </button>
+                        <a
+                          href={`https://newsapp-sable-two.vercel.app/api/reports?action=download&id=${report.id}`}
+                          download
+                          className="tab-btn active"
+                          style={{textDecoration: 'none'}}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Word
+                        </a>
+                        <button
+                          onClick={() => deleteReport(report.id)}
+                          className="tab-btn"
+                          style={{color: '#ef4444', borderColor: '#fca5a5'}}
+                          title="삭제"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {!isExpanded && report.content && (
+                      <p className="report-preview">{report.content}</p>
+                    )}
+                    {isExpanded && report.content && (
+                      <div className="report-content">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            a: ({href, children}) => (
+                              <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                            ),
+                            p: ({children}) => {
+                              const text = React.Children.toArray(children)
+                                .map(c => typeof c === 'string' ? c : '')
+                                .join('');
+                              if (text.startsWith('->')) {
+                                return <p className="hyundai-insight">{children}</p>;
+                              }
+                              return <p>{children}</p>;
+                            }
+                          }}
+                        >
+                          {report.content
+                            .replace(/(🟠|🔴|🟡|🟢)\s+(\S+)\s+(?!\|)/g, '$1 $2\n\n')
+                            .replace(/🔗\s*(https?:\/\/\S+)/g, '\n\n[🔗 기사 원문]($1)')
+                            .replace(/([^\n])\n(->)/g, '$1\n\n$2')
+                          }
+                        </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>

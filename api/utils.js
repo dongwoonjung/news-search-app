@@ -26,8 +26,10 @@ export default async function handler(req, res) {
     return handleAiSummary(req, res);
   } else if (action === 'summarize') {
     return handleSummarize(req, res);
+  } else if (action === 'analyze') {
+    return handleAnalyze(req, res);
   } else {
-    return res.status(400).json({ error: 'Invalid action. Use ?action=chat, ?action=translate, ?action=ai-summary, or ?action=summarize' });
+    return res.status(400).json({ error: 'Invalid action. Use ?action=chat, ?action=translate, ?action=ai-summary, ?action=summarize, or ?action=analyze' });
   }
 }
 
@@ -528,6 +530,92 @@ async function handleSummarize(req, res) {
 
   } catch (error) {
     console.error('Error in summarize endpoint:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ==================== ANALYZE (현대차 관점 심층 분석) ====================
+async function handleAnalyze(req, res) {
+  try {
+    const { title, summary, source, date } = req.body;
+
+    if (!title) return res.status(400).json({ success: false, error: 'Title is required' });
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY not configured' });
+    }
+
+    const prompt = `현대자동차그룹 BRM팀 수석 전략 분석가 역할. 아래 뉴스를 읽고 현대차 관점 심층 분석을 순수 JSON으로만 응답 (코드블록 없이):
+
+제목: ${title}
+내용: ${summary || '(요약 없음)'}
+출처: ${source || ''} / 날짜: ${date || ''}
+
+{
+  "시사점": "핵심 시사점 2~3문장",
+  "리스크요인": [
+    {"제목": "리스크명(10자 이내)", "내용": "현대차 영향 1~2문장", "심각도": "상"},
+    {"제목": "리스크명2", "내용": "설명", "심각도": "중"}
+  ],
+  "기회요인": [
+    {"제목": "기회명(10자 이내)", "내용": "활용 방안 1~2문장", "중요도": "상"},
+    {"제목": "기회명2", "내용": "설명", "중요도": "중"}
+  ],
+  "전략제언": [
+    {"제목": "제언명(10자 이내)", "내용": "실행 방안 1~2문장", "우선순위": "단기(~6개월)"},
+    {"제목": "제언명2", "내용": "설명", "우선순위": "중기(6개월~2년)"},
+    {"제목": "제언명3", "내용": "설명", "우선순위": "장기(2년 이상)"}
+  ],
+  "종합평가": "전반적 영향 및 핵심 대응 방향 1~2문장"
+}
+
+규칙: 심각도·중요도는 "상"/"중"/"하", 우선순위는 위 형식 그대로, 각 항목 간결하게`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        system: '당신은 현대자동차그룹 BRM팀의 수석 전략 분석가입니다. 반드시 순수 JSON 형식으로만 응답하세요. 코드블록(```), 추가 설명 텍스트 없이 JSON 객체만 출력하세요.',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Claude API error:', response.status, errText);
+      return res.status(500).json({ success: false, error: `Claude API error: ${response.status}` });
+    }
+
+    const data = await response.json();
+    const rawText = data.content[0].text.trim();
+    console.log('Claude analyze raw (first 300):', rawText.substring(0, 300));
+
+    let analysis;
+    try {
+      // 1차 시도: 직접 파싱
+      analysis = JSON.parse(rawText);
+    } catch (e1) {
+      try {
+        // 2차 시도: 코드블록 제거 후 JSON 추출
+        let clean = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const match = clean.match(/\{[\s\S]*\}/);
+        analysis = JSON.parse(match ? match[0] : clean);
+      } catch (e2) {
+        console.error('JSON parse error:', e2.message, '\nRaw:', rawText.substring(0, 500));
+        return res.status(500).json({ success: false, error: 'Failed to parse analysis JSON' });
+      }
+    }
+
+    return res.status(200).json({ success: true, analysis });
+
+  } catch (error) {
+    console.error('Error in analyze handler:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }

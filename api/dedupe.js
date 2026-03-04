@@ -38,9 +38,10 @@ export default async function handler(req, res) {
       // 임베딩 실패 시 기존 방식으로 fallback
       console.warn('Embedding generation failed, using fallback method');
       const deduped = fallbackDedupe(processedArticles);
+      const diverse = enforceTopicDiversity(deduped);
       return res.status(200).json({
         success: true,
-        articles: deduped,
+        articles: diverse,
         method: 'fallback'
       });
     }
@@ -48,15 +49,18 @@ export default async function handler(req, res) {
     // 3. 코사인 유사도 기반 중복 제거
     const deduped = dedupeByEmbedding(processedArticles, embeddings);
 
-    // 4. Supabase에 임베딩 저장 (선택적)
+    // 4. 토픽 다양성 강제 (같은 주제 기사 최대 2개 제한)
+    const diverse = enforceTopicDiversity(deduped.kept);
+
+    // 5. Supabase에 임베딩 저장 (선택적)
     if (process.env.SUPABASE_URL && category) {
-      await saveEmbeddings(deduped.kept, embeddings, category);
+      await saveEmbeddings(diverse, embeddings, category);
     }
 
     return res.status(200).json({
       success: true,
-      articles: deduped.kept,
-      removed: deduped.removed.length,
+      articles: diverse,
+      removed: deduped.removed.length + (deduped.kept.length - diverse.length),
       method: 'embedding'
     });
 
@@ -167,19 +171,18 @@ function dedupeByEmbedding(articles, embeddings) {
         duplicateOf = kept[j];
       }
 
-      // 높은 유사도: 거의 확실한 중복
-      if (similarity >= 0.92) {
+      // 높은 유사도: 거의 확실한 중복 (0.92 → 0.85로 낮춰 더 적극적으로 제거)
+      if (similarity >= 0.85) {
         isDuplicate = true;
         break;
       }
 
-      // 중간 유사도: 추가 검사
-      if (similarity >= 0.82) {
-        // 엔티티/키워드 일치도 검사
+      // 중간 유사도: 추가 검사 (0.82 → 0.75로 낮춤)
+      if (similarity >= 0.75) {
         const entityMatch = checkEntityMatch(article, kept[j]);
         const keywordMatch = checkKeywordMatch(article, kept[j]);
 
-        if (entityMatch >= 0.7 || keywordMatch >= 0.6) {
+        if (entityMatch >= 0.6 || keywordMatch >= 0.5) {
           isDuplicate = true;
           break;
         }
@@ -199,6 +202,48 @@ function dedupeByEmbedding(articles, embeddings) {
   }
 
   return { kept, removed };
+}
+
+// 토픽 다양성 강제 - 같은 주제(국가/인물 엔티티) 기사는 최대 MAX_PER_TOPIC개로 제한
+function enforceTopicDiversity(articles) {
+  if (articles.length <= 4) return articles;
+
+  // 기사의 "주요 토픽 엔티티" 추출
+  // "us"/"usa"는 너무 범용적이므로 제외하고, 첫 번째 유효 엔티티를 키로 사용
+  const SKIP_ENTITIES = new Set(['us', 'usa']);
+  const getTopicKey = (article) => {
+    const text = (article.title || '') + ' ' + (article.summary || '');
+    const entities = extractEntities(text);
+    if (entities.size === 0) return 'general';
+    // "us/usa" 제외 후 첫 번째 엔티티를 토픽 키로 사용
+    const primary = [...entities].find(e => !SKIP_ENTITIES.has(e)) || [...entities][0];
+    return primary;
+  };
+
+  const MAX_PER_TOPIC = 3;
+  const topicCounts = {};
+  const result = [];
+  const overflow = [];
+
+  for (const article of articles) {
+    const key = getTopicKey(article);
+    topicCounts[key] = (topicCounts[key] || 0) + 1;
+
+    if (topicCounts[key] <= MAX_PER_TOPIC) {
+      result.push(article);
+    } else {
+      overflow.push(article);
+    }
+  }
+
+  // 결과가 너무 적으면 overflow에서 보충 (최소 5개 보장)
+  const minArticles = Math.min(5, articles.length);
+  if (result.length < minArticles) {
+    result.push(...overflow.slice(0, minArticles - result.length));
+  }
+
+  console.log(`🎨 Topic diversity: ${articles.length} → ${result.length} articles (${articles.length - result.length} same-topic removed)`);
+  return result;
 }
 
 // 엔티티 일치도 검사
@@ -261,26 +306,52 @@ function extractKeywords(text) {
   return keywords;
 }
 
-// Fallback: 기존 방식의 중복 제거
+// Fallback: 개선된 제목 기반 중복 제거
 function fallbackDedupe(articles) {
+  // 영어/한국어 불용어 제거
+  const stopWords = new Set([
+    'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+    'should', 'may', 'might', 'shall', 'can', 'to', 'of', 'in', 'on', 'at',
+    'by', 'for', 'with', 'from', 'as', 'and', 'or', 'but', 'not', 'this',
+    'that', 'its', 'it', 'says', 'said', 'say', 'amid', 'after', 'over',
+    'report', 'reports', 'new', 'about', 'how', 'what', 'when', 'who',
+    'which', 'than', 'more', 'also', 'into', 'up', 'out', 'if', 'their',
+    'his', 'her', 'they', 'we', 'you', 'he', 'she', 'us', 'our',
+    // 한국어 불용어
+    '이', '가', '을', '를', '은', '는', '에', '의', '도', '로', '으로',
+    '에서', '와', '과', '이라고', '라고', '한다', '했다', '한', '된', '하는'
+  ]);
+
+  const getContentWords = (title) => {
+    return new Set(
+      title
+        .toLowerCase()
+        .replace(/[^\w\s가-힣]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w))
+    );
+  };
+
   const kept = [];
-  const seenTitles = new Set();
+  const keptWordSets = [];
 
   for (const article of articles) {
-    // 제목의 핵심 단어 추출
-    const titleWords = article.title
-      .toLowerCase()
-      .replace(/[^\w\s가-힣]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length > 3)
-      .sort()
-      .join(' ');
+    const wordSet = getContentWords(article.title);
+    if (wordSet.size === 0) {
+      kept.push(article);
+      keptWordSets.push(wordSet);
+      continue;
+    }
 
-    // 이미 유사한 제목이 있는지 확인
     let isDuplicate = false;
-    for (const seen of seenTitles) {
-      const similarity = jaccardSimilarity(titleWords.split(' '), seen.split(' '));
-      if (similarity >= 0.6) {
+    for (const seenWords of keptWordSets) {
+      const intersection = new Set([...wordSet].filter(x => seenWords.has(x)));
+      const union = wordSet.size + seenWords.size - intersection.size;
+      const similarity = union === 0 ? 0 : intersection.size / union;
+
+      // Jaccard 0.45 이상이면 같은 사건 기사로 판단
+      if (similarity >= 0.45) {
         isDuplicate = true;
         break;
       }
@@ -288,7 +359,7 @@ function fallbackDedupe(articles) {
 
     if (!isDuplicate) {
       kept.push(article);
-      seenTitles.add(titleWords);
+      keptWordSets.push(wordSet);
     }
   }
 

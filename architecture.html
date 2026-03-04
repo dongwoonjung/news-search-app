@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>뉴스서치앱 아키텍처</title>
+  <style>
+    body { margin: 0; background: #ffffff; display: flex; justify-content: center; align-items: flex-start; padding: 24px; font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; }
+  </style>
+</head>
+<body>
+<svg width="1380" height="980" viewBox="0 0 1380 980" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="aB" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2563eb"/></marker>
+  <marker id="aG" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#16a34a"/></marker>
+  <marker id="aO" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#ea580c"/></marker>
+  <marker id="aP" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#7c3aed"/></marker>
+  <marker id="aT" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#0891b2"/></marker>
+  <marker id="aR" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#dc2626"/></marker>
+  <marker id="aGr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#64748b"/></marker>
+  <linearGradient id="bgG" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#f0f4f8"/></linearGradient>
+</defs>
+
+<!-- Background -->
+<rect width="1380" height="980" fill="url(#bgG)" rx="14"/>
+
+<!-- ════════════════ TITLE ════════════════ -->
+<text x="690" y="44" text-anchor="middle" fill="#111827" font-size="21" font-weight="bold">🗞️  뉴스서치앱 아키텍처 &amp; 워크플로우</text>
+<text x="690" y="64" text-anchor="middle" fill="#64748b" font-size="11">newsapp-sable-two.vercel.app  |  Vercel Hobby  |  Supabase PostgreSQL  |  Anthropic Claude</text>
+
+<!-- ════════════════ ZONE BACKGROUNDS ════════════════ -->
+<!-- User zone -->
+<rect x="16" y="80" width="130" height="640" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="81" y="100" text-anchor="middle" fill="#64748b" font-size="11" font-weight="bold">사용자</text>
+
+<!-- Frontend zone -->
+<rect x="160" y="80" width="255" height="640" rx="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="287" y="100" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="bold">🖥  React 프론트엔드 (Vercel)</text>
+
+<!-- API zone -->
+<rect x="430" y="80" width="450" height="640" rx="10" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="655" y="100" text-anchor="middle" fill="#6d28d9" font-size="11" font-weight="bold">⚡  Serverless Functions (Vercel · 12개 한도)</text>
+
+<!-- External zone -->
+<rect x="896" y="80" width="468" height="640" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+<text x="1130" y="100" text-anchor="middle" fill="#15803d" font-size="11" font-weight="bold">🌐  외부 서비스 &amp; AI</text>
+
+<!-- Supabase zone -->
+<rect x="430" y="736" width="934" height="104" rx="10" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+<text x="897" y="758" text-anchor="middle" fill="#0e7490" font-size="12" font-weight="bold">🗄️  Supabase PostgreSQL (DB)</text>
+
+<!-- ════════════════ USER COLUMN ════════════════ -->
+<!-- Browser -->
+<rect x="28" y="280" width="106" height="72" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="81" y="308" text-anchor="middle" font-size="22">🌐</text>
+<text x="81" y="328" text-anchor="middle" fill="#334155" font-size="11" font-weight="bold">브라우저</text>
+<text x="81" y="344" text-anchor="middle" fill="#64748b" font-size="9">현대차 BRM팀</text>
+
+<!-- Cron -->
+<rect x="28" y="152" width="106" height="72" rx="8" fill="#fff1f2" stroke="#f87171" stroke-width="1.5"/>
+<text x="81" y="178" text-anchor="middle" font-size="20">⏰</text>
+<text x="81" y="198" text-anchor="middle" fill="#b91c1c" font-size="11" font-weight="bold">Vercel Cron</text>
+<text x="81" y="213" text-anchor="middle" fill="#dc2626" font-size="9">KST 06:00 매일</text>
+
+<!-- ════════════════ FRONTEND COLUMN ════════════════ -->
+
+<!-- 일반 뉴스 카드 -->
+<rect x="172" y="112" width="231" height="66" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="287" y="133" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="bold">📰  일반 뉴스 카드</text>
+<text x="287" y="150" text-anchor="middle" fill="#2563eb" font-size="9">지정학 · 미국경제 · 자동차 · AI · 무역</text>
+<text x="287" y="165" text-anchor="middle" fill="#1e40af" font-size="9">체크박스 선택 | 번역 | 요약 | 아카이브</text>
+
+<!-- 경쟁사 분석 -->
+<rect x="172" y="190" width="231" height="66" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="287" y="211" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="bold">🏁  경쟁사 분석</text>
+<text x="287" y="228" text-anchor="middle" fill="#2563eb" font-size="9">🇺🇸 미국 | 🇪🇺 유럽/일본 | 🇨🇳 중국 OEM</text>
+<text x="287" y="244" text-anchor="middle" fill="#1e40af" font-size="9">그룹 탭 클릭 시 온디맨드 로드</text>
+
+<!-- 아카이브 -->
+<rect x="172" y="268" width="231" height="66" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="287" y="289" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="bold">📂  아카이브</text>
+<text x="287" y="306" text-anchor="middle" fill="#2563eb" font-size="9">카테고리별 기사 보관</text>
+<text x="287" y="322" text-anchor="middle" fill="#1e40af" font-size="9">현대차 관점 심층 분석 가능</text>
+
+<!-- 이슈 분석 -->
+<rect x="172" y="346" width="231" height="66" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="287" y="367" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="bold">🔍  이슈 심층분석</text>
+<text x="287" y="384" text-anchor="middle" fill="#2563eb" font-size="9">기사 선택 → Claude Sonnet 분석</text>
+<text x="287" y="400" text-anchor="middle" fill="#1e40af" font-size="9">리스크 · 기회요인 · 전략제언</text>
+
+<!-- 데일리 리포트 -->
+<rect x="172" y="424" width="231" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+<text x="287" y="445" text-anchor="middle" fill="#166534" font-size="11" font-weight="bold">📄  데일리 리포트</text>
+<text x="287" y="462" text-anchor="middle" fill="#16a34a" font-size="9">Markdown → ReactMarkdown 렌더</text>
+<text x="287" y="478" text-anchor="middle" fill="#15803d" font-size="9">→ 현대차는... 스타일 | Word 다운로드</text>
+
+<!-- 종합요약리포트 -->
+<rect x="172" y="502" width="231" height="66" rx="7" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+<text x="287" y="523" text-anchor="middle" fill="#6b21a8" font-size="11" font-weight="bold">📋  종합요약리포트</text>
+<text x="287" y="540" text-anchor="middle" fill="#7c3aed" font-size="9">체크박스 선택 기사 → 즉시 리포트</text>
+<text x="287" y="556" text-anchor="middle" fill="#6d28d9" font-size="9">Word 다운로드 | Supabase 저장</text>
+
+<!-- 키워드 관리 -->
+<rect x="172" y="580" width="110" height="56" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="227" y="601" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">🔑 키워드 관리</text>
+<text x="227" y="618" text-anchor="middle" fill="#2563eb" font-size="9">Supabase CRUD</text>
+<text x="227" y="632" text-anchor="middle" fill="#1e40af" font-size="9">맞춤 검색어</text>
+
+<!-- AI 채팅 -->
+<rect x="293" y="580" width="110" height="56" rx="7" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+<text x="348" y="601" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">💬 AI 채팅</text>
+<text x="348" y="618" text-anchor="middle" fill="#2563eb" font-size="9">GPT-4o-mini</text>
+<text x="348" y="632" text-anchor="middle" fill="#1e40af" font-size="9">+ Tavily 웹검색</text>
+
+<!-- ════════════════ API COLUMN ════════════════ -->
+
+<!-- [A1] 뉴스 수집 그룹 label -->
+<text x="530" y="124" fill="#6d28d9" font-size="9" font-weight="bold">── 뉴스 수집</text>
+
+<!-- /api/news -->
+<rect x="442" y="131" width="192" height="46" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="538" y="151" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/news</text>
+<text x="538" y="167" text-anchor="middle" fill="#6d28d9" font-size="9">NewsAPI 카테고리 · 키워드 검색</text>
+
+<!-- /api/google-news -->
+<rect x="644" y="131" width="224" height="46" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="756" y="151" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/google-news</text>
+<text x="756" y="167" text-anchor="middle" fill="#6d28d9" font-size="9">Google News RSS 파싱 · 다국어</text>
+
+<!-- /api/naver-news -->
+<rect x="442" y="187" width="192" height="46" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="538" y="207" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/naver-news</text>
+<text x="538" y="223" text-anchor="middle" fill="#6d28d9" font-size="9">네이버 뉴스 검색 API · 한국어</text>
+
+<!-- /api/keywords + /api/dedupe -->
+<rect x="644" y="187" width="104" height="46" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="696" y="207" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/keywords</text>
+<text x="696" y="223" text-anchor="middle" fill="#6d28d9" font-size="9">키워드 CRUD</text>
+
+<rect x="756" y="187" width="112" height="46" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="812" y="207" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/dedupe</text>
+<text x="812" y="223" text-anchor="middle" fill="#6d28d9" font-size="9">기사 중복 제거</text>
+
+<!-- [A2] 번역/요약 label -->
+<text x="442" y="252" fill="#6d28d9" font-size="9" font-weight="bold">── 번역 · 요약 · 분석 · 채팅</text>
+
+<!-- /api/utils -->
+<rect x="442" y="260" width="426" height="96" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="655" y="279" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/utils  (claude-3-haiku / GPT-4o-mini)</text>
+
+<rect x="450" y="286" width="95" height="60" rx="5" fill="#ddd6fe" stroke="#5b21b6" stroke-width="1"/>
+<text x="497" y="305" text-anchor="middle" fill="#4c1d95" font-size="10" font-weight="bold">translate</text>
+<text x="497" y="320" text-anchor="middle" fill="#6d28d9" font-size="9">영 → 한</text>
+<text x="497" y="335" text-anchor="middle" fill="#6d28d9" font-size="9">Haiku</text>
+
+<rect x="553" y="286" width="95" height="60" rx="5" fill="#ddd6fe" stroke="#5b21b6" stroke-width="1"/>
+<text x="600" y="305" text-anchor="middle" fill="#4c1d95" font-size="10" font-weight="bold">summarize</text>
+<text x="600" y="320" text-anchor="middle" fill="#6d28d9" font-size="9">3~5문장 요약</text>
+<text x="600" y="335" text-anchor="middle" fill="#6d28d9" font-size="9">Haiku</text>
+
+<rect x="656" y="286" width="95" height="60" rx="5" fill="#ddd6fe" stroke="#5b21b6" stroke-width="1"/>
+<text x="703" y="305" text-anchor="middle" fill="#4c1d95" font-size="10" font-weight="bold">analyze</text>
+<text x="703" y="320" text-anchor="middle" fill="#6d28d9" font-size="9">현대차 관점</text>
+<text x="703" y="335" text-anchor="middle" fill="#6d28d9" font-size="9">Sonnet</text>
+
+<rect x="759" y="286" width="101" height="60" rx="5" fill="#ddd6fe" stroke="#5b21b6" stroke-width="1"/>
+<text x="809" y="305" text-anchor="middle" fill="#4c1d95" font-size="10" font-weight="bold">chat</text>
+<text x="809" y="320" text-anchor="middle" fill="#6d28d9" font-size="9">AI 채팅</text>
+<text x="809" y="335" text-anchor="middle" fill="#6d28d9" font-size="9">GPT-4o</text>
+
+<!-- [A3] 리포트 label -->
+<text x="442" y="376" fill="#6d28d9" font-size="9" font-weight="bold">── 리포트 생성</text>
+
+<!-- /api/daily-report -->
+<rect x="442" y="384" width="426" height="100" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+<text x="655" y="403" text-anchor="middle" fill="#166534" font-size="11" font-weight="bold">/api/daily-report  (claude-sonnet-4-6 · maxDuration 60s)</text>
+
+<rect x="450" y="410" width="128" height="64" rx="5" fill="#bbf7d0" stroke="#15803d" stroke-width="1"/>
+<text x="514" y="428" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">?action=fetch</text>
+<text x="514" y="444" text-anchor="middle" fill="#16a34a" font-size="9">뉴스 수집 (3소스)</text>
+<text x="514" y="459" text-anchor="middle" fill="#16a34a" font-size="9">Supabase 캐시 저장</text>
+<text x="514" y="470" text-anchor="middle" fill="#15803d" font-size="9">news_cache category</text>
+
+<rect x="586" y="410" width="130" height="64" rx="5" fill="#bbf7d0" stroke="#15803d" stroke-width="1"/>
+<text x="651" y="428" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">?action=generate</text>
+<text x="651" y="444" text-anchor="middle" fill="#16a34a" font-size="9">캐시 기사 → Sonnet</text>
+<text x="651" y="459" text-anchor="middle" fill="#16a34a" font-size="9">리포트 생성 · 저장</text>
+<text x="651" y="470" text-anchor="middle" fill="#15803d" font-size="9">fire-and-forget 패턴</text>
+
+<rect x="724" y="410" width="136" height="64" rx="5" fill="#bbf7d0" stroke="#15803d" stroke-width="1"/>
+<text x="792" y="428" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">Cron 자동</text>
+<text x="792" y="444" text-anchor="middle" fill="#16a34a" font-size="9">UTC 21:00 fetch</text>
+<text x="792" y="459" text-anchor="middle" fill="#16a34a" font-size="9">UTC 21:03 generate</text>
+<text x="792" y="470" text-anchor="middle" fill="#15803d" font-size="9">= KST 06:00 / 06:03</text>
+
+<!-- /api/reports -->
+<rect x="442" y="496" width="426" height="100" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+<text x="655" y="515" text-anchor="middle" fill="#166534" font-size="11" font-weight="bold">/api/reports</text>
+
+<rect x="450" y="522" width="118" height="64" rx="5" fill="#bbf7d0" stroke="#15803d" stroke-width="1"/>
+<text x="509" y="540" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">GET ?category=</text>
+<text x="509" y="556" text-anchor="middle" fill="#16a34a" font-size="9">daily | custom 조회</text>
+<text x="509" y="572" text-anchor="middle" fill="#15803d" font-size="9">Supabase 읽기</text>
+
+<rect x="576" y="522" width="138" height="64" rx="5" fill="#ede9fe" stroke="#7c3aed" stroke-width="1"/>
+<text x="645" y="540" text-anchor="middle" fill="#5b21b6" font-size="10" font-weight="bold">POST generate</text>
+<text x="645" y="556" text-anchor="middle" fill="#7c3aed" font-size="9">선택기사 → Sonnet</text>
+<text x="645" y="572" text-anchor="middle" fill="#6d28d9" font-size="9">종합요약 · 저장</text>
+
+<rect x="722" y="522" width="138" height="64" rx="5" fill="#bbf7d0" stroke="#15803d" stroke-width="1"/>
+<text x="791" y="540" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">download Word</text>
+<text x="791" y="556" text-anchor="middle" fill="#16a34a" font-size="9">docx-builder</text>
+<text x="791" y="572" text-anchor="middle" fill="#15803d" font-size="9">→ 현대차는 스타일</text>
+
+<!-- [A4] 아카이브 label -->
+<text x="442" y="616" fill="#6d28d9" font-size="9" font-weight="bold">── 아카이브</text>
+
+<!-- /api/archives -->
+<rect x="442" y="624" width="426" height="60" rx="6" fill="#ede9fe" stroke="#6d28d9" stroke-width="1.5"/>
+<text x="655" y="645" text-anchor="middle" fill="#5b21b6" font-size="11" font-weight="bold">/api/archives</text>
+<text x="655" y="662" text-anchor="middle" fill="#6d28d9" font-size="9">GET 조회 | POST 저장 | DELETE 삭제  ·  Supabase archived_articles 테이블</text>
+
+<!-- ════════════════ EXTERNAL COLUMN ════════════════ -->
+
+<!-- NewsAPI -->
+<rect x="908" y="112" width="444" height="56" rx="7" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="1130" y="135" text-anchor="middle" fill="#166534" font-size="12" font-weight="bold">📡  NewsAPI  (newsapi.org)</text>
+<text x="1130" y="153" text-anchor="middle" fill="#16a34a" font-size="10">카테고리 · 키워드 기반 영문 뉴스 · REST API</text>
+
+<!-- Google News -->
+<rect x="908" y="180" width="444" height="56" rx="7" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="1130" y="203" text-anchor="middle" fill="#166534" font-size="12" font-weight="bold">🔍  Google News RSS</text>
+<text x="1130" y="221" text-anchor="middle" fill="#16a34a" font-size="10">RSS 피드 파싱 · 전세계 다국어 뉴스</text>
+
+<!-- Naver -->
+<rect x="908" y="248" width="444" height="56" rx="7" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+<text x="1130" y="271" text-anchor="middle" fill="#166534" font-size="12" font-weight="bold">🟢  Naver 뉴스 검색 API</text>
+<text x="1130" y="289" text-anchor="middle" fill="#16a34a" font-size="10">한국어 뉴스 · client_id / client_secret</text>
+
+<!-- Claude Haiku -->
+<rect x="908" y="316" width="444" height="72" rx="7" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+<text x="1130" y="339" text-anchor="middle" fill="#9a3412" font-size="12" font-weight="bold">🤖  Anthropic Claude Haiku</text>
+<text x="1130" y="358" text-anchor="middle" fill="#c2410c" font-size="10">claude-3-haiku-20240307  |  빠름 · 저비용</text>
+<text x="1130" y="376" text-anchor="middle" fill="#ea580c" font-size="10">한국어 번역 | 기사 요약 (3~5문장) | 2개씩 순차 처리</text>
+
+<!-- Claude Sonnet -->
+<rect x="908" y="400" width="444" height="72" rx="7" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+<text x="1130" y="423" text-anchor="middle" fill="#9a3412" font-size="12" font-weight="bold">🤖  Anthropic Claude Sonnet 4.6</text>
+<text x="1130" y="442" text-anchor="middle" fill="#c2410c" font-size="10">claude-sonnet-4-6  |  고품질 · 심층분석</text>
+<text x="1130" y="460" text-anchor="middle" fill="#ea580c" font-size="10">데일리리포트 | 종합요약 | 현대차 관점 분석 (Sonnet)</text>
+
+<!-- GPT -->
+<rect x="908" y="484" width="444" height="56" rx="7" fill="#eef2ff" stroke="#4338ca" stroke-width="1.5"/>
+<text x="1130" y="507" text-anchor="middle" fill="#3730a3" font-size="12" font-weight="bold">🟣  OpenAI GPT-4o-mini</text>
+<text x="1130" y="525" text-anchor="middle" fill="#4338ca" font-size="10">AI 채팅  +  Tavily 웹검색 (실시간 정보)</text>
+
+<!-- Vercel Cron box -->
+<rect x="908" y="552" width="444" height="56" rx="7" fill="#fff1f2" stroke="#dc2626" stroke-width="1.5"/>
+<text x="1130" y="575" text-anchor="middle" fill="#991b1b" font-size="12" font-weight="bold">⏰  Vercel Cron Jobs (vercel.json)</text>
+<text x="1130" y="593" text-anchor="middle" fill="#dc2626" font-size="10">UTC 21:00 fetch  →  UTC 21:03 generate  (= KST 06:00 / 06:03)</text>
+
+<!-- ════════════════ SUPABASE TABLES ════════════════ -->
+<rect x="442" y="768" width="222" height="58" rx="7" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="553" y="791" text-anchor="middle" fill="#0e7490" font-size="11" font-weight="bold">reports 테이블</text>
+<text x="553" y="808" text-anchor="middle" fill="#0891b2" font-size="9">category: daily | custom | news_cache</text>
+<text x="553" y="820" text-anchor="middle" fill="#0c4a6e" font-size="9">title · content · created_at</text>
+
+<rect x="676" y="768" width="222" height="58" rx="7" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="787" y="791" text-anchor="middle" fill="#0e7490" font-size="11" font-weight="bold">archived_articles</text>
+<text x="787" y="808" text-anchor="middle" fill="#0891b2" font-size="9">article_key · category · company_id</text>
+<text x="787" y="820" text-anchor="middle" fill="#0c4a6e" font-size="9">title · description · url · source</text>
+
+<rect x="910" y="768" width="196" height="58" rx="7" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="1008" y="791" text-anchor="middle" fill="#0e7490" font-size="11" font-weight="bold">keywords 테이블</text>
+<text x="1008" y="808" text-anchor="middle" fill="#0891b2" font-size="9">사용자 정의 검색 키워드</text>
+<text x="1008" y="820" text-anchor="middle" fill="#0c4a6e" font-size="9">keyword · created_at</text>
+
+<rect x="1118" y="768" width="238" height="58" rx="7" fill="#cffafe" stroke="#0891b2" stroke-width="1.5"/>
+<text x="1237" y="791" text-anchor="middle" fill="#0e7490" font-size="11" font-weight="bold">news_cache (reports)</text>
+<text x="1237" y="808" text-anchor="middle" fill="#0891b2" font-size="9">daily-report fetch 결과 임시 저장</text>
+<text x="1237" y="820" text-anchor="middle" fill="#0c4a6e" font-size="9">generate 단계에서 읽어 사용</text>
+
+<!-- ════════════════ ARROWS ════════════════ -->
+
+<!-- Browser ↔ Frontend (double) -->
+<line x1="134" y1="316" x2="168" y2="316" stroke="#64748b" stroke-width="1.5" marker-end="url(#aGr)"/>
+<line x1="168" y1="326" x2="134" y2="326" stroke="#64748b" stroke-width="1.5" marker-end="url(#aGr)"/>
+
+<!-- Cron → /api/daily-report -->
+<path d="M 81 224 Q 81 440 440 440" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="6,3" marker-end="url(#aR)"/>
+
+<!-- Frontend → /api/news (일반뉴스) -->
+<line x1="403" y1="148" x2="439" y2="154" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aB)"/>
+
+<!-- Frontend → /api/google-news -->
+<line x1="403" y1="155" x2="641" y2="155" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aB)"/>
+
+<!-- Frontend → /api/naver-news -->
+<line x1="403" y1="218" x2="439" y2="210" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aB)"/>
+
+<!-- Frontend → /api/utils (translate/summarize) -->
+<line x1="403" y1="236" x2="439" y2="308" stroke="#ea580c" stroke-width="1.5" marker-end="url(#aO)"/>
+
+<!-- Frontend → /api/archives -->
+<line x1="403" y1="290" x2="439" y2="645" stroke="#0891b2" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#aT)"/>
+
+<!-- Frontend (이슈분석) → /api/utils?analyze -->
+<line x1="403" y1="370" x2="654" y2="340" stroke="#ea580c" stroke-width="1.5" marker-end="url(#aO)"/>
+
+<!-- Frontend (데일리리포트) → /api/reports?GET -->
+<line x1="403" y1="448" x2="439" y2="540" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aG)"/>
+
+<!-- Frontend (종합요약) → /api/reports?POST generate -->
+<line x1="403" y1="530" x2="573" y2="540" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#aP)"/>
+
+<!-- Frontend (키워드) → /api/keywords -->
+<line x1="293" y1="580" x2="693" y2="233" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#aB)"/>
+
+<!-- Frontend (채팅) → /api/utils?chat -->
+<line x1="403" y1="608" x2="756" y2="340" stroke="#4338ca" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#aB)"/>
+
+<!-- /api/news → NewsAPI -->
+<line x1="634" y1="154" x2="905" y2="140" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aG)"/>
+
+<!-- /api/google-news → Google News -->
+<line x1="868" y1="154" x2="905" y2="208" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aG)"/>
+
+<!-- /api/naver-news → Naver -->
+<line x1="634" y1="210" x2="905" y2="276" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aG)"/>
+
+<!-- /api/utils translate/summarize → Claude Haiku -->
+<line x1="868" y1="310" x2="905" y2="352" stroke="#ea580c" stroke-width="1.5" marker-end="url(#aO)"/>
+
+<!-- /api/utils analyze → Claude Sonnet -->
+<line x1="702" y1="356" x2="905" y2="436" stroke="#ea580c" stroke-width="1.5" marker-end="url(#aO)"/>
+
+<!-- /api/utils chat → GPT -->
+<line x1="868" y1="340" x2="905" y2="512" stroke="#4338ca" stroke-width="1.5" marker-end="url(#aB)"/>
+
+<!-- /api/daily-report generate → Claude Sonnet -->
+<line x1="868" y1="440" x2="905" y2="440" stroke="#16a34a" stroke-width="1.5" marker-end="url(#aG)"/>
+
+<!-- /api/reports POST generate → Claude Sonnet -->
+<line x1="714" y1="590" x2="905" y2="450" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#aP)"/>
+
+<!-- Vercel Cron → /api/daily-report (external side) -->
+<line x1="908" y1="580" x2="870" y2="440" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#aR)"/>
+
+<!-- API → Supabase (vertical arrows) -->
+<line x1="514" y1="484" x2="553" y2="766" stroke="#0891b2" stroke-width="1.5" marker-end="url(#aT)"/>
+<line x1="651" y1="596" x2="660" y2="766" stroke="#0891b2" stroke-width="1.5" marker-end="url(#aT)"/>
+<line x1="568" y1="684" x2="787" y2="766" stroke="#0891b2" stroke-width="1.5" marker-end="url(#aT)"/>
+<line x1="696" y1="233" x2="1008" y2="766" stroke="#0891b2" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#aT)"/>
+
+<!-- /api/daily-report → news_cache -->
+<line x1="792" y1="484" x2="1237" y2="766" stroke="#16a34a" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#aG)"/>
+
+<!-- ════════════════ WORKFLOW LEGEND ════════════════ -->
+<rect x="16" y="736" width="406" height="228" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="219" y="758" text-anchor="middle" fill="#475569" font-size="12" font-weight="bold">📋  주요 워크플로우</text>
+
+<!-- W1 일반뉴스 -->
+<rect x="28" y="768" width="186" height="84" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<text x="121" y="786" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">① 일반 뉴스 검색 &amp; 요약</text>
+<text x="121" y="802" text-anchor="middle" fill="#2563eb" font-size="9">카테고리 클릭</text>
+<text x="121" y="816" text-anchor="middle" fill="#2563eb" font-size="9">↓ news + google + naver 병렬 수집</text>
+<text x="121" y="830" text-anchor="middle" fill="#2563eb" font-size="9">↓ Haiku 번역 (2개씩 순차)</text>
+<text x="121" y="844" text-anchor="middle" fill="#1e40af" font-size="9">↓ Haiku 요약 (2개씩 완료후 다음)</text>
+
+<!-- W2 경쟁사 -->
+<rect x="222" y="768" width="186" height="84" rx="6" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+<text x="315" y="786" text-anchor="middle" fill="#1d4ed8" font-size="10" font-weight="bold">② 경쟁사 분석</text>
+<text x="315" y="802" text-anchor="middle" fill="#2563eb" font-size="9">그룹 탭 클릭 (미국/유럽일본/중국)</text>
+<text x="315" y="816" text-anchor="middle" fill="#2563eb" font-size="9">↓ 3~4개사 뉴스 수집</text>
+<text x="315" y="830" text-anchor="middle" fill="#2563eb" font-size="9">↓ 중복 제거 (URL + 제목30자)</text>
+<text x="315" y="844" text-anchor="middle" fill="#1e40af" font-size="9">↓ 회사당 최대 4기사 요약</text>
+
+<!-- W3 데일리 리포트 -->
+<rect x="28" y="860" width="186" height="96" rx="6" fill="#dcfce7" stroke="#15803d" stroke-width="1"/>
+<text x="121" y="878" text-anchor="middle" fill="#166534" font-size="10" font-weight="bold">③ 데일리 리포트 생성</text>
+<text x="121" y="894" text-anchor="middle" fill="#16a34a" font-size="9">Cron(06:00) 또는 수동 버튼</text>
+<text x="121" y="908" text-anchor="middle" fill="#16a34a" font-size="9">↓ fetch: 뉴스 수집 → Supabase</text>
+<text x="121" y="922" text-anchor="middle" fill="#16a34a" font-size="9">↓ generate (fire-and-forget)</text>
+<text x="121" y="936" text-anchor="middle" fill="#15803d" font-size="9">↓ Sonnet 리포트 → DB 저장</text>
+<text x="121" y="950" text-anchor="middle" fill="#15803d" font-size="9">↓ 20초 폴링 → 완료 알림</text>
+
+<!-- W4 종합요약 -->
+<rect x="222" y="860" width="186" height="96" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1"/>
+<text x="315" y="878" text-anchor="middle" fill="#6b21a8" font-size="10" font-weight="bold">④ 종합요약리포트</text>
+<text x="315" y="894" text-anchor="middle" fill="#7c3aed" font-size="9">뉴스카드 체크박스 선택</text>
+<text x="315" y="908" text-anchor="middle" fill="#7c3aed" font-size="9">↓ 📋 탭에서 배지(N) 확인</text>
+<text x="315" y="922" text-anchor="middle" fill="#7c3aed" font-size="9">↓ "N개로 리포트 생성" 클릭</text>
+<text x="315" y="936" text-anchor="middle" fill="#6d28d9" font-size="9">↓ Sonnet → 15~25초 완료</text>
+<text x="315" y="950" text-anchor="middle" fill="#6d28d9" font-size="9">↓ Word 다운로드 가능</text>
+
+</svg>
+</body>
+</html>

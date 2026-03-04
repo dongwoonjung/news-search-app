@@ -111,9 +111,18 @@ export default async function handler(req, res) {
       });
     }
 
-    // DELETE - 특정 기사 삭제
+    // DELETE - 기사 삭제 (all=true 이면 전체 삭제, 아니면 articleKey 지정)
     else if (req.method === 'DELETE') {
-      const { articleKey } = req.query;
+      const { articleKey, all } = req.query;
+
+      if (all === 'true') {
+        const { error } = await supabase
+          .from('archived_articles')
+          .delete()
+          .neq('article_key', '');
+        if (error) throw error;
+        return res.status(200).json({ success: true, removed: 'all' });
+      }
 
       if (!articleKey) {
         return res.status(400).json({
