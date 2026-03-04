@@ -338,7 +338,7 @@ export default async function handler(req, res) {
 
     // POST - 리포트 저장
     if (req.method === 'POST') {
-      const { title, content, category, filename, fileData } = req.body;
+      const { title, content, category, filename, fileData, pdfFilename, pdfData } = req.body;
 
       if (!title || !content) {
         return res.status(400).json({
@@ -347,12 +347,14 @@ export default async function handler(req, res) {
         });
       }
 
+      const timestamp = Date.now();
       let fileUrl = null;
+      let pdfUrl = null;
 
-      // 파일 데이터가 있으면 Storage에 업로드
+      // docx 파일 업로드
       if (fileData) {
         const buffer = Buffer.from(fileData, 'base64');
-        const storagePath = `reports/${Date.now()}_${filename}`;
+        const storagePath = `reports/${timestamp}_${filename}`;
 
         const { error: uploadError } = await supabase.storage
           .from('reports')
@@ -362,12 +364,34 @@ export default async function handler(req, res) {
           });
 
         if (uploadError) {
-          console.error('Storage upload error:', uploadError);
+          console.error('Storage upload error (docx):', uploadError);
         } else {
           const { data: urlData } = supabase.storage
             .from('reports')
             .getPublicUrl(storagePath);
           fileUrl = urlData.publicUrl;
+        }
+      }
+
+      // PDF 파일 업로드
+      if (pdfData && pdfFilename) {
+        const pdfBuffer = Buffer.from(pdfData, 'base64');
+        const pdfStoragePath = `reports/${timestamp}_${pdfFilename}`;
+
+        const { error: pdfUploadError } = await supabase.storage
+          .from('reports')
+          .upload(pdfStoragePath, pdfBuffer, {
+            contentType: 'application/pdf',
+            upsert: false
+          });
+
+        if (pdfUploadError) {
+          console.error('Storage upload error (pdf):', pdfUploadError);
+        } else {
+          const { data: pdfUrlData } = supabase.storage
+            .from('reports')
+            .getPublicUrl(pdfStoragePath);
+          pdfUrl = pdfUrlData.publicUrl;
         }
       }
 
@@ -380,6 +404,7 @@ export default async function handler(req, res) {
           category: category || null,
           filename: filename || null,
           file_url: fileUrl,
+          pdf_url: pdfUrl,
           created_at: new Date().toISOString(),
         }])
         .select()
@@ -393,6 +418,7 @@ export default async function handler(req, res) {
           id: data.id,
           title: data.title,
           fileUrl: data.file_url,
+          pdfUrl: data.pdf_url,
         }
       });
     }
