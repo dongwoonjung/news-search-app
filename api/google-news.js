@@ -58,27 +58,45 @@ export default async function handler(req, res) {
       ]
     };
 
-    const whenParam = timeRange === 'week' ? 'when:7d' : 'when:1d';
+    const whenParam = timeRange === 'week' ? 'when:7d' : timeRange === '3day' ? 'when:3d' : 'when:1d';
 
     // 날짜 범위 계산
     const now = new Date();
     const toDate = new Date(now);
     const fromDate = new Date(now);
 
-    if (timeRange === 'day') {
-      fromDate.setHours(fromDate.getHours() - 24);
-    } else if (timeRange === 'week') {
+    if (timeRange === 'week') {
       fromDate.setDate(fromDate.getDate() - 8);
       toDate.setDate(toDate.getDate() - 2);
+    } else if (timeRange === '3day') {
+      fromDate.setHours(fromDate.getHours() - 72);
     } else {
       fromDate.setHours(fromDate.getHours() - 24);
     }
 
     const parser = new Parser({
       customFields: {
-        item: ['source']
+        item: ['source', 'description']
       }
     });
+
+    // URL 경로에서 실제 발행일 추출
+    const extractDateFromUrl = (url) => {
+      if (!url) return null;
+      const patterns = [
+        /\/(\d{4})\/(\d{2})\/(\d{2})\//,   // /2025/02/15/
+        /[/-](\d{4})-(\d{2})-(\d{2})/,     // 2025-02-15
+        /\/(\d{4})(\d{2})(\d{2})\//,        // /20250215/
+      ];
+      for (const pat of patterns) {
+        const m = url.match(pat);
+        if (m) {
+          const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+          if (!isNaN(d)) return d;
+        }
+      }
+      return null;
+    };
 
     // RSS 피드 파싱 헬퍼
     const fetchFeed = async (q) => {
@@ -86,7 +104,14 @@ export default async function handler(req, res) {
       const feed = await parser.parseURL(url);
       return feed.items.filter(item => {
         const pubDate = new Date(item.pubDate);
-        return pubDate >= fromDate && pubDate <= toDate;
+        if (pubDate < fromDate || pubDate > toDate) return false;
+        // URL에 날짜가 있고 RSS 날짜보다 7일 이상 오래된 경우 제외 (Google News 재수집 오래된 기사 차단)
+        const urlDate = extractDateFromUrl(item.link);
+        if (urlDate) {
+          const diffDays = (pubDate - urlDate) / (1000 * 60 * 60 * 24);
+          if (diffDays > 7) return false;
+        }
+        return true;
       });
     };
 
@@ -171,12 +196,14 @@ export default async function handler(req, res) {
         cleanTitle = cleanTitle.slice(0, -(` - ${sourceName}`).length).trim();
       }
 
+      const articleUrl = item.link;
+
       return {
         title: cleanTitle,
         summary: item.contentSnippet || item.content || '',
         date: new Date(item.pubDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         source: sourceName || 'Google News',
-        url: item.link,
+        url: articleUrl,
         publishedAt: item.pubDate
       };
     });

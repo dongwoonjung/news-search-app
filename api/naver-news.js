@@ -84,15 +84,16 @@ export default async function handler(req, res) {
       const toDate = new Date(now);
       const fromDate = new Date(now);
 
-      if (timeRange === 'day') {
-        // 24시간 전 ~ 현재 (정확히 24시간 윈도우)
-        fromDate.setHours(fromDate.getHours() - 24);
-      } else if (timeRange === 'week') {
+      if (timeRange === 'week') {
         // 일주일 전: 8일 전 ~ 2일 전 (하루 전과 중복되지 않게)
         fromDate.setDate(fromDate.getDate() - 8);
         toDate.setDate(toDate.getDate() - 2);
+      } else if (timeRange === '3day') {
+        // 72시간 (월요일 주말 커버리지용)
+        fromDate.setHours(fromDate.getHours() - 72);
       } else {
-        fromDate.setHours(fromDate.getHours() - 24); // 기본값 24시간
+        // day 또는 기본값: 24시간
+        fromDate.setHours(fromDate.getHours() - 24);
       }
 
       // 날짜 필터링
