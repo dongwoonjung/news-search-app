@@ -143,6 +143,10 @@ body {
 .archive-btn.active      { background: #f5f3ff; border-color: #7c3aed; color: #7c3aed; }
 .archive-btn:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; }
 
+/* 이슈 분석 버튼 */
+.issue-btn.active        { background: #f0fdf4; border-color: #16a34a; color: #16a34a; }
+.issue-btn:hover         { border-color: #16a34a; color: #16a34a; }
+
 /* 키워드 버튼 */
 .keyword-btn.active      { background: #fffbeb; border-color: #d97706; color: #d97706; }
 .keyword-btn:hover:not(:disabled) { border-color: #d97706; color: #d97706; }

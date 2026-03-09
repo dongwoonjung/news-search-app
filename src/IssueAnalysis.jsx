@@ -1,23 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { FolderPlus, FileText, Edit, Trash2, ArrowLeft, Save, X, Sparkles, ChevronDown, ChevronRight, ExternalLink, MoveRight, Plus } from 'lucide-react';
 
+const S = {
+  // 공통 인풋/텍스트에어리어
+  input: {
+    width: '100%', padding: '8px 12px', border: '1px solid var(--border)',
+    borderRadius: 8, fontSize: 13, color: 'var(--text-primary)',
+    background: 'var(--surface)', outline: 'none', boxSizing: 'border-box',
+  },
+  textarea: {
+    width: '100%', padding: '8px 12px', border: '1px solid var(--border)',
+    borderRadius: 8, fontSize: 13, color: 'var(--text-primary)',
+    background: 'var(--surface)', outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+    fontFamily: 'inherit', lineHeight: 1.6,
+  },
+  label: { fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 },
+  card: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-sm)' },
+  btn: (bg, color='#fff') => ({
+    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px',
+    borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+    background: bg, color,
+  }),
+  iconBtn: () => ({
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    padding: 6, borderRadius: 7, border: '1px solid var(--border)',
+    background: 'var(--surface)', cursor: 'pointer', color: 'var(--text-secondary)',
+  }),
+};
+
 export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [folders, setFolders] = useState([]);
-  const [articles, setArticles] = useState([]);
+  const [, setArticles] = useState([]);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState(new Set());
-  const [folderArticles, setFolderArticles] = useState({}); // 폴더별 글 목록 저장
+  const [folderArticles, setFolderArticles] = useState({});
   const [showFolderForm, setShowFolderForm] = useState(false);
   const [showArticleForm, setShowArticleForm] = useState(false);
   const [editingFolder, setEditingFolder] = useState(null);
   const [editingArticle, setEditingArticle] = useState(null);
 
-  // 폴더 폼 상태
   const [folderName, setFolderName] = useState('');
   const [folderDescription, setFolderDescription] = useState('');
 
-  // 글 작성 폼 상태
   const [articleTitle, setArticleTitle] = useState('');
   const [articleSource, setArticleSource] = useState('');
   const [articleSummary, setArticleSummary] = useState('');
@@ -30,1169 +55,590 @@ export default function IssueAnalysis({ onBack, initialArticleData }) {
   const [isGeneratingInsightClaude, setIsGeneratingInsightClaude] = useState(false);
   const [showExternalAIMenu, setShowExternalAIMenu] = useState(false);
 
-  // 글 이동 모달 상태
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [articleToMove, setArticleToMove] = useState(null);
   const [targetFolderId, setTargetFolderId] = useState('');
-
-  // 하위 폴더 생성 상태
   const [parentFolderForNew, setParentFolderForNew] = useState(null);
-
-  // 드래그 앤 드롭 상태
   const [draggedArticle, setDraggedArticle] = useState(null);
   const [dragOverFolderId, setDragOverFolderId] = useState(null);
 
   const isDev = import.meta.env.DEV;
   const apiBaseUrl = isDev ? 'https://newsapp-sable-two.vercel.app' : '';
 
-  useEffect(() => {
-    loadFolders();
-  }, []);
+  useEffect(() => { loadFolders(); }, []);
+  useEffect(() => { if (selectedFolder) loadArticles(selectedFolder.id); }, [selectedFolder]);
 
-  useEffect(() => {
-    if (selectedFolder) {
-      loadArticles(selectedFolder.id);
-    }
-  }, [selectedFolder]);
-
-  // 초기 기사 데이터가 있으면 자동으로 폼 열고 채우기
   useEffect(() => {
     if (initialArticleData) {
-      console.log('📝 [IssueAnalysis] Initializing form with article data:');
-      console.log('  Title:', initialArticleData.title);
-      console.log('  URL:', initialArticleData.url);
       setShowArticleForm(true);
       setArticleTitle(initialArticleData.title || '');
       setArticleSource(initialArticleData.url || '');
-
-      // 폼이 열릴 때 페이지 맨 위로 스크롤 (즉시 + 지연 모두 실행)
       window.scrollTo(0, 0);
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-      }, 50);
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-      }, 200);
+      setTimeout(() => window.scrollTo(0, 0), 200);
     }
   }, [initialArticleData]);
 
-  // 글 작성 폼이 열릴 때 맨 위로 스크롤
   useEffect(() => {
-    if (showArticleForm) {
-      window.scrollTo(0, 0);
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-      }, 100);
-    }
+    if (showArticleForm) { window.scrollTo(0, 0); setTimeout(() => window.scrollTo(0, 0), 100); }
   }, [showArticleForm]);
 
-  // 외부 AI 메뉴 닫기 (외부 클릭 감지)
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showExternalAIMenu && !event.target.closest('.relative')) {
-        setShowExternalAIMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    const handler = (e) => { if (showExternalAIMenu && !e.target.closest('.relative')) setShowExternalAIMenu(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [showExternalAIMenu]);
 
   const loadFolders = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`);
-      const data = await response.json();
-      if (data.success) {
-        setFolders(data.folders);
-      }
-    } catch (error) {
-      console.error('Failed to load folders:', error);
-    }
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=folders`);
+      const data = await res.json();
+      if (data.success) setFolders(data.folders);
+    } catch (e) { console.error(e); }
   };
 
   const loadArticles = async (folderId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles&folderId=${folderId}`);
-      const data = await response.json();
-      if (data.success) {
-        setArticles(data.articles);
-      }
-    } catch (error) {
-      console.error('Failed to load articles:', error);
-    }
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=articles&folderId=${folderId}`);
+      const data = await res.json();
+      if (data.success) setArticles(data.articles);
+    } catch (e) { console.error(e); }
   };
 
-  // 폴더별 글 목록 로드
   const loadFolderArticles = async (folderId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles&folderId=${folderId}`);
-      const data = await response.json();
-      if (data.success) {
-        setFolderArticles(prev => ({
-          ...prev,
-          [folderId]: data.articles
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to load folder articles:', error);
-    }
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=articles&folderId=${folderId}`);
+      const data = await res.json();
+      if (data.success) setFolderArticles(prev => ({ ...prev, [folderId]: data.articles }));
+    } catch (e) { console.error(e); }
   };
 
-  // 폴더 클릭 시 확장/축소 및 글 목록 로드
   const toggleFolder = async (folder) => {
-    const newExpanded = new Set(expandedFolders);
-
-    if (newExpanded.has(folder.id)) {
-      // 축소
-      newExpanded.delete(folder.id);
+    const next = new Set(expandedFolders);
+    if (next.has(folder.id)) {
+      next.delete(folder.id);
     } else {
-      // 확장 및 글 목록 로드
-      newExpanded.add(folder.id);
-      if (!folderArticles[folder.id]) {
-        await loadFolderArticles(folder.id);
-      }
+      next.add(folder.id);
+      if (!folderArticles[folder.id]) await loadFolderArticles(folder.id);
     }
-
-    setExpandedFolders(newExpanded);
+    setExpandedFolders(next);
   };
 
   const handleCreateFolder = async () => {
-    if (!folderName.trim()) {
-      alert('폴더 이름을 입력해주세요.');
-      return;
-    }
-
+    if (!folderName.trim()) return alert('폴더 이름을 입력해주세요.');
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: folderName, description: folderDescription })
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: folderName, description: folderDescription }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        await loadFolders(); // 폴더 목록 새로고침
-        setShowFolderForm(false);
-        setFolderName('');
-        setFolderDescription('');
-
-        // 새로 생성된 폴더를 자동 선택
-        if (data.folder && data.folder.id) {
-          setArticleFolderId(data.folder.id);
-        }
-
-        // 글 작성 폼으로 다시 돌아가기
+        await loadFolders();
+        setShowFolderForm(false); setFolderName(''); setFolderDescription('');
+        if (data.folder?.id) setArticleFolderId(data.folder.id);
         setShowArticleForm(true);
         alert('폴더가 생성되었습니다.');
       }
-    } catch (error) {
-      console.error('Failed to create folder:', error);
-      alert('폴더 생성에 실패했습니다.');
-    }
+    } catch (e) { alert('폴더 생성에 실패했습니다.'); }
   };
 
   const handleUpdateFolder = async () => {
-    if (!folderName.trim()) {
-      alert('폴더 이름을 입력해주세요.');
-      return;
-    }
-
+    if (!folderName.trim()) return alert('폴더 이름을 입력해주세요.');
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingFolder.id, name: folderName, description: folderDescription })
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingFolder.id, name: folderName, description: folderDescription }),
       });
-
-      const data = await response.json();
-      if (data.success) {
-        loadFolders();
-        setEditingFolder(null);
-        setFolderName('');
-        setFolderDescription('');
-        alert('폴더가 수정되었습니다.');
-      }
-    } catch (error) {
-      console.error('Failed to update folder:', error);
-      alert('폴더 수정에 실패했습니다.');
-    }
+      const data = await res.json();
+      if (data.success) { loadFolders(); setEditingFolder(null); setFolderName(''); setFolderDescription(''); alert('폴더가 수정되었습니다.'); }
+    } catch (e) { alert('폴더 수정에 실패했습니다.'); }
   };
 
   const handleDeleteFolder = async (folderId) => {
-    if (!confirm('이 폴더와 모든 글을 삭제하시겠습니까?')) {
-      return;
-    }
-
+    if (!confirm('이 폴더와 모든 글을 삭제하시겠습니까?')) return;
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders&id=${folderId}`, {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=folders&id=${folderId}`, { method: 'DELETE' });
+      const data = await res.json();
       if (data.success) {
         loadFolders();
-        if (selectedFolder?.id === folderId) {
-          setSelectedFolder(null);
-          setArticles([]);
-        }
+        if (selectedFolder?.id === folderId) { setSelectedFolder(null); setArticles([]); }
         alert('폴더가 삭제되었습니다.');
       }
-    } catch (error) {
-      console.error('Failed to delete folder:', error);
-      alert('폴더 삭제에 실패했습니다.');
-    }
+    } catch (e) { alert('폴더 삭제에 실패했습니다.'); }
   };
 
   const handleCreateArticle = async () => {
-    if (!articleTitle.trim() || !articleSource.trim() || !articleSummary.trim() || !articleInsight.trim() || !articleFolderId) {
-      alert('모든 필드를 입력해주세요.');
-      return;
-    }
-
+    if (!articleTitle.trim() || !articleSource.trim() || !articleSummary.trim() || !articleInsight.trim() || !articleFolderId)
+      return alert('모든 필드를 입력해주세요.');
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          folderId: parseInt(articleFolderId),
-          title: articleTitle,
-          source: articleSource,
-          summary: articleSummary,
-          insight: articleInsight
-        })
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: parseInt(articleFolderId), title: articleTitle, source: articleSource, summary: articleSummary, insight: articleInsight }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        // 해당 폴더의 글 목록 새로고침
         await loadFolderArticles(articleFolderId);
-        if (selectedFolder?.id === parseInt(articleFolderId)) {
-          loadArticles(articleFolderId);
-        }
-        setShowArticleForm(false);
-        resetArticleForm();
-        alert('글이 등록되었습니다.');
+        if (selectedFolder?.id === parseInt(articleFolderId)) loadArticles(articleFolderId);
+        setShowArticleForm(false); resetArticleForm(); alert('글이 등록되었습니다.');
       }
-    } catch (error) {
-      console.error('Failed to create article:', error);
-      alert('글 등록에 실패했습니다.');
-    }
+    } catch (e) { alert('글 등록에 실패했습니다.'); }
   };
 
   const handleDeleteArticle = async (articleId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles&id=${articleId}`, {
-        method: 'DELETE'
-      });
-
-      const data = await response.json();
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=articles&id=${articleId}`, { method: 'DELETE' });
+      const data = await res.json();
       if (data.success) {
-        // 해당 글이 속한 폴더의 글 목록 새로고침
-        if (selectedArticle?.folder_id) {
-          await loadFolderArticles(selectedArticle.folder_id);
-        }
-        if (selectedFolder?.id) {
-          loadArticles(selectedFolder.id);
-        }
+        if (selectedArticle?.folder_id) await loadFolderArticles(selectedArticle.folder_id);
+        if (selectedFolder?.id) loadArticles(selectedFolder.id);
         alert('글이 삭제되었습니다.');
       }
-    } catch (error) {
-      console.error('Failed to delete article:', error);
-      alert('글 삭제에 실패했습니다.');
-    }
+    } catch (e) { alert('글 삭제에 실패했습니다.'); }
   };
 
   const resetArticleForm = () => {
-    setArticleTitle('');
-    setArticleSource('');
-    setArticleSummary('');
-    setArticleInsight('');
-    setArticleFolderId('');
+    setArticleTitle(''); setArticleSource(''); setArticleSummary('');
+    setArticleInsight(''); setArticleFolderId('');
+    setArticleInsightGPT(''); setArticleInsightClaude('');
   };
 
-  // 글 다른 폴더로 이동
   const handleMoveArticle = async () => {
-    if (!articleToMove || !targetFolderId) {
-      alert('이동할 폴더를 선택해주세요.');
-      return;
-    }
-
+    if (!articleToMove || !targetFolderId) return alert('이동할 폴더를 선택해주세요.');
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: articleToMove.id,
-          folderId: parseInt(targetFolderId)
-        })
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: articleToMove.id, folderId: parseInt(targetFolderId) }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        // 이전 폴더와 새 폴더의 글 목록 갱신
-        if (articleToMove.folder_id) {
-          await loadFolderArticles(articleToMove.folder_id);
-        }
+        if (articleToMove.folder_id) await loadFolderArticles(articleToMove.folder_id);
         await loadFolderArticles(parseInt(targetFolderId));
-
-        setShowMoveModal(false);
-        setArticleToMove(null);
-        setTargetFolderId('');
-        setSelectedArticle(null);
+        setShowMoveModal(false); setArticleToMove(null); setTargetFolderId(''); setSelectedArticle(null);
         alert('글이 이동되었습니다.');
       }
-    } catch (error) {
-      console.error('Failed to move article:', error);
-      alert('글 이동에 실패했습니다.');
-    }
+    } catch (e) { alert('글 이동에 실패했습니다.'); }
   };
 
-  // 하위 폴더 생성
   const handleCreateSubfolder = async () => {
-    if (!folderName.trim()) {
-      alert('폴더 이름을 입력해주세요.');
-      return;
-    }
-
+    if (!folderName.trim()) return alert('폴더 이름을 입력해주세요.');
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: folderName,
-          description: folderDescription,
-          parentId: parentFolderForNew?.id || null
-        })
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=folders`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: folderName, description: folderDescription, parentId: parentFolderForNew?.id || null }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        await loadFolders();
-        setShowFolderForm(false);
-        setFolderName('');
-        setFolderDescription('');
-        setParentFolderForNew(null);
+        await loadFolders(); setShowFolderForm(false); setFolderName(''); setFolderDescription(''); setParentFolderForNew(null);
         alert('폴더가 생성되었습니다.');
       }
-    } catch (error) {
-      console.error('Failed to create subfolder:', error);
-      alert('폴더 생성에 실패했습니다.');
-    }
+    } catch (e) { alert('폴더 생성에 실패했습니다.'); }
   };
 
-  // 폴더를 계층 구조로 정렬
   const buildFolderTree = (folders) => {
     const rootFolders = folders.filter(f => !f.parent_id);
-    const getChildren = (parentId) => folders.filter(f => f.parent_id === parentId);
-
-    const addChildren = (folder, level = 0) => {
-      const children = getChildren(folder.id);
-      return {
-        ...folder,
-        level,
-        children: children.map(child => addChildren(child, level + 1))
-      };
-    };
-
-    return rootFolders.map(folder => addChildren(folder, 0));
+    const addChildren = (folder, level = 0) => ({
+      ...folder, level,
+      children: folders.filter(f => f.parent_id === folder.id).map(c => addChildren(c, level + 1))
+    });
+    return rootFolders.map(f => addChildren(f, 0));
   };
 
-  // 폴더 트리를 평면 리스트로 변환 (들여쓰기 레벨 포함)
   const flattenFolderTree = (tree, result = []) => {
-    tree.forEach(folder => {
-      result.push(folder);
-      if (folder.children && folder.children.length > 0) {
-        flattenFolderTree(folder.children, result);
-      }
-    });
+    tree.forEach(f => { result.push(f); if (f.children?.length) flattenFolderTree(f.children, result); });
     return result;
   };
 
   const folderTree = buildFolderTree(folders);
   const flatFolders = flattenFolderTree(folderTree);
 
-  // 드래그 앤 드롭 핸들러
   const handleDragStart = (e, article) => {
-    setDraggedArticle(article);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', article.id);
-    // 드래그 시작 시 반투명하게
-    e.target.style.opacity = '0.5';
+    setDraggedArticle(article); e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', article.id); e.target.style.opacity = '0.5';
   };
-
-  const handleDragEnd = (e) => {
-    setDraggedArticle(null);
-    setDragOverFolderId(null);
-    e.target.style.opacity = '1';
-  };
-
+  const handleDragEnd = (e) => { setDraggedArticle(null); setDragOverFolderId(null); e.target.style.opacity = '1'; };
   const handleDragOver = (e, folderId) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    // 같은 폴더가 아닐 때만 하이라이트
-    if (draggedArticle && draggedArticle.folder_id !== folderId) {
-      setDragOverFolderId(folderId);
-    }
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    if (draggedArticle && draggedArticle.folder_id !== folderId) setDragOverFolderId(folderId);
   };
-
-  const handleDragLeave = (e) => {
-    // 자식 요소로 이동할 때는 무시
-    if (e.currentTarget.contains(e.relatedTarget)) return;
-    setDragOverFolderId(null);
-  };
-
-  const handleDrop = async (e, targetFolderId) => {
-    e.preventDefault();
-    setDragOverFolderId(null);
-
-    if (!draggedArticle || draggedArticle.folder_id === targetFolderId) {
-      setDraggedArticle(null);
-      return;
-    }
-
+  const handleDragLeave = (e) => { if (e.currentTarget.contains(e.relatedTarget)) return; setDragOverFolderId(null); };
+  const handleDrop = async (e, tFolderId) => {
+    e.preventDefault(); setDragOverFolderId(null);
+    if (!draggedArticle || draggedArticle.folder_id === tFolderId) { setDraggedArticle(null); return; }
     try {
-      const response = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: draggedArticle.id,
-          folderId: targetFolderId
-        })
+      const res = await fetch(`${apiBaseUrl}/api/issues?type=articles`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: draggedArticle.id, folderId: tFolderId }),
       });
-
-      const data = await response.json();
+      const data = await res.json();
       if (data.success) {
-        // 이전 폴더와 새 폴더의 글 목록 갱신
-        await loadFolderArticles(draggedArticle.folder_id);
-        await loadFolderArticles(targetFolderId);
-
-        // 선택된 글이 이동한 글이면 선택 해제
-        if (selectedArticle?.id === draggedArticle.id) {
-          setSelectedArticle(null);
-        }
+        await loadFolderArticles(draggedArticle.folder_id); await loadFolderArticles(tFolderId);
+        if (selectedArticle?.id === draggedArticle.id) setSelectedArticle(null);
       }
-    } catch (error) {
-      console.error('Failed to move article:', error);
-      alert('글 이동에 실패했습니다.');
-    }
-
+    } catch (e) { alert('글 이동에 실패했습니다.'); }
     setDraggedArticle(null);
   };
 
   const handleGenerateAISummary = async () => {
-    if (!articleSource.trim()) {
-      alert('정보 소스를 먼저 입력해주세요.');
-      return;
-    }
-
-    console.log('🔍 [AI Summary Request]');
-    console.log('  Title:', articleTitle);
-    console.log('  Source:', articleSource);
-
+    if (!articleSource.trim()) return alert('정보 소스를 먼저 입력해주세요.');
     setIsGeneratingSummary(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/utils?action=ai-summary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          source: articleSource,
-          title: articleTitle // 제목도 함께 전달
-        })
+      const res = await fetch(`${apiBaseUrl}/api/utils?action=ai-summary`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: articleSource, title: articleTitle }),
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setArticleSummary(data.summary);
-      } else {
-        alert('요약 생성에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
-      }
-    } catch (error) {
-      console.error('Failed to generate AI summary:', error);
-      alert('요약 생성 중 오류가 발생했습니다.');
-    } finally {
-      setIsGeneratingSummary(false);
-    }
+      const data = await res.json();
+      if (data.success) setArticleSummary(data.summary);
+      else alert('요약 생성에 실패했습니다: ' + (data.error || '알 수 없는 오류'));
+    } catch (e) { alert('요약 생성 중 오류가 발생했습니다.'); }
+    finally { setIsGeneratingSummary(false); }
   };
 
   const handleGenerateAIInsight = async (model) => {
-    if (!articleTitle.trim() || !articleSummary.trim()) {
-      alert('제목과 내용 요약을 먼저 입력해주세요.');
-      return;
-    }
-
-    console.log(`💡 [AI Insight Request - ${model.toUpperCase()}]`);
-    console.log('  Title:', articleTitle);
-    console.log('  Summary length:', articleSummary.length);
-
+    if (!articleTitle.trim() || !articleSummary.trim()) return alert('제목과 내용 요약을 먼저 입력해주세요.');
     const setLoading = model === 'gpt' ? setIsGeneratingInsightGPT : setIsGeneratingInsightClaude;
     const setInsight = model === 'gpt' ? setArticleInsightGPT : setArticleInsightClaude;
-
     setLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/ai-insight`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: articleTitle,
-          summary: articleSummary,
-          model: model
-        })
+      const res = await fetch(`${apiBaseUrl}/api/ai-insight`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: articleTitle, summary: articleSummary, model }),
       });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setInsight(data.insight);
-      } else {
-        alert(`${model.toUpperCase()} 인사이트 생성에 실패했습니다: ` + (data.error || '알 수 없는 오류'));
-      }
-    } catch (error) {
-      console.error(`Failed to generate ${model.toUpperCase()} insight:`, error);
-      alert(`${model.toUpperCase()} 인사이트 생성 중 오류가 발생했습니다.`);
-    } finally {
-      setLoading(false);
-    }
+      const data = await res.json();
+      if (data.success) setInsight(data.insight);
+      else alert(`${model.toUpperCase()} 인사이트 생성에 실패했습니다: ` + (data.error || ''));
+    } catch (e) { alert(`${model.toUpperCase()} 인사이트 생성 중 오류가 발생했습니다.`); }
+    finally { setLoading(false); }
   };
 
   const handleOpenExternalAI = (aiType) => {
-    if (!articleTitle.trim() || !articleSummary.trim()) {
-      alert('제목과 내용 요약을 먼저 입력해주세요.');
-      return;
-    }
-
+    if (!articleTitle.trim() || !articleSummary.trim()) return alert('제목과 내용 요약을 먼저 입력해주세요.');
     const prompt = `다음 뉴스 기사를 현대차 관점에서 분석하여 전략적 인사이트를 도출해주세요:\n\n제목: ${articleTitle}\n\n요약:\n${articleSummary}`;
-
-    if (aiType === 'chatgpt') {
-      // ChatGPT로 프롬프트 복사 후 사이트 열기
-      navigator.clipboard.writeText(prompt).then(() => {
-        window.open('https://chat.openai.com/', '_blank');
-        alert('프롬프트가 클립보드에 복사되었습니다. ChatGPT에 붙여넣기 하세요.');
-      });
-    } else if (aiType === 'gemini') {
-      // Google Gemini로 프롬프트 복사 후 사이트 열기
-      navigator.clipboard.writeText(prompt).then(() => {
-        window.open('https://gemini.google.com/', '_blank');
-        alert('프롬프트가 클립보드에 복사되었습니다. Gemini에 붙여넣기 하세요.');
-      });
-    }
-
+    navigator.clipboard.writeText(prompt).then(() => {
+      window.open(aiType === 'chatgpt' ? 'https://chat.openai.com/' : 'https://gemini.google.com/', '_blank');
+      alert('프롬프트가 클립보드에 복사되었습니다. 붙여넣기 하세요.');
+    });
     setShowExternalAIMenu(false);
   };
 
-  const openEditFolder = (folder) => {
-    setEditingFolder(folder);
-    setFolderName(folder.name);
-    setFolderDescription(folder.description || '');
-  };
+  const openEditFolder = (folder) => { setEditingFolder(folder); setFolderName(folder.name); setFolderDescription(folder.description || ''); };
+
+  // ── 모달 공통 레이아웃 ──
+  const Modal = ({ title, onClose, children, maxWidth = 480 }) => (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 50, overflowY: 'auto', padding: '2rem 1rem' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: '0 20px 60px rgba(0,0,0,.15)', width: '100%', maxWidth, padding: '1.5rem', margin: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{title}</h3>
+          <button onClick={onClose} style={{ ...S.iconBtn(), border: 'none', background: 'none' }}><X size={18} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        {/* 헤더 */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <h1 className="text-3xl font-bold text-gray-800">이슈별 분석 정리</h1>
-            </div>
-            <button
-              onClick={() => {
-                setShowArticleForm(true);
-                resetArticleForm();
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <FileText className="w-5 h-5" />
-              글 작성하기
-            </button>
+    <div className="app-shell">
+
+      {/* ── 헤더 ── */}
+      <header className="app-header">
+        <div className="header-brand">
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 8, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+            <ArrowLeft size={20} />
+          </button>
+          <span className="brand-emoji">📂</span>
+          <div>
+            <h1 className="brand-title">이슈별 분석 정리</h1>
+            <p className="brand-sub">BRM 뉴스 인텔리전스</p>
           </div>
         </div>
+        <button
+          onClick={() => { setShowArticleForm(true); resetArticleForm(); }}
+          style={S.btn('var(--accent)')}
+        >
+          <FileText size={14} /> 글 작성하기
+        </button>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* 폴더 및 글 트리 목록 */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">폴더 목록</h2>
-              <button
-                onClick={() => {
-                  setShowFolderForm(true);
-                  setEditingFolder(null);
-                  setFolderName('');
-                  setFolderDescription('');
-                  setParentFolderForNew(null);
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <FolderPlus className="w-4 h-4" />
-                새 폴더
-              </button>
-            </div>
-            <div className="space-y-1">
-              {folders.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">폴더가 없습니다.<br/>새 폴더를 만들어주세요.</p>
-              ) : (
-                flatFolders.map(folder => {
-                  const isExpanded = expandedFolders.has(folder.id);
-                  const articles = folderArticles[folder.id] || [];
-                  const indent = (folder.level || 0) * 16;
+      {/* ── 메인 레이아웃 ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.5rem', maxWidth: 1200, margin: '2rem auto', padding: '0 1.5rem', width: '100%', boxSizing: 'border-box' }}>
 
-                  return (
-                    <div key={folder.id} className="border-b border-gray-200 last:border-b-0">
-                      {/* 폴더 헤더 - 드롭 대상 */}
-                      <div
-                        className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
-                          dragOverFolderId === folder.id
-                            ? 'bg-green-100 border-2 border-green-400 border-dashed'
-                            : 'hover:bg-gray-50'
-                        }`}
-                        style={{ marginLeft: `${indent}px` }}
-                        onDragOver={(e) => handleDragOver(e, folder.id)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, folder.id)}
-                      >
-                        <button
-                          onClick={() => toggleFolder(folder)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-gray-600" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-600" />
-                          )}
-                        </button>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-800">{folder.name}</h3>
-                          {folder.description && (
-                            <p className="text-xs text-gray-500 mt-0.5">{folder.description}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-1">
-                          {/* 하위 폴더 추가 버튼 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setParentFolderForNew(folder);
-                              setShowFolderForm(true);
-                              setEditingFolder(null);
-                              setFolderName('');
-                              setFolderDescription('');
-                            }}
-                            className="p-1.5 hover:bg-green-100 rounded transition-colors"
-                            title="하위 폴더 추가"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-green-600" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditFolder(folder);
-                            }}
-                            className="p-1.5 hover:bg-purple-100 rounded transition-colors"
-                            title="폴더 수정"
-                          >
-                            <Edit className="w-3.5 h-3.5 text-purple-600" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteFolder(folder.id);
-                            }}
-                            className="p-1.5 hover:bg-red-100 rounded transition-colors"
-                            title="폴더 삭제"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 폴더 내 글 목록 */}
-                      {isExpanded && (
-                        <div className="space-y-1 mb-2" style={{ marginLeft: `${indent + 32}px` }}>
-                          {articles.length === 0 ? (
-                            <p className="text-xs text-gray-400 py-2 px-3">글이 없습니다</p>
-                          ) : (
-                            articles.map(article => (
-                              <div
-                                key={article.id}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, article)}
-                                onDragEnd={handleDragEnd}
-                                onClick={() => setSelectedArticle(article)}
-                                className={`p-2 rounded cursor-grab transition-colors group ${
-                                  selectedArticle?.id === article.id
-                                    ? 'bg-indigo-100 border border-indigo-300'
-                                    : 'hover:bg-gray-100'
-                                } ${draggedArticle?.id === article.id ? 'opacity-50' : ''}`}
-                              >
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-gray-700 line-clamp-2">
-                                      {article.title}
-                                    </p>
-                                    <p className="text-xs text-gray-400 mt-1">
-                                      {new Date(article.created_at).toLocaleDateString('ko-KR')}
-                                    </p>
-                                  </div>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteArticle(article.id);
-                                    }}
-                                    className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                    title="글 삭제"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                  </button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+        {/* ── 폴더 패널 ── */}
+        <div style={{ ...S.card, padding: '1.25rem', height: 'calc(100vh - 140px)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>폴더 목록</span>
+            <button
+              onClick={() => { setShowFolderForm(true); setEditingFolder(null); setFolderName(''); setFolderDescription(''); setParentFolderForNew(null); }}
+              style={{ ...S.btn('#6d28d9'), padding: '5px 10px', fontSize: 12 }}
+            >
+              <FolderPlus size={13} /> 새 폴더
+            </button>
           </div>
 
-          {/* 글 상세 보기 */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {selectedArticle ? (
-              <>
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">{selectedArticle.title}</h2>
-                    <p className="text-sm text-gray-500">
-                      작성일: {new Date(selectedArticle.created_at).toLocaleDateString('ko-KR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {/* 다른 폴더로 이동 버튼 */}
-                    <button
-                      onClick={() => {
-                        setArticleToMove(selectedArticle);
-                        setTargetFolderId('');
-                        setShowMoveModal(true);
-                      }}
-                      className="p-2 hover:bg-green-100 rounded-lg transition-colors"
-                      title="다른 폴더로 이동"
-                    >
-                      <MoveRight className="w-5 h-5 text-green-600" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingArticle(selectedArticle);
-                        setArticleTitle(selectedArticle.title);
-                        setArticleSource(selectedArticle.source);
-                        setArticleSummary(selectedArticle.summary);
-                        setArticleInsight(selectedArticle.insight);
-                        setArticleFolderId(selectedArticle.folder_id);
-                        setShowArticleForm(true);
-                      }}
-                      className="p-2 hover:bg-indigo-100 rounded-lg transition-colors"
-                      title="글 수정"
-                    >
-                      <Edit className="w-5 h-5 text-indigo-600" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm('이 글을 삭제하시겠습니까?')) {
-                          handleDeleteArticle(selectedArticle.id);
-                          setSelectedArticle(null);
-                        }
-                      }}
-                      className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                      title="글 삭제"
-                    >
-                      <Trash2 className="w-5 h-5 text-red-600" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  {/* 정보 소스 */}
-                  <div>
-                    <h3 className="text-sm font-bold text-purple-700 mb-2">📎 정보 소스</h3>
-                    <div className="bg-purple-50 rounded-lg p-4">
-                      <p className="text-sm text-gray-700 break-all">{selectedArticle.source}</p>
-                    </div>
-                  </div>
-
-                  {/* 내용 요약 */}
-                  <div>
-                    <h3 className="text-sm font-bold text-blue-700 mb-2">📝 내용 요약</h3>
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {selectedArticle.summary}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 인사이트 */}
-                  <div>
-                    <h3 className="text-sm font-bold text-green-700 mb-2">💡 인사이트</h3>
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {selectedArticle.insight}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center py-20">
-                <FileText className="w-16 h-16 text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg">왼쪽 폴더에서 글을 선택해주세요</p>
-                <p className="text-gray-400 text-sm mt-2">폴더를 클릭하여 글 목록을 확인할 수 있습니다</p>
+          <div style={{ flex: 1 }}>
+            {folders.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                <FolderPlus size={32} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.3 }} />
+                폴더가 없습니다.<br />새 폴더를 만들어주세요.
               </div>
+            ) : (
+              flatFolders.map(folder => {
+                const isExpanded = expandedFolders.has(folder.id);
+                const fArticles = folderArticles[folder.id] || [];
+                const indent = (folder.level || 0) * 14;
+                return (
+                  <div key={folder.id} style={{ marginLeft: indent }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 8px', borderRadius: 8, marginBottom: 2, background: dragOverFolderId === folder.id ? '#dcfce7' : 'transparent', border: dragOverFolderId === folder.id ? '1.5px dashed #16a34a' : '1.5px solid transparent', cursor: 'default' }}
+                      onDragOver={(e) => handleDragOver(e, folder.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, folder.id)}
+                    >
+                      <button onClick={() => toggleFolder(folder)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--text-muted)', display: 'flex', flexShrink: 0 }}>
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{folder.name}</p>
+                        {folder.description && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{folder.description}</p>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                        <button onClick={(e) => { e.stopPropagation(); setParentFolderForNew(folder); setShowFolderForm(true); setEditingFolder(null); setFolderName(''); setFolderDescription(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 5, color: '#16a34a' }} title="하위 폴더">
+                          <Plus size={12} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); openEditFolder(folder); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 5, color: '#6d28d9' }} title="수정">
+                          <Edit size={12} />
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 5, color: '#dc2626' }} title="삭제">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ marginLeft: 22, marginBottom: 4 }}>
+                        {fArticles.length === 0
+                          ? <p style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 8px' }}>글이 없습니다</p>
+                          : fArticles.map(article => (
+                            <div
+                              key={article.id}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, article)}
+                              onDragEnd={handleDragEnd}
+                              onClick={() => setSelectedArticle(article)}
+                              style={{ padding: '7px 10px', borderRadius: 7, marginBottom: 2, cursor: 'grab', background: selectedArticle?.id === article.id ? '#eff6ff' : 'transparent', border: `1px solid ${selectedArticle?.id === article.id ? '#93c5fd' : 'transparent'}`, opacity: draggedArticle?.id === article.id ? 0.4 : 1, position: 'relative' }}
+                              className="group"
+                            >
+                              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{article.title}</p>
+                              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{new Date(article.created_at).toLocaleDateString('ko-KR')}</p>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* 글 이동 모달 */}
-        {showMoveModal && articleToMove && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">글 이동</h3>
-                <button
-                  onClick={() => {
-                    setShowMoveModal(false);
-                    setArticleToMove(null);
-                    setTargetFolderId('');
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+        {/* ── 글 상세 패널 ── */}
+        <div style={{ ...S.card, padding: '1.5rem', height: 'calc(100vh - 140px)', overflowY: 'auto' }}>
+          {selectedArticle ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.4, marginBottom: 6 }}>{selectedArticle.title}</h2>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {new Date(selectedArticle.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => { setArticleToMove(selectedArticle); setTargetFolderId(''); setShowMoveModal(true); }} style={S.iconBtn()} title="폴더 이동">
+                    <MoveRight size={15} style={{ color: '#16a34a' }} />
+                  </button>
+                  <button onClick={() => { setEditingArticle(selectedArticle); setArticleTitle(selectedArticle.title); setArticleSource(selectedArticle.source); setArticleSummary(selectedArticle.summary); setArticleInsight(selectedArticle.insight); setArticleFolderId(selectedArticle.folder_id); setShowArticleForm(true); }} style={S.iconBtn()} title="수정">
+                    <Edit size={15} style={{ color: 'var(--accent)' }} />
+                  </button>
+                  <button onClick={() => { if (confirm('이 글을 삭제하시겠습니까?')) { handleDeleteArticle(selectedArticle.id); setSelectedArticle(null); } }} style={S.iconBtn()} title="삭제">
+                    <Trash2 size={15} style={{ color: '#dc2626' }} />
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-sm text-gray-600">이동할 글:</p>
-                  <p className="font-medium text-gray-800 mt-1">{articleToMove.title}</p>
-                </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {[
+                  { label: '📎 정보 소스', content: selectedArticle.source, accent: '#6d28d9', bg: '#f5f3ff' },
+                  { label: '📝 내용 요약', content: selectedArticle.summary, accent: 'var(--accent)', bg: '#eff6ff' },
+                  { label: '💡 인사이트 (현대차 관점)', content: selectedArticle.insight, accent: '#15803d', bg: '#f0fdf4' },
+                ].map(({ label, content, accent, bg }) => (
+                  <div key={label}>
+                    <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: accent, marginBottom: 8 }}>{label}</p>
+                    <div style={{ background: bg, borderRadius: 10, padding: '14px 16px' }}>
+                      <p style={{ fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.7, wordBreak: 'break-all' }}>{content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', textAlign: 'center' }}>
+              <FileText size={48} style={{ opacity: 0.2, marginBottom: 12 }} />
+              <p style={{ fontSize: 14 }}>왼쪽 폴더에서 글을 선택해주세요</p>
+              <p style={{ fontSize: 12, marginTop: 4 }}>폴더를 클릭하면 글 목록이 펼쳐집니다</p>
+            </div>
+          )}
+        </div>
+      </div>
 
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">이동할 폴더 선택</label>
-                  <select
-                    value={targetFolderId}
-                    onChange={(e) => setTargetFolderId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">폴더를 선택하세요</option>
-                    {flatFolders
-                      .filter(f => f.id !== articleToMove.folder_id)
-                      .map(folder => (
-                        <option key={folder.id} value={folder.id}>
-                          {'　'.repeat(folder.level || 0)}{folder.name}
-                        </option>
+      {/* ── 글 이동 모달 ── */}
+      {showMoveModal && articleToMove && (
+        <Modal title="글 이동" onClose={() => { setShowMoveModal(false); setArticleToMove(null); setTargetFolderId(''); }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', border: '1px solid var(--border)' }}>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>이동할 글</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{articleToMove.title}</p>
+            </div>
+            <div>
+              <label style={S.label}>이동할 폴더 선택</label>
+              <select value={targetFolderId} onChange={e => setTargetFolderId(e.target.value)} style={S.input}>
+                <option value="">폴더를 선택하세요</option>
+                {flatFolders.filter(f => f.id !== articleToMove.folder_id).map(f => (
+                  <option key={f.id} value={f.id}>{'　'.repeat(f.level || 0)}{f.name}</option>
+                ))}
+              </select>
+            </div>
+            <button onClick={handleMoveArticle} disabled={!targetFolderId} style={{ ...S.btn('#16a34a'), justifyContent: 'center', opacity: !targetFolderId ? 0.4 : 1, cursor: !targetFolderId ? 'not-allowed' : 'pointer' }}>
+              <MoveRight size={15} /> 이동하기
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── 폴더 생성/수정 모달 ── */}
+      {(showFolderForm || editingFolder) && (
+        <Modal
+          title={editingFolder ? '폴더 수정' : parentFolderForNew ? `하위 폴더 만들기` : '새 폴더 만들기'}
+          onClose={() => { setShowFolderForm(false); setEditingFolder(null); setFolderName(''); setFolderDescription(''); setParentFolderForNew(null); }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {parentFolderForNew && !editingFolder && (
+              <div style={{ background: '#f5f3ff', borderRadius: 8, padding: '8px 12px', border: '1px solid #ddd6fe' }}>
+                <p style={{ fontSize: 11, color: '#6d28d9', marginBottom: 2 }}>상위 폴더</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#4c1d95' }}>{parentFolderForNew.name}</p>
+              </div>
+            )}
+            <div>
+              <label style={S.label}>폴더 이름 *</label>
+              <input type="text" value={folderName} onChange={e => setFolderName(e.target.value)} placeholder="예: 미중 무역 분쟁" style={S.input} />
+            </div>
+            <div>
+              <label style={S.label}>설명 (선택)</label>
+              <textarea value={folderDescription} onChange={e => setFolderDescription(e.target.value)} placeholder="폴더에 대한 간단한 설명" rows={3} style={S.textarea} />
+            </div>
+            <button onClick={editingFolder ? handleUpdateFolder : (parentFolderForNew ? handleCreateSubfolder : handleCreateFolder)} style={{ ...S.btn('#6d28d9'), justifyContent: 'center' }}>
+              <Save size={14} /> {editingFolder ? '수정하기' : '생성하기'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── 글 작성 모달 ── */}
+      {showArticleForm && (
+        <Modal title={editingArticle ? '글 수정하기' : '새 글 작성하기'} onClose={() => { setShowArticleForm(false); resetArticleForm(); setEditingArticle(null); }} maxWidth={680}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* 폴더 선택 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ ...S.label, marginBottom: 0 }}>폴더 선택 *</label>
+                <button type="button" onClick={() => { setShowArticleForm(false); setShowFolderForm(true); }} style={{ ...S.btn('#16a34a'), padding: '4px 10px', fontSize: 12 }}>
+                  <FolderPlus size={12} /> 새 폴더
+                </button>
+              </div>
+              <select value={articleFolderId} onChange={e => setArticleFolderId(e.target.value)} style={S.input}>
+                <option value="">폴더를 선택하세요</option>
+                {flatFolders.map(f => <option key={f.id} value={f.id}>{'　'.repeat(f.level || 0)}{f.name}</option>)}
+              </select>
+              {folders.length === 0 && <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>생성된 폴더가 없습니다. "새 폴더" 버튼으로 먼저 만들어주세요.</p>}
+            </div>
+
+            {/* 제목 */}
+            <div>
+              <label style={S.label}>제목 *</label>
+              <input type="text" value={articleTitle} onChange={e => setArticleTitle(e.target.value)} placeholder="글 제목을 입력하세요" style={S.input} />
+            </div>
+
+            {/* 정보 소스 */}
+            <div>
+              <label style={{ ...S.label, color: '#6d28d9' }}>📎 정보 소스 *</label>
+              <textarea value={articleSource} onChange={e => setArticleSource(e.target.value)} placeholder="참고한 정보의 출처 (뉴스 링크, 보고서 등)" rows={3} style={S.textarea} />
+            </div>
+
+            {/* 내용 요약 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ ...S.label, color: 'var(--accent)', marginBottom: 0 }}>📝 내용 요약 *</label>
+                <button type="button" onClick={handleGenerateAISummary} disabled={isGeneratingSummary || !articleSource.trim()}
+                  style={{ ...S.btn('linear-gradient(135deg,#3b82f6,#6d28d9)'), padding: '5px 12px', fontSize: 12, opacity: (isGeneratingSummary || !articleSource.trim()) ? 0.5 : 1, cursor: (isGeneratingSummary || !articleSource.trim()) ? 'not-allowed' : 'pointer' }}>
+                  <Sparkles size={12} style={isGeneratingSummary ? { animation: 'spin 1s linear infinite' } : {}} />
+                  {isGeneratingSummary ? 'AI 요약 중...' : 'AI 요약'}
+                </button>
+              </div>
+              <textarea value={articleSummary} onChange={e => setArticleSummary(e.target.value)} placeholder="핵심 내용 요약 (또는 AI 요약 버튼 사용)" rows={5} style={S.textarea} />
+            </div>
+
+            {/* 인사이트 */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ ...S.label, color: '#15803d', marginBottom: 0 }}>💡 인사이트 (현대차 관점) *</label>
+                <div style={{ position: 'relative' }} className="relative">
+                  <button type="button" onClick={() => setShowExternalAIMenu(!showExternalAIMenu)} disabled={!articleTitle.trim() || !articleSummary.trim()}
+                    style={{ ...S.btn('linear-gradient(135deg,#f97316,#dc2626)'), padding: '5px 12px', fontSize: 12, opacity: (!articleTitle.trim() || !articleSummary.trim()) ? 0.5 : 1 }}>
+                    <ExternalLink size={12} /> 다른 AI 사용하기
+                  </button>
+                  {showExternalAIMenu && (
+                    <div style={{ position: 'absolute', right: 0, top: '110%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: 'var(--shadow-md)', zIndex: 10, minWidth: 160, overflow: 'hidden' }}>
+                      {[{ id: 'chatgpt', label: 'ChatGPT', color: '#16a34a' }, { id: 'gemini', label: 'Google Gemini', color: '#1d4ed8' }].map(ai => (
+                        <button key={ai.id} type="button" onClick={() => handleOpenExternalAI(ai.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-primary)', textAlign: 'left' }}>
+                          <ExternalLink size={13} style={{ color: ai.color }} /> {ai.label}
+                        </button>
                       ))}
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleMoveArticle}
-                  disabled={!targetFolderId}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                >
-                  <MoveRight className="w-5 h-5" />
-                  이동하기
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 폴더 생성/수정 모달 */}
-        {(showFolderForm || editingFolder) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-md w-full">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">
-                  {editingFolder ? '폴더 수정' : parentFolderForNew ? `하위 폴더 만들기` : '새 폴더 만들기'}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowFolderForm(false);
-                    setEditingFolder(null);
-                    setFolderName('');
-                    setFolderDescription('');
-                    setParentFolderForNew(null);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* 부모 폴더 표시 */}
-                {parentFolderForNew && !editingFolder && (
-                  <div className="bg-purple-50 rounded-lg p-3">
-                    <p className="text-sm text-purple-600">상위 폴더:</p>
-                    <p className="font-medium text-purple-800 mt-1">{parentFolderForNew.name}</p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">폴더 이름 *</label>
-                  <input
-                    type="text"
-                    value={folderName}
-                    onChange={(e) => setFolderName(e.target.value)}
-                    placeholder="예: 미중 무역 분쟁"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">설명 (선택)</label>
-                  <textarea
-                    value={folderDescription}
-                    onChange={(e) => setFolderDescription(e.target.value)}
-                    placeholder="폴더에 대한 간단한 설명을 입력하세요"
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-
-                <button
-                  onClick={editingFolder ? handleUpdateFolder : (parentFolderForNew ? handleCreateSubfolder : handleCreateFolder)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  <Save className="w-5 h-5" />
-                  {editingFolder ? '수정하기' : '생성하기'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 글 작성 모달 */}
-        {showArticleForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
-            <div className="min-h-screen flex items-start justify-center p-4 pt-8">
-              <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-800">새 글 작성하기</h3>
-                <button
-                  onClick={() => {
-                    setShowArticleForm(false);
-                    resetArticleForm();
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-bold text-gray-700">폴더 선택 *</label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowArticleForm(false);
-                        setShowFolderForm(true);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <FolderPlus className="w-4 h-4" />
-                      새 폴더
-                    </button>
-                  </div>
-                  <select
-                    value={articleFolderId}
-                    onChange={(e) => setArticleFolderId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">폴더를 선택하세요</option>
-                    {flatFolders.map(folder => (
-                      <option key={folder.id} value={folder.id}>
-                        {'　'.repeat(folder.level || 0)}{folder.name}
-                      </option>
-                    ))}
-                  </select>
-                  {folders.length === 0 && (
-                    <p className="mt-2 text-sm text-gray-500">
-                      생성된 폴더가 없습니다. "새 폴더" 버튼을 눌러 폴더를 먼저 만들어주세요.
-                    </p>
+                    </div>
                   )}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">제목 *</label>
-                  <input
-                    type="text"
-                    value={articleTitle}
-                    onChange={(e) => setArticleTitle(e.target.value)}
-                    placeholder="글 제목을 입력하세요"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-purple-700 mb-2">📚 정보 소스 *</label>
-                  <textarea
-                    value={articleSource}
-                    onChange={(e) => setArticleSource(e.target.value)}
-                    placeholder="참고한 정보의 출처를 입력하세요 (예: 뉴스 링크, 보고서 등)"
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-bold text-blue-700">📝 내용 요약 *</label>
-                    <button
-                      type="button"
-                      onClick={handleGenerateAISummary}
-                      disabled={isGeneratingSummary || !articleSource.trim()}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
-                    >
-                      <Sparkles className={`w-4 h-4 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
-                      {isGeneratingSummary ? 'AI 요약 중...' : 'AI 요약'}
-                    </button>
-                  </div>
-                  <textarea
-                    value={articleSummary}
-                    onChange={(e) => setArticleSummary(e.target.value)}
-                    placeholder="핵심 내용을 요약해서 입력하세요 (또는 AI 요약 버튼을 사용하세요)"
-                    rows={5}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-bold text-green-700">💡 인사이트 (현대차 관점) *</label>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowExternalAIMenu(!showExternalAIMenu)}
-                        disabled={!articleTitle.trim() || !articleSummary.trim()}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-600 text-white text-sm rounded-lg hover:from-orange-600 hover:to-red-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        다른 AI 사용하기
-                      </button>
-
-                      {showExternalAIMenu && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenExternalAI('chatgpt')}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100 rounded-t-lg flex items-center gap-2"
-                          >
-                            <ExternalLink className="w-4 h-4 text-green-600" />
-                            <span>ChatGPT</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenExternalAI('gemini')}
-                            className="w-full px-4 py-2 text-left hover:bg-gray-100 rounded-b-lg flex items-center gap-2"
-                          >
-                            <ExternalLink className="w-4 h-4 text-blue-600" />
-                            <span>Google Gemini</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <textarea
-                    value={articleInsight}
-                    onChange={(e) => setArticleInsight(e.target.value)}
-                    placeholder="현대차 관점에서의 전략적 인사이트를 입력하세요 (또는 아래 AI 분석 버튼을 사용하세요)"
-                    rows={5}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-
-                {/* AI 인사이트 비교 섹션 */}
-                <div className="border-t-2 border-gray-200 pt-4">
-                  <h3 className="text-sm font-bold text-gray-700 mb-3">🤖 AI 인사이트 비교 (참고용)</h3>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* GPT 분석 */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-blue-600">GPT-4o-mini</label>
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateAIInsight('gpt')}
-                          disabled={isGeneratingInsightGPT || !articleTitle.trim() || !articleSummary.trim()}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
-                        >
-                          <Sparkles className={`w-3.5 h-3.5 ${isGeneratingInsightGPT ? 'animate-spin' : ''}`} />
-                          {isGeneratingInsightGPT ? '분석 중...' : 'GPT 분석'}
-                        </button>
-                      </div>
-                      <textarea
-                        value={articleInsightGPT}
-                        onChange={(e) => setArticleInsightGPT(e.target.value)}
-                        placeholder="GPT 분석 결과가 여기에 표시됩니다"
-                        rows={8}
-                        className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-blue-50"
-                        readOnly
-                      />
-                    </div>
-
-                    {/* Claude 분석 */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-purple-600">Claude Sonnet 4</label>
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateAIInsight('claude')}
-                          disabled={isGeneratingInsightClaude || !articleTitle.trim() || !articleSummary.trim()}
-                          className="flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs rounded-lg hover:from-purple-600 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-sm"
-                        >
-                          <Sparkles className={`w-3.5 h-3.5 ${isGeneratingInsightClaude ? 'animate-spin' : ''}`} />
-                          {isGeneratingInsightClaude ? '분석 중...' : 'Claude 분석'}
-                        </button>
-                      </div>
-                      <textarea
-                        value={articleInsightClaude}
-                        onChange={(e) => setArticleInsightClaude(e.target.value)}
-                        placeholder="Claude 분석 결과가 여기에 표시됩니다"
-                        rows={8}
-                        className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm bg-purple-50"
-                        readOnly
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleCreateArticle}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  <Save className="w-5 h-5" />
-                  등록하기
-                </button>
               </div>
+              <textarea value={articleInsight} onChange={e => setArticleInsight(e.target.value)} placeholder="현대차 관점에서의 전략적 인사이트 입력" rows={5} style={S.textarea} />
+            </div>
+
+            {/* AI 인사이트 비교 */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+              <p style={{ ...S.label, marginBottom: 12 }}>🤖 AI 인사이트 비교 (참고용)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { model: 'gpt', label: 'GPT-4o-mini', color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe', loading: isGeneratingInsightGPT, value: articleInsightGPT, setter: setArticleInsightGPT },
+                  { model: 'claude', label: 'Claude Sonnet 4', color: '#6d28d9', bg: '#f5f3ff', border: '#ddd6fe', loading: isGeneratingInsightClaude, value: articleInsightClaude, setter: setArticleInsightClaude },
+                ].map(({ model, label, color, bg, border, loading, value, setter }) => (
+                  <div key={model}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color }}>{label}</span>
+                      <button type="button" onClick={() => handleGenerateAIInsight(model)} disabled={loading || !articleTitle.trim() || !articleSummary.trim()}
+                        style={{ ...S.btn(color), padding: '4px 10px', fontSize: 11, opacity: (loading || !articleTitle.trim() || !articleSummary.trim()) ? 0.5 : 1 }}>
+                        <Sparkles size={11} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
+                        {loading ? '분석 중...' : `${model.toUpperCase()} 분석`}
+                      </button>
+                    </div>
+                    <textarea value={value} onChange={e => setter(e.target.value)} placeholder={`${label} 분석 결과`} rows={8}
+                      style={{ ...S.textarea, background: bg, border: `1px solid ${border}`, fontSize: 12 }} readOnly />
+                  </div>
+                ))}
               </div>
             </div>
+
+            <button onClick={handleCreateArticle} style={{ ...S.btn('var(--accent)'), justifyContent: 'center', padding: '12px' }}>
+              <Save size={15} /> 등록하기
+            </button>
           </div>
-        )}
-      </div>
+        </Modal>
+      )}
     </div>
   );
 }

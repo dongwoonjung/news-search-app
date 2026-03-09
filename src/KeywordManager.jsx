@@ -31,24 +31,19 @@ export default function KeywordManager({ onBack }) {
     { id: 'watchlist', name: '관찰', icon: Eye, color: 'orange' },
   ];
 
-  useEffect(() => {
-    loadKeywords();
-  }, []);
+  useEffect(() => { loadKeywords(); }, []);
 
   const loadKeywords = async () => {
     setLoading(true);
     try {
-      const pendingRes = await fetch(`${apiBaseUrl}/api/trends?action=pending`);
+      const [pendingRes, allRes] = await Promise.all([
+        fetch(`${apiBaseUrl}/api/trends?action=pending`),
+        fetch(`${apiBaseUrl}/api/trends`),
+      ]);
       const pendingData = await pendingRes.json();
-      if (pendingData.success) {
-        setPendingKeywords(pendingData.keywords || []);
-      }
-
-      const allRes = await fetch(`${apiBaseUrl}/api/trends`);
       const allData = await allRes.json();
-      if (allData.success) {
-        setKeywords(allData.keywords || []);
-      }
+      if (pendingData.success) setPendingKeywords(pendingData.keywords || []);
+      if (allData.success) setKeywords(allData.keywords || []);
     } catch (error) {
       console.error('Failed to load keywords:', error);
     } finally {
@@ -56,7 +51,6 @@ export default function KeywordManager({ onBack }) {
     }
   };
 
-  // 기사 기반 키워드 추출
   const extractKeywords = async () => {
     setExtracting(true);
     try {
@@ -70,69 +64,35 @@ export default function KeywordManager({ onBack }) {
         alert('키워드 추출 실패: ' + (data.error || '알 수 없는 오류'));
       }
     } catch (error) {
-      console.error('Failed to extract keywords:', error);
       alert('키워드 추출에 실패했습니다.');
     } finally {
       setExtracting(false);
     }
   };
 
+  const postAction = async (id, action) => {
+    const res = await fetch(`${apiBaseUrl}/api/trends`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    return res.json();
+  };
+
   const approveKeyword = async (id) => {
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/trends`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'approve' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        loadKeywords();
-      } else {
-        alert('승인 실패: ' + (data.error || '알 수 없는 오류'));
-      }
-    } catch (error) {
-      console.error('Failed to approve keyword:', error);
-      alert('승인 실패: ' + error.message);
-    }
+    const data = await postAction(id, 'approve');
+    if (data.success) loadKeywords();
   };
 
   const rejectKeyword = async (id) => {
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/trends`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'reject' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        loadKeywords();
-      } else {
-        alert('거부 실패: ' + (data.error || '알 수 없는 오류'));
-      }
-    } catch (error) {
-      console.error('Failed to reject keyword:', error);
-      alert('거부 실패: ' + error.message);
-    }
+    const data = await postAction(id, 'reject');
+    if (data.success) loadKeywords();
   };
 
   const deleteKeyword = async (id) => {
     if (!window.confirm('이 키워드를 삭제하시겠습니까?')) return;
-    try {
-      const res = await fetch(`${apiBaseUrl}/api/trends`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, action: 'delete' })
-      });
-      const data = await res.json();
-      if (data.success) {
-        loadKeywords();
-      } else {
-        alert('삭제 실패: ' + (data.error || '알 수 없는 오류'));
-      }
-    } catch (error) {
-      console.error('Failed to delete keyword:', error);
-      alert('삭제 실패: ' + error.message);
-    }
+    const data = await postAction(id, 'delete');
+    if (data.success) loadKeywords();
   };
 
   const addKeyword = async () => {
@@ -145,508 +105,409 @@ export default function KeywordManager({ onBack }) {
           action: 'add',
           keyword: newKeyword.trim(),
           keyword_ko: newKeywordKo.trim() || newKeyword.trim(),
-          category: newCategory
-        })
+          category: newCategory,
+        }),
       });
       const data = await res.json();
-      if (data.success) {
-        setNewKeyword('');
-        setNewKeywordKo('');
-        loadKeywords();
-      }
+      if (data.success) { setNewKeyword(''); setNewKeywordKo(''); loadKeywords(); }
     } catch (error) {
       console.error('Failed to add keyword:', error);
     }
   };
 
-  // 체크박스 선택 관련 함수
   const toggleSelect = (id) => {
     setSelectedIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === pendingKeywords.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(pendingKeywords.map(k => k.id)));
-    }
+    setSelectedIds(
+      selectedIds.size === pendingKeywords.length
+        ? new Set()
+        : new Set(pendingKeywords.map(k => k.id))
+    );
   };
 
-  // 일괄 승인
   const bulkApprove = async () => {
     if (selectedIds.size === 0) return;
     setBulkProcessing(true);
     try {
-      const promises = Array.from(selectedIds).map(id =>
-        fetch(`${apiBaseUrl}/api/trends`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, action: 'approve' })
-        })
-      );
-      await Promise.all(promises);
+      await Promise.all(Array.from(selectedIds).map(id => postAction(id, 'approve')));
       setSelectedIds(new Set());
       loadKeywords();
-    } catch (error) {
-      console.error('Failed to bulk approve:', error);
-      alert('일괄 승인 중 오류가 발생했습니다.');
-    } finally {
-      setBulkProcessing(false);
-    }
+    } catch { alert('일괄 승인 중 오류가 발생했습니다.'); }
+    finally { setBulkProcessing(false); }
   };
 
-  // 일괄 거부
   const bulkReject = async () => {
     if (selectedIds.size === 0) return;
     setBulkProcessing(true);
     try {
-      const promises = Array.from(selectedIds).map(id =>
-        fetch(`${apiBaseUrl}/api/trends`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, action: 'reject' })
-        })
-      );
-      await Promise.all(promises);
+      await Promise.all(Array.from(selectedIds).map(id => postAction(id, 'reject')));
       setSelectedIds(new Set());
       loadKeywords();
-    } catch (error) {
-      console.error('Failed to bulk reject:', error);
-      alert('일괄 거부 중 오류가 발생했습니다.');
-    } finally {
-      setBulkProcessing(false);
-    }
+    } catch { alert('일괄 거부 중 오류가 발생했습니다.'); }
+    finally { setBulkProcessing(false); }
   };
 
-  const getCategoryName = (categoryId) => {
-    const cat = categories.find(c => c.id === categoryId);
-    return cat ? cat.name : categoryId;
-  };
+  const getCategoryName = (id) => categories.find(c => c.id === id)?.name ?? id;
 
   const getTypeBadge = (type) => {
-    const typeInfo = keywordTypes.find(t => t.id === type);
-    if (!typeInfo) return null;
-    const Icon = typeInfo.icon;
-    const colorClasses = {
-      purple: 'bg-purple-100 text-purple-800',
-      green: 'bg-green-100 text-green-800',
-      orange: 'bg-orange-100 text-orange-800'
+    const info = keywordTypes.find(t => t.id === type);
+    if (!info) return null;
+    const Icon = info.icon;
+    const styles = {
+      purple: { background: '#ede9fe', color: '#6d28d9' },
+      green:  { background: '#dcfce7', color: '#15803d' },
+      orange: { background: '#ffedd5', color: '#c2410c' },
     };
     return (
-      <span className={`px-2 py-1 rounded-full text-xs flex items-center gap-1 ${colorClasses[typeInfo.color]}`}>
-        <Icon className="w-3 h-3" />
-        {typeInfo.name}
+      <span style={{ ...styles[info.color], display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600 }}>
+        <Icon size={10} /> {info.name}
       </span>
     );
   };
 
   const getScoreBadge = (score) => {
-    if (!score && score !== 0) return null;
-    let color = 'bg-gray-100 text-gray-600';
-    if (score >= 80) color = 'bg-green-100 text-green-800';
-    else if (score >= 60) color = 'bg-blue-100 text-blue-800';
-    else if (score >= 40) color = 'bg-yellow-100 text-yellow-800';
-    else color = 'bg-red-100 text-red-800';
-
-    return (
-      <span className={`px-2 py-1 rounded text-xs font-medium ${color}`}>
-        {score}점
-      </span>
-    );
+    if (score == null) return null;
+    const style =
+      score >= 80 ? { background: '#dcfce7', color: '#15803d' } :
+      score >= 60 ? { background: '#dbeafe', color: '#1d4ed8' } :
+      score >= 40 ? { background: '#fef9c3', color: '#a16207' } :
+                   { background: '#fee2e2', color: '#b91c1c' };
+    return <span style={{ ...style, padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{score}점</span>;
   };
 
   const getEntityTypeBadge = (entityType) => {
     if (!entityType) return null;
-    const labels = {
-      country: '국가',
-      organization: '기관',
-      company: '기업',
-      person: '인물',
-      concept: '개념',
-      trigger: '이벤트'
-    };
+    const labels = { country: '국가', organization: '기관', company: '기업', person: '인물', concept: '개념', trigger: '이벤트' };
     return (
-      <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded text-xs">
-        {labels[entityType] || entityType}
+      <span style={{ background: '#e0e7ff', color: '#3730a3', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+        {labels[entityType] ?? entityType}
       </span>
     );
   };
 
   const getStatusBadge = (status) => {
-    switch (status) {
-      case 'approved':
-        return <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">승인됨</span>;
-      case 'pending':
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">대기중</span>;
-      case 'rejected':
-        return <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">거부됨</span>;
-      default:
-        return null;
-    }
+    const map = {
+      approved: { bg: '#dcfce7', color: '#15803d', label: '승인됨' },
+      pending:  { bg: '#fef9c3', color: '#a16207', label: '대기중' },
+      rejected: { bg: '#fee2e2', color: '#b91c1c', label: '거부됨' },
+    };
+    const s = map[status];
+    return s ? <span style={{ background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 9999, fontSize: 11, fontWeight: 600 }}>{s.label}</span> : null;
   };
 
-  const filterKeywords = (list) => {
-    return list
+  const filterKeywords = (list) =>
+    list
       .filter(k => activeCategory === 'all' || k.category === activeCategory)
       .filter(k => activeType === 'all' || k.keyword_type === activeType);
-  };
+
+  const tabs = [
+    { id: 'pending',  label: '승인 대기', count: pendingKeywords.length },
+    { id: 'approved', label: '승인됨',    count: keywords.filter(k => k.status === 'approved').length },
+    { id: 'all',      label: '전체',      count: keywords.length },
+  ];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <ArrowLeft className="w-5 h-5" />
+    <div className="app-shell">
+
+      {/* ── 헤더 ── */}
+      <header className="app-header">
+        <div className="header-brand">
+          <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', borderRadius: 8, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+            <ArrowLeft size={20} />
           </button>
-          <h2 className="text-2xl font-bold">검색 키워드 관리</h2>
+          <span className="brand-emoji">🔑</span>
+          <div>
+            <h1 className="brand-title">검색 키워드 관리</h1>
+            <p className="brand-sub">BRM 뉴스 인텔리전스</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={extractKeywords}
             disabled={extracting}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 flex items-center gap-2"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', cursor: extracting ? 'not-allowed' : 'pointer', background: '#4f46e5', color: '#fff', fontSize: 13, fontWeight: 600, opacity: extracting ? 0.6 : 1 }}
           >
-            <TrendingUp className={`w-4 h-4 ${extracting ? 'animate-pulse' : ''}`} />
+            <TrendingUp size={14} className={extracting ? 'animate-pulse' : ''} />
             기사 분석
           </button>
           <button
             onClick={loadKeywords}
             disabled={loading}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 flex items-center gap-2"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border)', cursor: loading ? 'not-allowed' : 'pointer', background: 'var(--surface)', color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, opacity: loading ? 0.6 : 1 }}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} />
             새로고침
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* 새 키워드 추가 */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <h3 className="font-semibold mb-3">새 키워드 추가 (Anchor)</h3>
-        <div className="flex gap-2 flex-wrap">
-          <input
-            type="text"
-            placeholder="영문 키워드"
-            value={newKeyword}
-            onChange={(e) => setNewKeyword(e.target.value)}
-            className="px-3 py-2 border rounded-lg flex-1 min-w-[150px]"
-          />
-          <input
-            type="text"
-            placeholder="한국어 키워드 (선택)"
-            value={newKeywordKo}
-            onChange={(e) => setNewKeywordKo(e.target.value)}
-            className="px-3 py-2 border rounded-lg flex-1 min-w-[150px]"
-          />
-          <select
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            className="px-3 py-2 border rounded-lg"
-          >
-            {categories.map(cat => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          <button
-            onClick={addKeyword}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            추가
-          </button>
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '2rem 1.5rem', width: '100%' }}>
+
+        {/* ── 키워드 추가 카드 ── */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.25rem', marginBottom: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>새 키워드 추가 (Anchor)</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="영문 키워드"
+              value={newKeyword}
+              onChange={e => setNewKeyword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addKeyword()}
+              style={{ flex: '1 1 140px', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none', color: 'var(--text-primary)' }}
+            />
+            <input
+              type="text"
+              placeholder="한국어 키워드 (선택)"
+              value={newKeywordKo}
+              onChange={e => setNewKeywordKo(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addKeyword()}
+              style={{ flex: '1 1 140px', padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, outline: 'none', color: 'var(--text-primary)' }}
+            />
+            <select
+              value={newCategory}
+              onChange={e => setNewCategory(e.target.value)}
+              style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--text-primary)', background: 'var(--surface)' }}
+            >
+              {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </select>
+            <button
+              onClick={addKeyword}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'var(--accent)', color: '#fff', fontSize: 13, fontWeight: 600 }}
+            >
+              <Plus size={14} /> 추가
+            </button>
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>수동 추가된 키워드는 Anchor(고정) 타입으로 자동 삭제되지 않습니다.</p>
         </div>
-        <p className="text-xs text-gray-500 mt-2">
-          수동 추가된 키워드는 Anchor(고정) 타입으로 자동 삭제되지 않습니다.
-        </p>
-      </div>
 
-      {/* 메인 탭 */}
-      <div className="flex gap-2 mb-4 border-b">
-        <button
-          onClick={() => setActiveTab('pending')}
-          className={`px-4 py-2 font-medium ${activeTab === 'pending' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-        >
-          승인 대기 ({pendingKeywords.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('approved')}
-          className={`px-4 py-2 font-medium ${activeTab === 'approved' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-        >
-          승인됨 ({keywords.filter(k => k.status === 'approved').length})
-        </button>
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-4 py-2 font-medium ${activeTab === 'all' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500'}`}
-        >
-          전체 ({keywords.length})
-        </button>
-      </div>
+        {/* ── 탭 ── */}
+        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', marginBottom: '1.25rem' }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '10px 18px',
+                border: 'none',
+                borderBottom: activeTab === tab.id ? '2px solid var(--accent)' : '2px solid transparent',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {tab.label}
+              <span style={{ background: activeTab === tab.id ? '#dbeafe' : '#f1f5f9', color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-muted)', padding: '1px 7px', borderRadius: 9999, fontSize: 11, fontWeight: 700 }}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
 
-      {/* 키워드 목록 */}
-      {loading ? (
-        <div className="text-center py-8 text-gray-500">로딩 중...</div>
-      ) : (
-        <div className="space-y-2">
-          {/* 승인 대기 탭 */}
-          {activeTab === 'pending' && (
-            <>
-              {pendingKeywords.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  승인 대기 중인 키워드가 없습니다.
-                  <br />
-                  <span className="text-sm">"기사 분석" 버튼을 눌러 새 키워드를 추출하세요.</span>
+        {/* ── 컨텐츠 ── */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)', fontSize: 14 }}>
+            <RefreshCw size={24} style={{ margin: '0 auto 8px', display: 'block', animation: 'spin 1s linear infinite' }} />
+            로딩 중...
+          </div>
+        ) : (
+          <>
+            {/* 승인 대기 탭 */}
+            {activeTab === 'pending' && (
+              pendingKeywords.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 14, marginBottom: 6 }}>승인 대기 중인 키워드가 없습니다.</p>
+                  <p style={{ fontSize: 12 }}>"기사 분석" 버튼을 눌러 새 키워드를 추출하세요.</p>
                 </div>
               ) : (
-                <>
-                  {/* 일괄 작업 버튼 */}
-                  <div className="flex items-center justify-between p-3 bg-gray-100 rounded-lg mb-2">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={toggleSelectAll}
-                        className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
-                      >
-                        {selectedIds.size === pendingKeywords.length ? (
-                          <CheckSquare className="w-5 h-5 text-blue-600" />
-                        ) : (
-                          <Square className="w-5 h-5" />
-                        )}
-                        전체 선택
-                      </button>
-                      <span className="text-sm text-gray-500">
-                        {selectedIds.size > 0 ? `${selectedIds.size}개 선택됨` : ''}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* 일괄 작업 바 */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-sm)' }}>
+                    <button onClick={toggleSelectAll} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      {selectedIds.size === pendingKeywords.length
+                        ? <CheckSquare size={16} style={{ color: 'var(--accent)' }} />
+                        : <Square size={16} />}
+                      전체 선택
+                      {selectedIds.size > 0 && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{selectedIds.size}개 선택됨</span>}
+                    </button>
+                    <div style={{ display: 'flex', gap: 6 }}>
                       <button
                         onClick={bulkApprove}
                         disabled={selectedIds.size === 0 || bulkProcessing}
-                        className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, border: 'none', cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', background: '#16a34a', color: '#fff', fontSize: 12, fontWeight: 600, opacity: selectedIds.size === 0 ? 0.4 : 1 }}
                       >
-                        <Check className="w-4 h-4" />
-                        일괄 승인
+                        <Check size={13} /> 일괄 승인
                       </button>
                       <button
                         onClick={bulkReject}
                         disabled={selectedIds.size === 0 || bulkProcessing}
-                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-1 text-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, border: 'none', cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', background: '#dc2626', color: '#fff', fontSize: 12, fontWeight: 600, opacity: selectedIds.size === 0 ? 0.4 : 1 }}
                       >
-                        <X className="w-4 h-4" />
-                        일괄 거부
+                        <X size={13} /> 일괄 거부
                       </button>
                     </div>
                   </div>
 
-                  {/* 키워드 목록 */}
                   {pendingKeywords.map(kw => (
                     <div
                       key={kw.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedIds.has(kw.id)
-                          ? 'bg-blue-50 border-blue-300'
-                          : 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
-                      }`}
                       onClick={() => toggleSelect(kw.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '12px 14px',
+                        background: selectedIds.has(kw.id) ? '#eff6ff' : 'var(--surface)',
+                        border: `1px solid ${selectedIds.has(kw.id) ? '#93c5fd' : 'var(--border)'}`,
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        boxShadow: 'var(--shadow-sm)',
+                        transition: 'border-color .15s',
+                      }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0">
-                          {selectedIds.has(kw.id) ? (
-                            <CheckSquare className="w-5 h-5 text-blue-600" />
-                          ) : (
-                            <Square className="w-5 h-5 text-gray-400" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{kw.keyword}</span>
-                          {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
-                            <span className="text-gray-500">({kw.keyword_ko})</span>
-                          )}
-                          <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
-                          {getEntityTypeBadge(kw.entity_type)}
-                          {getScoreBadge(kw.total_score)}
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        {selectedIds.has(kw.id)
+                          ? <CheckSquare size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                          : <Square size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+                        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{kw.keyword}</span>
+                        {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>({kw.keyword_ko})</span>
+                        )}
+                        <span style={{ background: '#f1f5f9', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{getCategoryName(kw.category)}</span>
+                        {getEntityTypeBadge(kw.entity_type)}
+                        {getScoreBadge(kw.total_score)}
                       </div>
-                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => approveKeyword(kw.id)}
-                          className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                          title="승인"
-                        >
-                          <Check className="w-4 h-4" />
+                      <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => approveKeyword(kw.id)} title="승인" style={{ padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#16a34a', color: '#fff', display: 'flex', alignItems: 'center' }}>
+                          <Check size={14} />
                         </button>
-                        <button
-                          onClick={() => rejectKeyword(kw.id)}
-                          className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                          title="거부"
-                        >
-                          <X className="w-4 h-4" />
+                        <button onClick={() => rejectKeyword(kw.id)} title="거부" style={{ padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center' }}>
+                          <X size={14} />
                         </button>
-                        <button
-                          onClick={() => deleteKeyword(kw.id)}
-                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                          title="삭제"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                        <button onClick={() => deleteKeyword(kw.id)} title="삭제" style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', cursor: 'pointer', background: 'var(--surface)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
                   ))}
-                </>
-              )}
-            </>
-          )}
-
-          {/* 승인됨 탭 */}
-          {activeTab === 'approved' && (
-            <>
-              {/* 필터 */}
-              <div className="flex gap-4 mb-4 flex-wrap">
-                {/* 카테고리 필터 */}
-                <div className="flex gap-2 flex-wrap">
-                  <span className="text-sm text-gray-500 py-1">카테고리:</span>
-                  <button
-                    onClick={() => setActiveCategory('all')}
-                    className={`px-3 py-1 rounded-full text-sm ${activeCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                  >
-                    전체
-                  </button>
-                  {categories.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setActiveCategory(cat.id)}
-                      className={`px-3 py-1 rounded-full text-sm ${activeCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                    >
-                      {cat.name}
-                    </button>
-                  ))}
                 </div>
+              )
+            )}
 
-                {/* 타입 필터 */}
-                <div className="flex gap-2 flex-wrap">
-                  <span className="text-sm text-gray-500 py-1">타입:</span>
-                  <button
-                    onClick={() => setActiveType('all')}
-                    className={`px-3 py-1 rounded-full text-sm ${activeType === 'all' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                  >
-                    전체
-                  </button>
-                  {keywordTypes.map(type => (
-                    <button
-                      key={type.id}
-                      onClick={() => setActiveType(type.id)}
-                      className={`px-3 py-1 rounded-full text-sm ${activeType === type.id ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                    >
-                      {type.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 키워드 목록 */}
-              {filterKeywords(keywords.filter(k => k.status === 'approved')).map(kw => (
-                <div key={kw.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200 mb-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{kw.keyword}</span>
-                    {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
-                      <span className="text-gray-500">({kw.keyword_ko})</span>
-                    )}
-                    {activeCategory === 'all' && (
-                      <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
-                    )}
-                    {getTypeBadge(kw.keyword_type)}
-                    {getScoreBadge(kw.total_score)}
+            {/* 승인됨 탭 */}
+            {activeTab === 'approved' && (
+              <>
+                {/* 필터 */}
+                <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 12, boxShadow: 'var(--shadow-sm)', display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>카테고리</span>
+                    {[{ id: 'all', name: '전체' }, ...categories].map(cat => (
+                      <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
+                        style={{ padding: '4px 12px', borderRadius: 9999, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: activeCategory === cat.id ? 'var(--accent)' : '#f1f5f9', color: activeCategory === cat.id ? '#fff' : 'var(--text-secondary)' }}>
+                        {cat.name}
+                      </button>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => deleteKeyword(kw.id)}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
-                    title="삭제"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>타입</span>
+                    {[{ id: 'all', name: '전체' }, ...keywordTypes].map(t => (
+                      <button key={t.id} onClick={() => setActiveType(t.id)}
+                        style={{ padding: '4px 12px', borderRadius: 9999, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: activeType === t.id ? '#6d28d9' : '#f1f5f9', color: activeType === t.id ? '#fff' : 'var(--text-secondary)' }}>
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
 
-              {filterKeywords(keywords.filter(k => k.status === 'approved')).length === 0 && (
-                <div className="text-center py-8 text-gray-500">승인된 키워드가 없습니다.</div>
-              )}
-            </>
-          )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {filterKeywords(keywords.filter(k => k.status === 'approved')).map(kw => (
+                    <div key={kw.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-sm)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{kw.keyword}</span>
+                        {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>({kw.keyword_ko})</span>
+                        )}
+                        {activeCategory === 'all' && (
+                          <span style={{ background: '#f1f5f9', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{getCategoryName(kw.category)}</span>
+                        )}
+                        {getTypeBadge(kw.keyword_type)}
+                        {getScoreBadge(kw.total_score)}
+                      </div>
+                      <button onClick={() => deleteKeyword(kw.id)} title="삭제" style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #fecaca', cursor: 'pointer', background: '#fff', color: '#dc2626', display: 'flex', alignItems: 'center' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {filterKeywords(keywords.filter(k => k.status === 'approved')).length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--radius)', border: '1px solid var(--border)', fontSize: 14 }}>승인된 키워드가 없습니다.</div>
+                  )}
+                </div>
+              </>
+            )}
 
-          {/* 전체 탭 */}
-          {activeTab === 'all' && keywords.map(kw => (
-            <div key={kw.id} className={`flex items-center justify-between p-3 rounded-lg border ${
-              kw.status === 'approved' ? 'bg-green-50 border-green-200' :
-              kw.status === 'pending' ? 'bg-yellow-50 border-yellow-200' :
-              'bg-red-50 border-red-200'
-            }`}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium">{kw.keyword}</span>
-                {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
-                  <span className="text-gray-500">({kw.keyword_ko})</span>
-                )}
-                <span className="px-2 py-1 bg-gray-200 rounded text-xs">{getCategoryName(kw.category)}</span>
-                {getStatusBadge(kw.status)}
-                {getTypeBadge(kw.keyword_type)}
-                {getScoreBadge(kw.total_score)}
+            {/* 전체 탭 */}
+            {activeTab === 'all' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {keywords.map(kw => {
+                  const borderColor = kw.status === 'approved' ? '#bbf7d0' : kw.status === 'pending' ? '#fde68a' : '#fecaca';
+                  const bgColor    = kw.status === 'approved' ? '#f0fdf4'  : kw.status === 'pending' ? '#fefce8'  : '#fff1f2';
+                  return (
+                    <div key={kw.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-sm)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{kw.keyword}</span>
+                        {kw.keyword_ko && kw.keyword_ko !== kw.keyword && (
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>({kw.keyword_ko})</span>
+                        )}
+                        <span style={{ background: 'rgba(0,0,0,.06)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>{getCategoryName(kw.category)}</span>
+                        {getStatusBadge(kw.status)}
+                        {getTypeBadge(kw.keyword_type)}
+                        {getScoreBadge(kw.total_score)}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {kw.status === 'pending' && (
+                          <>
+                            <button onClick={() => approveKeyword(kw.id)} style={{ padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#16a34a', color: '#fff', display: 'flex', alignItems: 'center' }}>
+                              <Check size={14} />
+                            </button>
+                            <button onClick={() => rejectKeyword(kw.id)} style={{ padding: '6px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#dc2626', color: '#fff', display: 'flex', alignItems: 'center' }}>
+                              <X size={14} />
+                            </button>
+                          </>
+                        )}
+                        <button onClick={() => deleteKeyword(kw.id)} style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #fecaca', cursor: 'pointer', background: '#fff', color: '#dc2626', display: 'flex', alignItems: 'center' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex gap-2">
-                {kw.status === 'pending' && (
-                  <>
-                    <button
-                      onClick={() => approveKeyword(kw.id)}
-                      className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      title="승인"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => rejectKeyword(kw.id)}
-                      className="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      title="거부"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => deleteKeyword(kw.id)}
-                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg"
-                  title="삭제"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            )}
+          </>
+        )}
 
-      {/* 범례 */}
-      <div className="mt-6 pt-4 border-t">
-        <h4 className="text-sm font-medium text-gray-700 mb-2">키워드 타입 설명</h4>
-        <div className="flex gap-4 text-xs text-gray-600 flex-wrap">
-          <div className="flex items-center gap-1">
-            <Lock className="w-3 h-3 text-purple-600" />
-            <span><strong>Anchor(고정)</strong>: 수동 추가, 자동 삭제 안됨</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Zap className="w-3 h-3 text-green-600" />
-            <span><strong>Active(활성)</strong>: 높은 점수, 현재 트렌딩</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Eye className="w-3 h-3 text-orange-600" />
-            <span><strong>Watchlist(관찰)</strong>: 낮은 점수, 모니터링 중</span>
+        {/* ── 범례 ── */}
+        <div style={{ marginTop: '2rem', padding: '1rem 1.25rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-sm)' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10 }}>키워드 타입</p>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            {[
+              { Icon: Lock,  color: '#6d28d9', label: 'Anchor(고정)',    desc: '수동 추가, 자동 삭제 안됨' },
+              { Icon: Zap,   color: '#15803d', label: 'Active(활성)',    desc: '높은 점수, 현재 트렌딩' },
+              { Icon: Eye,   color: '#c2410c', label: 'Watchlist(관찰)', desc: '낮은 점수, 모니터링 중' },
+            ].map(({ Icon, color, label, desc }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+                <Icon size={13} style={{ color }} />
+                <strong style={{ color: 'var(--text-primary)' }}>{label}</strong>: {desc}
+              </div>
+            ))}
           </div>
         </div>
       </div>

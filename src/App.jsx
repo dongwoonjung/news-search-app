@@ -1072,29 +1072,42 @@ export default function GlobalNewsApp() {
           </div>
         </div>
 
-        {/* Group 2: 아카이브 */}
-        <div className="nav-group">
-          <span className="nav-group-label">아카이브</span>
-          <div className="nav-group-buttons">
-            <button
-              className={`nav-btn archive-btn${viewMode === 'archive' ? ' active' : ''}`}
-              onClick={viewArchive}
-            >
-              📂 아카이브 보기
-              {archivedArticles.length > 0 && (
-                <span className="nav-badge">{archivedArticles.length}</span>
-              )}
-            </button>
-            <button
-              className="nav-btn archive-save-btn"
-              onClick={archiveSelectedArticles}
-              disabled={selectedArticles.size === 0}
-            >
-              📚 선택 아카이브
-              {selectedArticles.size > 0 && (
-                <span className="nav-badge">{selectedArticles.size}</span>
-              )}
-            </button>
+        {/* Group 2: 아카이브 + 이슈 분석 */}
+        <div className="nav-group-row">
+          <div className="nav-group" style={{ flex: 1 }}>
+            <span className="nav-group-label">아카이브</span>
+            <div className="nav-group-buttons">
+              <button
+                className={`nav-btn archive-btn${viewMode === 'archive' ? ' active' : ''}`}
+                onClick={viewArchive}
+              >
+                📂 아카이브 보기
+                {archivedArticles.length > 0 && (
+                  <span className="nav-badge">{archivedArticles.length}</span>
+                )}
+              </button>
+              <button
+                className="nav-btn archive-save-btn"
+                onClick={archiveSelectedArticles}
+                disabled={selectedArticles.size === 0}
+              >
+                📚 선택 아카이브
+                {selectedArticles.size > 0 && (
+                  <span className="nav-badge">{selectedArticles.size}</span>
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="nav-group" style={{ flex: 1 }}>
+            <span className="nav-group-label">이슈 분석</span>
+            <div className="nav-group-buttons">
+              <button
+                className={`nav-btn issue-btn${viewMode === 'issue' ? ' active' : ''}`}
+                onClick={() => { setIssueArticleData(null); setViewMode('issue'); }}
+              >
+                📂 이슈별 분석 정리
+              </button>
+            </div>
           </div>
         </div>
 

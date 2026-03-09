@@ -221,11 +221,11 @@ async function handleAiSummary(req, res) {
       return res.status(400).json({ error: 'Source content is required' });
     }
 
-    const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+    const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
     const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
 
-    if (!OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'OpenAI API key not configured', fallback: true });
+    if (!ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'Anthropic API key not configured', fallback: true });
     }
 
     const isUrl = source.trim().startsWith('http://') || source.trim().startsWith('https://');
@@ -312,17 +312,20 @@ async function handleAiSummary(req, res) {
       }
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: '당신은 전문 뉴스 분석가입니다. 주어진 기사의 전체 내용을 빠짐없이 분석하여 포괄적이고 상세하게 요약하세요. 5-8개 문단으로 상세하게 구조화하여 작성하고, 한국어로 답변하세요.' },
-          { role: 'user', content: `다음 뉴스 기사의 전체 내용을 상세하게 요약해주세요:\n\n${contentToSummarize}` }
-        ],
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 2500,
-        temperature: 0.5
+        system: '당신은 전문 뉴스 분석가입니다. 주어진 기사의 전체 내용을 빠짐없이 분석하여 포괄적이고 상세하게 요약하세요. 5-8개 문단으로 상세하게 구조화하여 작성하고, 한국어로 답변하세요.',
+        messages: [
+          { role: 'user', content: `다음 뉴스 기사의 전체 내용을 상세하게 요약해주세요:\n\n${contentToSummarize}` }
+        ]
       })
     });
 
@@ -332,7 +335,7 @@ async function handleAiSummary(req, res) {
     }
 
     const data = await response.json();
-    return res.status(200).json({ success: true, summary: data.choices[0].message.content });
+    return res.status(200).json({ success: true, summary: data.content[0].text });
 
   } catch (error) {
     console.error('Error in AI summary:', error);
