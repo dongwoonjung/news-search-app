@@ -22,9 +22,8 @@ export default async function handler(req, res) {
       process.env.SUPABASE_ANON_KEY
     );
 
-    // 카테고리별 서브토픽 쿼리 (토픽 다양성 확보)
-    // 하나의 큰 쿼리 대신 여러 서브토픽을 병렬 검색하여 특정 이슈 독점 방지
-    const subTopicQueries = {
+    // 카테고리별 fallback 쿼리 (DB에 anchor 키워드가 없을 때 사용)
+    const fallbackQueries = {
       'geopolitics': [
         'Iran Israel Middle East war strike military',
         'China Taiwan semiconductor trade tensions',
@@ -56,6 +55,17 @@ export default async function handler(req, res) {
         'export control semiconductor technology restriction',
         'supply chain reshoring manufacturing trade policy'
       ]
+    };
+
+    // DB에서 카테고리별 anchor 키워드 조회 (approved + anchor 타입)
+    const getDbQueries = async (cat) => {
+      const { data } = await supabase
+        .from('search_keywords')
+        .select('keyword')
+        .eq('category', cat)
+        .eq('status', 'approved')
+        .eq('keyword_type', 'anchor');
+      return data && data.length > 0 ? data.map(k => k.keyword) : null;
     };
 
     const whenParam = timeRange === 'week' ? 'when:7d' : timeRange === '3day' ? 'when:3d' : 'when:1d';
@@ -117,46 +127,35 @@ export default async function handler(req, res) {
 
     let allItems = [];
 
-    // 카테고리 서브토픽 검색 (병렬)
-    if (category && !query && subTopicQueries[category]) {
-      const queries = subTopicQueries[category];
-      const perQuery = Math.ceil(parseInt(count) / queries.length) + 1;
+    // 카테고리 멀티쿼리 검색 (DB anchor 우선, 없으면 fallback)
+    if (category && !query) {
+      const dbQueries = await getDbQueries(category);
+      const queries = dbQueries || fallbackQueries[category];
 
-      console.log(`🔍 Google News multi-query for ${category}: ${queries.length} sub-topics`);
+      if (queries && queries.length > 0) {
+        const source = dbQueries ? '📚 DB anchor' : '⚙️ fallback';
+        const perQuery = Math.ceil(parseInt(count) / queries.length) + 1;
+        console.log(`🔍 Google News [${source}] for ${category}: ${queries.length} queries`);
 
-      const results = await Promise.allSettled(queries.map(q => fetchFeed(q)));
-
-      results.forEach((result, i) => {
-        if (result.status === 'fulfilled') {
-          const items = result.value.slice(0, perQuery);
-          allItems.push(...items);
-          console.log(`  ✅ Sub-topic ${i + 1}: ${items.length} articles`);
-        }
-      });
-
-    } else {
-      // 단일 쿼리 (직접 query 파라미터 or DB 키워드)
-      let searchQuery = query;
-
-      if (category && !query) {
-        const { data: keywords } = await supabase
-          .from('search_keywords')
-          .select('keyword')
-          .eq('category', category)
-          .eq('status', 'approved');
-
-        if (keywords && keywords.length > 0) {
-          searchQuery = keywords.map(k => k.keyword).join(' OR ');
-          console.log(`📚 Google News using DB keywords for ${category}: ${keywords.length} keywords`);
-        }
-      }
-
-      if (!searchQuery) {
+        const results = await Promise.allSettled(queries.map(q => fetchFeed(q)));
+        results.forEach((result, i) => {
+          if (result.status === 'fulfilled') {
+            const items = result.value.slice(0, perQuery);
+            allItems.push(...items);
+            console.log(`  ✅ Query ${i + 1}: ${items.length} articles`);
+          }
+        });
+      } else {
         return res.status(400).json({ success: false, error: 'Query or category parameter is required', articles: [] });
       }
 
-      console.log(`🔍 Google News single query: ${searchQuery}`);
-      allItems = await fetchFeed(searchQuery);
+    } else {
+      // 직접 query 파라미터 사용
+      if (!query) {
+        return res.status(400).json({ success: false, error: 'Query or category parameter is required', articles: [] });
+      }
+      console.log(`🔍 Google News single query: ${query}`);
+      allItems = await fetchFeed(query);
     }
 
     // URL 기준 중복 제거

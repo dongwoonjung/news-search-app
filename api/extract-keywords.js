@@ -94,6 +94,75 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, stats: summary });
     }
 
+    // anchor 키워드 seed (subTopicQueries → DB)
+    if (action === 'seed') {
+      const anchorQueries = {
+        'geopolitics': [
+          { en: 'Iran Israel Middle East war strike military',         ko: '이란 이스라엘 중동 전쟁 군사' },
+          { en: 'China Taiwan semiconductor trade tensions',           ko: '중국 대만 반도체 무역 긴장' },
+          { en: 'Russia Ukraine NATO Europe war',                      ko: '러시아 우크라이나 나토 유럽 전쟁' },
+          { en: 'Europe EU Germany France politics economy',           ko: 'EU 유럽 독일 프랑스 정치 경제' },
+          { en: 'Trump tariffs sanctions trade policy',                ko: '트럼프 관세 제재 무역정책' },
+        ],
+        'economy': [
+          { en: 'Federal Reserve interest rate inflation monetary policy', ko: '연준 금리 인플레이션 통화정책' },
+          { en: 'US economy GDP recession jobs employment',            ko: '미국 경제 GDP 경기침체 고용' },
+          { en: 'Stock market Wall Street financial markets',          ko: '주식시장 월가 금융시장' },
+          { en: 'Banking credit debt Treasury bond yield',            ko: '은행 신용 국채 채권 수익률' },
+        ],
+        'automotive': [
+          { en: 'electric vehicle EV battery technology',             ko: '전기차 EV 배터리 기술' },
+          { en: 'Tesla Hyundai Kia BYD auto sales',                   ko: '테슬라 현대차 기아 BYD 자동차 판매' },
+          { en: 'auto industry manufacturing supply chain',           ko: '자동차 산업 제조 공급망' },
+          { en: 'autonomous driving self-driving technology',         ko: '자율주행 기술' },
+        ],
+        'ai-tech': [
+          { en: 'OpenAI GPT ChatGPT new model release',               ko: 'OpenAI GPT 챗GPT 신규 모델' },
+          { en: 'Google Gemini DeepMind AI model',                    ko: '구글 제미나이 AI 모델' },
+          { en: 'Anthropic Claude AI',                                ko: 'Anthropic 클로드 AI' },
+          { en: 'artificial intelligence regulation policy',          ko: '인공지능 규제 정책' },
+        ],
+        'trade': [
+          { en: 'tariff import duty trade war protectionism',         ko: '관세 무역전쟁 보호무역' },
+          { en: 'FTA trade agreement WTO subsidy',                    ko: 'FTA 무역협정 WTO 보조금' },
+          { en: 'export control semiconductor technology restriction', ko: '수출규제 반도체 기술 제한' },
+          { en: 'supply chain reshoring manufacturing trade policy',  ko: '공급망 리쇼어링 제조 무역정책' },
+        ],
+      };
+
+      const inserted = [], skipped = [];
+      for (const [cat, queries] of Object.entries(anchorQueries)) {
+        for (const q of queries) {
+          // 이미 존재하는지 확인
+          const { data: existing } = await supabase
+            .from('search_keywords')
+            .select('id')
+            .eq('category', cat)
+            .eq('keyword', q.en)
+            .eq('keyword_type', 'anchor')
+            .maybeSingle();
+
+          if (existing) {
+            skipped.push(q.en);
+            continue;
+          }
+
+          await supabase.from('search_keywords').insert([{
+            keyword:      q.en,
+            keyword_ko:   q.ko,
+            category:     cat,
+            status:       'approved',
+            keyword_type: 'anchor',
+            source:       'manual_seed',
+            total_score:  100,
+            last_seen_at: new Date().toISOString(),
+          }]);
+          inserted.push(q.en);
+        }
+      }
+      return res.status(200).json({ success: true, inserted: inserted.length, skipped: skipped.length, insertedList: inserted });
+    }
+
     return res.status(400).json({ error: 'Invalid action' });
 
   } catch (error) {
