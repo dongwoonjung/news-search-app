@@ -1105,12 +1105,33 @@ export default function GlobalNewsApp() {
             </>
           )}
 
-          {/* 아카이버 섹션: 선택 아카이브 버튼 */}
-          {sidebarSection === 'archive' && selectedArticles.size > 0 && (
+          {/* 뉴스수집 섹션: 선택 아카이브 버튼 (기사 선택 시 표시) */}
+          {sidebarSection === 'news' && selectedArticles.size > 0 && (
             <div className="time-filter-bar">
               <button className="nav-btn archive-save-btn" onClick={archiveSelectedArticles}>
                 📚 선택 아카이브
                 <span className="nav-badge">{selectedArticles.size}</span>
+              </button>
+            </div>
+          )}
+
+          {/* 리포트 섹션: 데일리/종합요약 탭 */}
+          {sidebarSection === 'reports' && (
+            <div className="time-filter-bar">
+              <button
+                className={`time-btn${viewMode === 'reports' ? ' active' : ''}`}
+                onClick={() => { setViewMode('reports'); loadReports(); }}
+              >
+                📄 데일리 리포트
+              </button>
+              <button
+                className={`time-btn${viewMode === 'custom-reports' ? ' active' : ''}`}
+                onClick={() => { setViewMode('custom-reports'); loadCustomReports(); }}
+              >
+                📋 종합요약리포트
+                {reportSelectedArticles.size > 0 && (
+                  <span className="nav-badge">{reportSelectedArticles.size}</span>
+                )}
               </button>
             </div>
           )}

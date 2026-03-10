@@ -1,4 +1,5 @@
 {
+  "alias": ["newsapp-sable-two.vercel.app"],
   "rewrites": [
     {
       "source": "/api/:path*",
