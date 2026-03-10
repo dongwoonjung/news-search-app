@@ -996,28 +996,6 @@ export default function GlobalNewsApp() {
     }
   };
 
-  // Issue Analysis page
-  if (viewMode === 'issue') {
-    return <IssueAnalysis
-      onBack={() => {
-        setViewMode('general');
-        setIssueArticleData(null); // 뒤로 갈 때 데이터 초기화
-      }}
-      initialArticleData={issueArticleData}
-    />;
-  }
-
-  // Keyword Manager page
-  if (viewMode === 'keywords') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-6xl mx-auto">
-          <KeywordManager onBack={() => setViewMode('general')} />
-        </div>
-      </div>
-    );
-  }
-
   const categoryNames = {
     'geopolitics': '지정학',
     'economy': '미국 경제',
@@ -1027,6 +1005,22 @@ export default function GlobalNewsApp() {
     'daily': '데일리',
     'custom': '종합요약',
   };
+
+  // 사이드바 활성 섹션 결정
+  const sidebarSection =
+    ['home', 'general', 'automotive'].includes(viewMode) ? 'news' :
+    viewMode === 'archive'                                ? 'archive' :
+    viewMode === 'issue'                                  ? 'issue' :
+    viewMode === 'keywords'                               ? 'keywords' :
+    ['reports', 'custom-reports'].includes(viewMode)     ? 'reports' : 'news';
+
+  const sidebarItems = [
+    { id: 'news',     label: '뉴스수집',   emoji: '📰', onClick: () => setViewMode('home') },
+    { id: 'archive',  label: '아카이버',   emoji: '🗂', badge: archivedArticles.length, onClick: viewArchive },
+    { id: 'issue',    label: '이슈분석',   emoji: '🔍', onClick: () => { setIssueArticleData(null); setViewMode('issue'); } },
+    { id: 'keywords', label: '키워드관리', emoji: '🔑', onClick: () => setViewMode('keywords') },
+    { id: 'reports',  label: '리포트',     emoji: '📄', onClick: () => { setViewMode('reports'); loadReports(); } },
+  ];
 
   return (
     <div className="app-shell">
@@ -1047,122 +1041,79 @@ export default function GlobalNewsApp() {
         )}
       </header>
 
-      {/* ── 대시보드 네비게이션 ── */}
-      <nav className="dashboard-nav">
+      {/* ── 바디 (사이드바 + 메인) ── */}
+      <div className="app-body">
 
-        {/* Group 1: 뉴스 수집 */}
-        <div className="nav-group">
-          <span className="nav-group-label">뉴스 수집</span>
-          <div className="nav-group-buttons">
-            {categories.map(cat => {
-              const isActive =
-                (viewMode === 'general' && category === (cat.id === 'automotive-general' ? 'automotive' : cat.id)) ||
-                (viewMode === 'automotive' && cat.id === 'competitor');
-              return (
-                <button
-                  key={cat.id}
-                  className={`nav-btn cat-btn cat-${cat.id}${isActive ? ' active' : ''}`}
-                  onClick={() => handleCategoryClick(cat)}
-                >
-                  <span className="cat-emoji">{cat.emoji}</span>
-                  {cat.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Group 2: 아카이브 + 이슈 분석 */}
-        <div className="nav-group-row">
-          <div className="nav-group" style={{ flex: 1 }}>
-            <span className="nav-group-label">아카이브</span>
-            <div className="nav-group-buttons">
+        {/* ── 왼쪽 사이드바 ── */}
+        <aside className="sidebar">
+          <nav className="sidebar-nav">
+            {sidebarItems.map(item => (
               <button
-                className={`nav-btn archive-btn${viewMode === 'archive' ? ' active' : ''}`}
-                onClick={viewArchive}
+                key={item.id}
+                className={`sidebar-item${sidebarSection === item.id ? ' active' : ''}`}
+                onClick={item.onClick}
               >
-                📂 아카이브 보기
-                {archivedArticles.length > 0 && (
-                  <span className="nav-badge">{archivedArticles.length}</span>
-                )}
+                <span className="sidebar-item-emoji">{item.emoji}</span>
+                <span className="sidebar-item-label">{item.label}</span>
+                {item.badge > 0 && <span className="nav-badge">{item.badge}</span>}
               </button>
-              <button
-                className="nav-btn archive-save-btn"
-                onClick={archiveSelectedArticles}
-                disabled={selectedArticles.size === 0}
-              >
+            ))}
+          </nav>
+        </aside>
+
+        {/* ── 메인 콘텐츠 ── */}
+        <div className="main-content">
+
+          {/* 뉴스수집 섹션 상단 네비 */}
+          {sidebarSection === 'news' && (
+            <>
+              <nav className="dashboard-nav">
+                <div className="nav-group">
+                  <span className="nav-group-label">카테고리</span>
+                  <div className="nav-group-buttons">
+                    {categories.map(cat => {
+                      const isActive =
+                        (viewMode === 'general' && category === (cat.id === 'automotive-general' ? 'automotive' : cat.id)) ||
+                        (viewMode === 'automotive' && cat.id === 'competitor');
+                      return (
+                        <button
+                          key={cat.id}
+                          className={`nav-btn cat-btn cat-${cat.id}${isActive ? ' active' : ''}`}
+                          onClick={() => handleCategoryClick(cat)}
+                        >
+                          <span className="cat-emoji">{cat.emoji}</span>
+                          {cat.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </nav>
+
+              {/* 시간 필터 */}
+              {(viewMode === 'general' || viewMode === 'automotive') && (
+                <div className="time-filter-bar">
+                  <span className="time-filter-label">수집 기간</span>
+                  <button className={`time-btn${timeRange === 'day' ? ' active' : ''}`} onClick={() => handleTimeRange('day')}>하루 전</button>
+                  <button className={`time-btn${timeRange === 'week' ? ' active' : ''}`} onClick={() => handleTimeRange('week')}>일주일 전</button>
+                  <button onClick={() => viewMode === 'general' ? loadNews(category, timeRange) : loadAutomotiveNews(timeRange)} disabled={loading} className="refresh-btn">
+                    <RefreshCw className={`w-4 h-4${loading ? ' animate-spin' : ''}`} />
+                    새로고침
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 아카이버 섹션: 선택 아카이브 버튼 */}
+          {sidebarSection === 'archive' && selectedArticles.size > 0 && (
+            <div className="time-filter-bar">
+              <button className="nav-btn archive-save-btn" onClick={archiveSelectedArticles}>
                 📚 선택 아카이브
-                {selectedArticles.size > 0 && (
-                  <span className="nav-badge">{selectedArticles.size}</span>
-                )}
+                <span className="nav-badge">{selectedArticles.size}</span>
               </button>
             </div>
-          </div>
-          <div className="nav-group" style={{ flex: 1 }}>
-            <span className="nav-group-label">이슈 분석</span>
-            <div className="nav-group-buttons">
-              <button
-                className={`nav-btn issue-btn${viewMode === 'issue' ? ' active' : ''}`}
-                onClick={() => { setIssueArticleData(null); setViewMode('issue'); }}
-              >
-                📂 이슈별 분석 정리
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Group 3: 키워드 / 종합요약리포트 / 데일리 리포트 */}
-        <div className="nav-group-row">
-          <button
-            className={`nav-btn keyword-btn${viewMode === 'keywords' ? ' active' : ''}`}
-            onClick={() => setViewMode('keywords')}
-          >
-            🔑 키워드 관리
-          </button>
-          <button
-            className={`nav-btn custom-report-btn${viewMode === 'custom-reports' ? ' active' : ''}`}
-            onClick={() => { setViewMode('custom-reports'); loadCustomReports(); }}
-          >
-            📋 종합요약리포트
-            {reportSelectedArticles.size > 0 && (
-              <span className="nav-badge">{reportSelectedArticles.size}</span>
-            )}
-          </button>
-          <button
-            className={`nav-btn report-btn${viewMode === 'reports' ? ' active' : ''}`}
-            onClick={() => { setViewMode('reports'); loadReports(); }}
-          >
-            📄 데일리 리포트
-          </button>
-        </div>
-      </nav>
-
-      {/* ── 시간 필터 (뉴스 뷰에서만) ── */}
-      {(viewMode === 'general' || viewMode === 'automotive') && (
-        <div className="time-filter-bar">
-          <span className="time-filter-label">수집 기간</span>
-          <button
-            className={`time-btn${timeRange === 'day' ? ' active' : ''}`}
-            onClick={() => handleTimeRange('day')}
-          >
-            하루 전
-          </button>
-          <button
-            className={`time-btn${timeRange === 'week' ? ' active' : ''}`}
-            onClick={() => handleTimeRange('week')}
-          >
-            일주일 전
-          </button>
-          <button
-            onClick={() => viewMode === 'general' ? loadNews(category, timeRange) : loadAutomotiveNews(timeRange)}
-            disabled={loading}
-            className="refresh-btn"
-          >
-            <RefreshCw className={`w-4 h-4${loading ? ' animate-spin' : ''}`} />
-            새로고침
-          </button>
-        </div>
-      )}
+          )}
 
       {/* ── 컨텐츠 영역 ── */}
       <div className="content-area">
@@ -2309,7 +2260,24 @@ export default function GlobalNewsApp() {
             )}
           </div>
         )}
-      </div>
+        {/* 이슈분석 */}
+        {viewMode === 'issue' && (
+          <IssueAnalysis
+            onBack={() => { setViewMode('home'); setIssueArticleData(null); }}
+            initialArticleData={issueArticleData}
+          />
+        )}
+
+        {/* 키워드관리 */}
+        {viewMode === 'keywords' && (
+          <div style={{ padding: '1.5rem' }}>
+            <KeywordManager onBack={() => setViewMode('home')} />
+          </div>
+        )}
+
+      </div>{/* /content-area */}
+        </div>{/* /main-content */}
+      </div>{/* /app-body */}
 
       {/* AI 채팅 플로팅 버튼 */}
       <button
